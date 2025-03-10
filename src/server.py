@@ -3,6 +3,7 @@ matplotlib.use('Agg')  # Force non-GUI backend before importing pyplot
 
 import matplotlib.pyplot as plt
 import datetime
+from dateutil import parser  # Import this at the top
 import pytz
 from flask import Flask, request, send_file, jsonify
 from src.api import login, check_swim_lane_availability
@@ -28,11 +29,14 @@ TIME_SLOTS = [datetime.time(hour, minute).strftime("%I:%M %p").lstrip("0")
 
 
 def format_api_time(api_time):
-    """Convert API UTC time to Eastern Time and match TIME_SLOTS."""
-    utc_dt = datetime.datetime.fromisoformat(api_time[:-1])  # Strip 'Z' if present
-    utc_dt = utc_dt.replace(tzinfo=pytz.utc)  # Set timezone as UTC
-    et_dt = utc_dt.astimezone(pytz.timezone("America/New_York"))  # Convert to ET
-    return et_dt.strftime("%I:%M %p").lstrip("0")
+    """Convert API time to Eastern Time and match TIME_SLOTS."""
+    try:
+        utc_dt = parser.isoparse(api_time)  # Automatically handles timezones
+        et_dt = utc_dt.astimezone(pytz.timezone("America/New_York"))  # Convert to ET
+        return et_dt.strftime("%I:%M %p").lstrip("0")  # Match TIME_SLOTS format
+    except Exception as e:
+        print(f"Error parsing datetime: {api_time}, Error: {e}")
+        return None  # Return None to handle errors gracefully
 
 
 def get_availability(item_id, date_str):
