@@ -1,21 +1,19 @@
+import os
 import requests
 import json
-import os
 from datetime import datetime, timezone
+from dotenv import load_dotenv
 
-# Load configuration
-def load_config():
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'settings.json')
-    with open(config_path, 'r') as file:
-        return json.load(file)
+# Load environment variables from .env file (only in local development)
+if os.getenv("RENDER") is None:
+    load_dotenv()
 
-config = load_config()
-LOGIN_URL = config["api_url"]
-AVAILABILITY_URL = "https://www.ourclublogin.com/api/Scheduling/GetBookAvailability"
-USERNAME = config["username"]
-PASSWORD = config["password"]
-COMPANY_ID = config["company_id"]
-CUSTOMER_ID = config["customer_id"]
+# Load configuration from environment variables
+API_URL = os.getenv("API_URL")
+USERNAME = os.getenv("USERNAME")
+PASSWORD = os.getenv("PASSWORD")
+COMPANY_ID = os.getenv("COMPANY_ID")
+CUSTOMER_ID = os.getenv("CUSTOMER_ID")
 
 # Login function to get auth token
 def login():
@@ -30,24 +28,32 @@ def login():
         "UserLogin": USERNAME,
         "Pswd": PASSWORD
     }
-    
-    response = requests.post(LOGIN_URL, headers=headers, json=payload, verify=False)  # Bypass SSL issues
+    print(f"🔍 API_URL: {API_URL}")  # Add this before the request
+
+    response = requests.post(API_URL, headers=headers, json=payload, verify=False)
+
+    print(f"🔍 Response Status Code: {response.status_code}")
+    print(f"🔍 Response Text: {response.text}")  # Show the raw response
+
     
     if response.status_code == 200:
-        data = response.json()
-        
-        # Extract the token from the 'data' dictionary
-        token = data.get("data", {}).get("token")
-
-        if token:
-            print("✅ Login successful! Token retrieved.")
-            return token
-        else:
-            print("❌ Login failed: Token not found in response.")
+        try:
+            data = response.json()
+            token = data.get("data", {}).get("token")
+            if token:
+                print("✅ Login successful! Token retrieved.")
+                return token
+            else:
+                print("❌ Login failed: Token not found in response.")
+                return None
+        except json.JSONDecodeError:
+            print("❌ Error: Response is not valid JSON.")
             return None
     else:
-        print(f"❌ Login failed: {response.text}")
+        print(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
+
+
 
 # Function to check swim lane availability for a specific pool (Indoor or Outdoor)
 def check_swim_lane_availability(token, date_str, item_id):

@@ -14,5 +14,3 @@ __pycache__/
 .env
 *.log
 
-# Ignore config files with sensitive info
-config/settings.json
