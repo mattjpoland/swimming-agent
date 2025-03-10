@@ -14,6 +14,8 @@ USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 COMPANY_ID = os.getenv("COMPANY_ID")
 CUSTOMER_ID = os.getenv("CUSTOMER_ID")
+AVAILABILITY_URL = os.getenv("AVAILABILITY_URL")
+
 
 # Login function to get auth token
 def login():
