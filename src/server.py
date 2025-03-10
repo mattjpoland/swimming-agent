@@ -63,7 +63,7 @@ def get_availability(item_id, date_str):
 
 
 def generate_visualization(availability, pool_name, date_str):
-    """Generate and save the swim lane availability visualization with centered axes."""
+    """Generate and save the swim lane availability visualization with centered axes labels."""
     lanes = LANES_BY_POOL[pool_name]
 
     fig, ax = plt.subplots(figsize=(14, 8))
@@ -76,22 +76,25 @@ def generate_visualization(availability, pool_name, date_str):
             ax.add_patch(rect)
             ax.text(j + 0.5, i + 0.5, lane.split()[-1], ha="center", va="center", fontsize=9, color="white")
 
-    # Configure axes
-    ax.set_xlim(-0.5, len(TIME_SLOTS) - 0.5)  # Center the x-axis
-    ax.set_ylim(-0.5, len(lanes) - 0.5)  # Center the y-axis
+    # Correct Axis Limits (Prevent Offset)
+    ax.set_xlim(0, len(TIME_SLOTS))
+    ax.set_ylim(0, len(lanes))
+    
+    # Configure tick labels
     ax.set_xticks(range(len(TIME_SLOTS)))
     ax.set_xticklabels(TIME_SLOTS, fontsize=8, rotation=45, ha="right")
     ax.set_yticks(range(len(lanes)))
     ax.set_yticklabels(reversed(lanes), fontsize=10)  # Show lanes top-down
 
-    # Move x-axis labels to center
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_position(("outward", 10))
-    ax.spines["bottom"].set_position(("outward", 10))
+    # Center the x and y labels
+    ax.set_xlabel("Time Slots", fontsize=12, fontweight="bold", labelpad=10)
+    ax.set_ylabel("Lanes", fontsize=12, fontweight="bold", labelpad=10)
+    
+    # Move only the labels, NOT the entire grid
+    ax.xaxis.set_label_coords(0.5, -0.08)  # Center x-label
+    ax.yaxis.set_label_coords(-0.08, 0.5)  # Center y-label
 
-    ax.set_xlabel("Time Slots", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Lanes", fontsize=12, fontweight="bold")
+    # Set title
     ax.set_title(f"{pool_name} Availability for {date_str}", fontsize=14, fontweight="bold")
 
     plt.tight_layout()
@@ -104,6 +107,7 @@ def generate_visualization(availability, pool_name, date_str):
     plt.close(fig)  # Close the figure to free memory
 
     return img_io
+
 
 
 @app.route("/availability", methods=["GET"])
