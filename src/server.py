@@ -9,7 +9,6 @@ from flask import Flask, request, send_file, jsonify
 from src.api import login, check_swim_lane_availability
 import io
 
-
 app = Flask(__name__)
 
 # Constants
@@ -27,7 +26,6 @@ ITEMS = {
 TIME_SLOTS = [datetime.time(hour, minute).strftime("%I:%M %p").lstrip("0")
               for hour in range(8, 22) for minute in (0, 30)]
 
-
 def format_api_time(api_time):
     """Convert API time to Eastern Time and match TIME_SLOTS."""
     try:
@@ -37,7 +35,6 @@ def format_api_time(api_time):
     except Exception as e:
         print(f"Error parsing datetime: {api_time}, Error: {e}")
         return None  # Return None to handle errors gracefully
-
 
 def get_availability(item_id, date_str):
     """Fetch availability data for a given pool type and date."""
@@ -61,13 +58,15 @@ def get_availability(item_id, date_str):
 
     return availability
 
-
 def generate_visualization(availability, pool_name, date_str):
-    """Generate and save the swim lane availability visualization with centered axes labels."""
+    """Generate and save the swim lane availability visualization with a clean reset."""
     lanes = LANES_BY_POOL[pool_name]
+    num_lanes = len(lanes)
+    num_times = len(TIME_SLOTS)
 
     fig, ax = plt.subplots(figsize=(14, 8))
 
+    # Draw the table cells
     for i, lane in enumerate(reversed(lanes)):  # Reverse for top-down display
         for j, time in enumerate(TIME_SLOTS):
             is_available = lane in availability.get(time, [])
@@ -76,26 +75,30 @@ def generate_visualization(availability, pool_name, date_str):
             ax.add_patch(rect)
             ax.text(j + 0.5, i + 0.5, lane.split()[-1], ha="center", va="center", fontsize=9, color="white")
 
-    # Correct Axis Limits (Prevent Offset)
-    ax.set_xlim(0, len(TIME_SLOTS))
-    ax.set_ylim(0, len(lanes))
-    
-    # Configure tick labels
-    ax.set_xticks(range(len(TIME_SLOTS)))
-    ax.set_xticklabels(TIME_SLOTS, fontsize=8, rotation=45, ha="right")
-    ax.set_yticks(range(len(lanes)))
-    ax.set_yticklabels(reversed(lanes), fontsize=10)  # Show lanes top-down
+    # ✅ Keep Grid Aligned (Prevent Shifting)
+    ax.set_xlim(0, num_times)
+    ax.set_ylim(0, num_lanes)
 
-    # Center the x and y labels
-    ax.set_xlabel("Time Slots", fontsize=12, fontweight="bold", labelpad=10)
-    ax.set_ylabel("Lanes", fontsize=12, fontweight="bold", labelpad=10)
-    
-    # Move only the labels, NOT the entire grid
-    ax.xaxis.set_label_coords(0.5, -0.08)  # Center x-label
-    ax.yaxis.set_label_coords(-0.08, 0.5)  # Center y-label
+    # ✅ Standard Tick Labels
+    ax.set_xticks(range(num_times))
+    ax.set_xticklabels(TIME_SLOTS, fontsize=8, rotation=45, ha="center")
 
-    # Set title
-    ax.set_title(f"{pool_name} Availability for {date_str}", fontsize=14, fontweight="bold")
+    ax.set_yticks(range(num_lanes))
+    ax.set_yticklabels(reversed(lanes), fontsize=10, va="center")
+
+    # Adjust subplot parameters to center the axes
+    plt.subplots_adjust(left=0.15, right=0.85, top=0.85, bottom=0.15)
+
+    # ✅ Standard Axis Labels (No Offset Adjustments)
+    ax.set_xlabel("Time Slots", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Lanes", fontsize=14, fontweight="bold")
+
+    # ✅ Standard Title Placement
+    ax.set_title(f"{pool_name} Availability for {date_str}", fontsize=16, fontweight="bold")
+
+    # ✅ Default Spines and Gridlines
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
     plt.tight_layout()
 
@@ -125,6 +128,7 @@ def get_swim_lane_availability():
     img_io = generate_visualization(availability, pool_name, date_str)
     return send_file(img_io, mimetype="image/png")
 
-
 if __name__ == "__main__":
+    print("Debug URL: http://127.0.0.1:5000/availability?pool=Indoor%20Pool")
+    print("Deploy URL: https://swimming-agent.onrender.com/availability?pool=Indoor%20Pool")
     app.run(host="0.0.0.0", port=5000, debug=True)
