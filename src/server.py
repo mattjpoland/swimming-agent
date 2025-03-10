@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import datetime
 import pytz
 from flask import Flask, request, send_file
-from api import login, check_swim_lane_availability
+from src.api import login, check_swim_lane_availability
 import io
 
 
