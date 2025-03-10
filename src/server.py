@@ -4,7 +4,7 @@ matplotlib.use('Agg')  # Force non-GUI backend before importing pyplot
 import matplotlib.pyplot as plt
 import datetime
 import pytz
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 from src.api import login, check_swim_lane_availability
 import io
 
@@ -22,15 +22,17 @@ ITEMS = {
     "Indoor Pool": 366
 }
 
-TIME_SLOTS = [f"{hour % 12 or 12}:{minute:02d} {'AM' if hour < 12 else 'PM'}"
+# Define correct time slots (Eastern Time)
+TIME_SLOTS = [datetime.time(hour, minute).strftime("%I:%M %p").lstrip("0")
               for hour in range(8, 22) for minute in (0, 30)]
 
 
 def format_api_time(api_time):
-    """Convert API datetime format to match TIME_SLOTS."""
-    dt = datetime.datetime.fromisoformat(api_time[:-6])  # Remove timezone offset
-    dt = dt.astimezone(pytz.timezone("America/New_York"))  # Convert to local Eastern Time
-    return dt.strftime("%I:%M %p").lstrip("0")  # Ensure no leading zero
+    """Convert API UTC time to Eastern Time and match TIME_SLOTS."""
+    utc_dt = datetime.datetime.fromisoformat(api_time[:-1])  # Strip 'Z' if present
+    utc_dt = utc_dt.replace(tzinfo=pytz.utc)  # Set timezone as UTC
+    et_dt = utc_dt.astimezone(pytz.timezone("America/New_York"))  # Convert to ET
+    return et_dt.strftime("%I:%M %p").lstrip("0")
 
 
 def get_availability(item_id, date_str):
@@ -57,12 +59,12 @@ def get_availability(item_id, date_str):
 
 
 def generate_visualization(availability, pool_name, date_str):
-    """Generate and save the swim lane availability visualization."""
+    """Generate and save the swim lane availability visualization with centered axes."""
     lanes = LANES_BY_POOL[pool_name]
 
     fig, ax = plt.subplots(figsize=(14, 8))
 
-    for i, lane in enumerate(lanes):
+    for i, lane in enumerate(reversed(lanes)):  # Reverse for top-down display
         for j, time in enumerate(TIME_SLOTS):
             is_available = lane in availability.get(time, [])
             color = "green" if is_available else "red"
@@ -71,13 +73,21 @@ def generate_visualization(availability, pool_name, date_str):
             ax.text(j + 0.5, i + 0.5, lane.split()[-1], ha="center", va="center", fontsize=9, color="white")
 
     # Configure axes
-    ax.set_xlim(0, len(TIME_SLOTS))
-    ax.set_ylim(0, len(lanes))
+    ax.set_xlim(-0.5, len(TIME_SLOTS) - 0.5)  # Center the x-axis
+    ax.set_ylim(-0.5, len(lanes) - 0.5)  # Center the y-axis
     ax.set_xticks(range(len(TIME_SLOTS)))
-    ax.set_xticklabels(TIME_SLOTS, fontsize=8, rotation=45)
+    ax.set_xticklabels(TIME_SLOTS, fontsize=8, rotation=45, ha="right")
     ax.set_yticks(range(len(lanes)))
-    ax.set_yticklabels(lanes, fontsize=10)
+    ax.set_yticklabels(reversed(lanes), fontsize=10)  # Show lanes top-down
 
+    # Move x-axis labels to center
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_position(("outward", 10))
+    ax.spines["bottom"].set_position(("outward", 10))
+
+    ax.set_xlabel("Time Slots", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Lanes", fontsize=12, fontweight="bold")
     ax.set_title(f"{pool_name} Availability for {date_str}", fontsize=14, fontweight="bold")
 
     plt.tight_layout()
