@@ -90,11 +90,13 @@ def book_swim_lane(token, appointment_date_time, duration, location, lane):
         "CancellationAppointmentId": 0
     }
 
+    print(f"📅 Booking swim lane for {location} {lane} for {duration} on {appointment_date_time}")
     response = requests.post(url, headers=headers, json=payload, verify=False)
 
     if response.status_code == 200:
         return response.json(), response.status_code
     else:
+        print(f"❌ Booking request failed: {response.text}")
         return {"error": "Booking request failed"}, response.status_code
 
 def cancel_appointment(token, appointment_id):
