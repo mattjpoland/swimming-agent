@@ -31,7 +31,7 @@ def get_swim_lane_availability():
 @app.route("/appointments", methods=["GET"])
 def get_user_appointments():
     """ API Endpoint to return scheduled swim lane appointments for a given date. """
-    date_str = request.args.get("date", datetime.datetime.now().strftime("%Y-%m-%d"))
+    date_str = request.args.get("date")
     
     print(f"Fetching appointments for {date_str}")
     response, status_code = get_appointments_schedule_action(date_str)
