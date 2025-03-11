@@ -21,7 +21,7 @@ def get_appointments_schedule_action(date_str):
     print(f"Fetching appointments between {start_date} and {end_date}")
     appointments, status_code = get_appointments_schedule(token, start_date.isoformat(), end_date.isoformat())
 
-    if status_code != 200 or not appointments:
+    if status_code != 200:
         return {"message": "Error retrieving swim lane information."}, status_code
 
     if appointments:
