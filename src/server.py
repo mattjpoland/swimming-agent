@@ -36,7 +36,14 @@ def get_user_appointments():
             pool_name = appointment.get("ClubName", "Unknown Pool")
             booked_resources = appointment.get("BookedResources", [])
             lane = booked_resources[0] if booked_resources else "Unknown Lane"
-            time = appointment.get("StartDateTime", "Unknown Time")
+            time_str = appointment.get("StartDateTime", "Unknown Time")
+            
+            # Parse and format the time
+            try:
+                time = datetime.datetime.fromisoformat(time_str).strftime("%I:%M %p")
+            except ValueError:
+                time = "Unknown Time"
+            
             message = f"You have {lane} at {time} today."
         else:
             message = "You do not have a swim lane today."
