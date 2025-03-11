@@ -44,19 +44,24 @@ def get_availability(item_id, date_str):
 
     data = check_swim_lane_availability(token, date_str, item_id)
 
-    availability = {time: [] for time in TIME_SLOTS}  # Initialize all time slots
+    # Initialize all time slots as unavailable
+    availability = {time: [] for time in TIME_SLOTS}
 
-    if data and "Availability" in data:
-        for slot in data["Availability"][0]["AvailableTimes"]:
-            formatted_time = format_api_time(slot["StartDateTime"])
+    # ✅ Handle case where Availability is missing or empty
+    if not data or "Availability" not in data or not data["Availability"]:
+        print(f"⚠️ No availability data returned for ItemId {item_id} on {date_str}")
+        return availability  # Return empty availability instead of breaking
 
-            if formatted_time in availability:
-                for lane_group in slot["PossibleBookSelections"]:
-                    for lane in lane_group:
-                        lane_name = lane["Name"]
-                        availability[formatted_time].append(lane_name)
+    for slot in data["Availability"][0]["AvailableTimes"]:
+        formatted_time = format_api_time(slot["StartDateTime"])
+        if formatted_time in availability:
+            for lane_group in slot["PossibleBookSelections"]:
+                for lane in lane_group:
+                    lane_name = lane["Name"]
+                    availability[formatted_time].append(lane_name)
 
     return availability
+
 
 def generate_visualization(availability, pool_name, date_str):
     """Generate and save the swim lane availability visualization with a clean reset."""
