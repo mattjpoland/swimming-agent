@@ -21,15 +21,12 @@ def get_appointments_schedule(token, start_date, end_date):
         "Authorization": f"Bearer {token}"
     }
 
-    # Localize the start and end dates to Eastern Time
-    eastern = pytz.timezone('US/Eastern')
-    start_date = eastern.localize(datetime.datetime.strptime(start_date, "%Y-%m-%d"))
-    end_date = eastern.localize(datetime.datetime.strptime(end_date, "%Y-%m-%d"))
+
 
     payload = {
         "ClubId": 2,  # Michigan Athletic Club
-        "StartDate": start_date.isoformat(),
-        "EndDate": end_date.isoformat()
+        "StartDate": start_date,
+        "EndDate": end_date
     }
 
     response = requests.post(SCHEDULING_URL, headers=headers, json=payload, verify=False)
