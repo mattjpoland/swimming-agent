@@ -1,7 +1,7 @@
 from src.constants import TIME_SLOTS, ITEMS
-from src.api.availability import check_swim_lane_availability  # Import swim lane function
+from src.api.availabilityGateway import check_swim_lane_availability  # Import swim lane function
 from dateutil import parser  # Import this at the top
-from src.api.login import login
+from src.api.loginGateway import login
 import pytz
 
 

@@ -23,6 +23,59 @@ ITEMS = {
     "Indoor Pool": 366
 }
 
+APPOINTMENT_ITEMS = {
+    "60 Min Outdoor Lane Reservation": 364,        
+    "30 Min Outdoor Lane Reservation": 359,
+    "60 Min Indoor Lane Reservation": 367,
+    "30 Min Indoor Lane Reservation": 366
+}
+
+ASSIGNED_RESOURCE_IDS = {
+    "60 Min Outdoor": 45,
+    "30 Min Outdoor": 43,
+    "60 Min Indoor": 60,
+    "30 Min Indoor": 1996
+}
+
+RESOURCE_TYPE_IDS = {
+    "Outdoor Pool": 6,
+    "Indoor Pool": 5
+}
+
+DURATION_IDS = {
+    "30 Min": 1,
+    "60 Min": 2
+}
+
+LOCATION_SHORT_NAMES = {
+    "Indoor Pool": "Indoor",
+    "Outdoor Pool": "Outdoor"
+}
+
+BOOK_SELECTION_IDS = {
+    "Indoor Lane 1": 35,
+    "Indoor Lane 2": 41, 
+    "Indoor Lane 3": 45,
+    "Indoor Lane 4": 46,
+    "Indoor Lane 5": 51,
+    "Indoor Lane 6": 55,
+    "Outdoor Lane 1": 16,
+    "Outdoor Lane 2": 19,
+    "Outdoor Lane 3": 20,
+    "Outdoor Lane 4": 21,
+    "Outdoor Lane 5": 22,
+    "Outdoor Lane 6": 23
+}
+
+LANES = {
+    "Lane 1": 1,
+    "Lane 2": 2,
+    "Lane 3": 3,
+    "Lane 4": 4,
+    "Lane 5": 5,
+    "Lane 6": 6
+}
+
 # Define correct time slots (Eastern Time)
 TIME_SLOTS = [datetime.time(hour, minute).strftime("%I:%M %p").lstrip("0")
               for hour in range(8, 22) for minute in (0, 30)]

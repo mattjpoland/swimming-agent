@@ -1,8 +1,8 @@
 import datetime
 from flask import Flask, request, send_file, jsonify
 from src.drawing.visualize import generate_visualization
-from src.logic.availability import get_availability
-from src.logic.scheduling import get_scheduled_appointments  # ✅ Import logic layer
+from src.logic.availabilityService import get_availability
+from src.logic.schedulingService import get_appointments_schedule_action, book_swim_lane_action, cancel_appointment_action
 app = Flask(__name__)
 from src.constants import ITEMS
 
@@ -24,33 +24,36 @@ def get_swim_lane_availability():
 @app.route("/appointments", methods=["GET"])
 def get_user_appointments():
     """ API Endpoint to return scheduled swim lane appointments for a given date range. """
-    start_date = request.args.get("start_date", datetime.datetime.now().strftime("%Y-%m-%d"))
-    end_date = request.args.get("end_date", start_date)  # Default to same day if not provided
+    start_date_str = request.args.get("start_date", datetime.datetime.now().strftime("%Y-%m-%d"))
+    end_date_str = request.args.get("end_date", (datetime.datetime.strptime(start_date_str, "%Y-%m-%d") + datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
 
-    response, status_code = get_scheduled_appointments(start_date, end_date)
+    response, status_code = get_appointments_schedule_action(start_date_str, end_date_str)
     
-    if status_code == 200:
-        appointments = response
-        if appointments:
-            appointment = appointments[0]  # Assuming only one appointment per day
-            pool_name = appointment.get("ClubName", "Unknown Pool")
-            booked_resources = appointment.get("BookedResources", [])
-            lane = booked_resources[0] if booked_resources else "Unknown Lane"
-            time_str = appointment.get("StartDateTime", "Unknown Time")
-            
-            # Parse and format the time
-            try:
-                time = datetime.datetime.fromisoformat(time_str).strftime("%I:%M %p")
-            except ValueError:
-                time = "Unknown Time"
-            
-            message = f"You have {lane} at {time}."
-        else:
-            message = "You do not have a swim lane."
-    else:
-        message = "Error retrieving swim lane information."
+    return jsonify(response), status_code
 
-    return jsonify({"message": message}), status_code
+@app.route("/book", methods=["POST"])
+def book_lane():
+    """ API Endpoint to book a swim lane. """
+    data = request.json
+    
+    start_date = data.get("start_date")
+    duration = data.get("duration")
+    location = data.get("location")
+    lane = data.get("lane")
+
+    response, status_code = book_swim_lane_action(start_date, duration, location, lane)
+    
+    return jsonify(response), status_code
+
+@app.route("/cancel", methods=["POST"])
+def cancel_lane():
+    """ API Endpoint to cancel a swim lane appointment. """
+    data = request.json
+    appointment_date = data.get("date")
+
+    response, status_code = cancel_appointment_action(appointment_date)
+    
+    return jsonify(response), status_code
 
 if __name__ == "__main__":
     print("Debug URL: http://127.0.0.1:5000/appointments?start_date=2025-01-05")
