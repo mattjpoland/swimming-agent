@@ -58,6 +58,8 @@ def book_lane():
         if duration.isdigit():
             duration = f"{duration} Min"
 
+        print(f"Booking {location} {lane} for {duration} at {time} on {date}")
+
         response, status_code = book_swim_lane_action(date, time, duration, location, lane)
         
         return jsonify(response)
