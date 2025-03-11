@@ -1,23 +1,14 @@
-import os
 import requests
 import json
+import os
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from src.constants import TOKEN_CACHE_FILE, COMPANY_ID, CUSTOMER_ID, USERNAME, PASSWORD, LOGIN_URL
 
-TOKEN_CACHE_FILE = "token_cache.json"  # File to store token locally
 
-# Load environment variables from .env file (only in local development)
+# Load environment variables
 if os.getenv("RENDER") is None:
     load_dotenv()
-
-# Load configuration from environment variables
-API_URL = os.getenv("API_URL")
-USERNAME = os.getenv("USERNAME")
-PASSWORD = os.getenv("PASSWORD")
-COMPANY_ID = os.getenv("COMPANY_ID")
-CUSTOMER_ID = os.getenv("CUSTOMER_ID")
-AVAILABILITY_URL = os.getenv("AVAILABILITY_URL")
-
 
 def load_cached_token():
     """Load the cached token from a file if it exists and is still valid."""
@@ -67,9 +58,9 @@ def login():
         "Pswd": PASSWORD
     }
 
-    print(f"🔍 API_URL: {API_URL}")
+    print(f"🔍 Logging in via: {LOGIN_URL}")
 
-    response = requests.post(API_URL, headers=headers, json=payload, verify=False)
+    response = requests.post(LOGIN_URL, headers=headers, json=payload, verify=False)
 
     print(f"🔍 Response Status Code: {response.status_code}")
     
@@ -77,7 +68,7 @@ def login():
         try:
             data = response.json()
             token = data.get("data", {}).get("token")
-            expiration = data.get("data", {}).get("tokenExpiration")  # Assuming response contains an expiration field
+            expiration = data.get("data", {}).get("expiration")  # Assuming response contains an expiration field
 
             if token and expiration:
                 print("✅ Login successful! Token retrieved.")
@@ -93,35 +84,8 @@ def login():
         print(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
-
-def check_swim_lane_availability(token, date_str, item_id):
-    """Fetch swim lane availability using the cached or newly obtained token."""
-    headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
-        "x-companyid": COMPANY_ID,
-        "x-customerid": CUSTOMER_ID,
-        "Authorization": f"Bearer {token}"
-    }
-
-    payload = {
-        "ClubId": 2,  # Michigan Athletic Club
-        "PrimaryCustomerId": int(CUSTOMER_ID),
-        "AdditionalCustomerIds": [],
-        "ItemId": item_id,
-        "JsonSelectedBook": "null",
-        "StartDate": f"{date_str}T05:00:00.000Z",
-        "EndDate": f"{date_str}T05:00:00.000Z"
-    }
-
-    response = requests.post(AVAILABILITY_URL, headers=headers, json=payload, verify=False)
-
-    if response.status_code == 200:
-        print(f"✅ Successfully retrieved availability for ItemId {item_id}!")
-        return response.json()
-    else:
-        print(f"❌ Failed to fetch availability for ItemId {item_id}: {response.text}")
         return None
+
 
 
 # Main script execution
@@ -132,15 +96,4 @@ if __name__ == "__main__":
         # Get today's date in YYYY-MM-DD format
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-        # Fetch both Indoor and Outdoor pool availability
-        indoor_availability = check_swim_lane_availability(auth_token, today_str, 366)  # Indoor Pool
-        outdoor_availability = check_swim_lane_availability(auth_token, today_str, 359)  # Outdoor Pool
 
-        # Print the JSON responses for verification
-        if indoor_availability:
-            print("\n🏊 Indoor Pool Availability:")
-            print(json.dumps(indoor_availability, indent=2))
-
-        if outdoor_availability:
-            print("\n🌞 Outdoor Pool Availability:")
-            print(json.dumps(outdoor_availability, indent=2))
