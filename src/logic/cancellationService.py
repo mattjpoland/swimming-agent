@@ -10,9 +10,15 @@ def cancel_appointment_action(appointment_date):
     if not token:
         return {"message": "Authentication failed"}, 401
 
+    
+    # Localize the date to Eastern Time
+    eastern = pytz.timezone('US/Eastern')
+    date = datetime.datetime.strptime(appointment_date, "%Y-%m-%d")
+    start_date = eastern.localize(date.replace(hour=0, minute=0, second=0))
+    end_date = eastern.localize(date.replace(hour=23, minute=59, second=59))
+    
     # Fetch appointments for the given date
-    start_date = appointment_date
-    end_date = (datetime.datetime.strptime(appointment_date, "%Y-%m-%d") + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    print(f"Fetching appointments between {start_date} and {end_date}")
     appointments, status_code = get_appointments_schedule(token, start_date, end_date)
 
     if status_code != 200 or not appointments:
