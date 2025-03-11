@@ -3,7 +3,7 @@ import datetime
 
 BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 AVAILABILITY_URL = f"{BASE_MAC_URL}Scheduling/GetBookAvailability"
-LOGIN_URL = f"{BASE_MAC_URL}login"
+LOGIN_URL = f"{BASE_MAC_URL}CustomerAuth/CustomerLogin"
 
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")

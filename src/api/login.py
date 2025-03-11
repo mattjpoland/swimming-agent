@@ -68,7 +68,7 @@ def login():
         try:
             data = response.json()
             token = data.get("data", {}).get("token")
-            expiration = data.get("data", {}).get("expiration")  # Assuming response contains an expiration field
+            expiration = data.get("data", {}).get("tokenExpiration")  # Assuming response contains an expiration field
 
             if token and expiration:
                 print("✅ Login successful! Token retrieved.")

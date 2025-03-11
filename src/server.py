@@ -41,12 +41,14 @@ def get_user_appointments():
         else:
             message = "You do not have a swim lane today."
     else:
-        message = "You do not have a swim lane today."
+        message = "Error retrieving swim lane information."
 
     return jsonify({"message": message}), status_code
 
 if __name__ == "__main__":
     print("Debug URL: http://127.0.0.1:5000/appointments?start_date=2025-01-05")
+    print("Deploy URL: https://swimming-agent.onrender.com/appointments?start_date=2025-01-05")
+
     print("Debug URL: http://127.0.0.1:5000/availability?pool=Indoor%20Pool")
     print("Deploy URL: https://swimming-agent.onrender.com/availability?pool=Indoor%20Pool")
     app.run(host="0.0.0.0", port=5000, debug=True)
