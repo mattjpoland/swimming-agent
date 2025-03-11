@@ -48,4 +48,4 @@ def cancel_appointment_action(appointment_date):
         return {"message": "Failed to cancel appointment"}, 500
 
     print(f"Appointment for {appointment_date} has been cancelled")
-    return {"message": "The appointment has been cancelled."}, 200
+    return {"message": "The appointment for {appointment_date} has been cancelled."}, 200
