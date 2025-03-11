@@ -1,6 +1,7 @@
 from src.api.loginGateway import login
 from src.api.appointmentGateway import cancel_appointment, get_appointments_schedule
 import datetime
+import pytz
 
 def cancel_appointment_action(appointment_date):
     """
