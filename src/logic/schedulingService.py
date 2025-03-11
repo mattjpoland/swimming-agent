@@ -1,6 +1,7 @@
 from src.api.loginGateway import login
 from src.api.schedulingGateway import get_appointments_schedule, book_swim_lane, cancel_appointment
 import datetime
+import pytz
 import requests
 
 def get_appointments_schedule_action(start_date, end_date):
@@ -35,7 +36,7 @@ def get_appointments_schedule_action(start_date, end_date):
 
     return {"message": message}, 200
 
-def book_swim_lane_action(start_date, duration, location, lane):
+def book_swim_lane_action(date, time_slot, duration, location, lane):
     """
     Book a swim lane for a given date range.
     """
@@ -43,7 +44,18 @@ def book_swim_lane_action(start_date, duration, location, lane):
     if not token:
         return {"error": "Authentication failed"}, 401
 
-    appointments = book_swim_lane(token, start_date, duration, location, lane)
+    # Combine date and time_slot into a datetime object
+    appointment_datetime_str = f"{date} {time_slot}"
+    appointment_datetime = datetime.datetime.strptime(appointment_datetime_str, "%Y-%m-%d %I:%M %p")
+
+    # Localize to Eastern Time
+    eastern = pytz.timezone('US/Eastern')
+    appointment_datetime = eastern.localize(appointment_datetime)
+
+    # Format as ISO 8601 string
+    appointment_date_time = appointment_datetime.isoformat()
+
+    appointments = book_swim_lane(token, appointment_date_time, duration, location, lane)
 
     if appointments is None:
         return {"error": "Failed to book appointment"}, 500

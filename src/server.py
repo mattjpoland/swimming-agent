@@ -12,6 +12,11 @@ def get_swim_lane_availability():
     pool_name = request.args.get("pool", "Indoor Pool")
     date_str = request.args.get("date", datetime.datetime.now().strftime("%Y-%m-%d"))
 
+    if pool_name == "Indoor":
+        pool_name = "Indoor Pool"
+    elif pool_name == "Outdoor": 
+        pool_name = "Outdoor Pool"
+
     if pool_name not in ITEMS:
         return jsonify({"error": "Invalid pool name. Use 'Indoor Pool' or 'Outdoor Pool'."}), 400
 
@@ -34,16 +39,31 @@ def get_user_appointments():
 @app.route("/book", methods=["POST"])
 def book_lane():
     """ API Endpoint to book a swim lane. """
-    data = request.json
-    
-    start_date = data.get("start_date")
-    duration = data.get("duration")
-    location = data.get("location")
-    lane = data.get("lane")
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "Invalid request. Expected JSON payload."}), 400
 
-    response, status_code = book_swim_lane_action(start_date, duration, location, lane)
-    
-    return jsonify(response), status_code
+        date = data.get("date")  # Must be YYYY-MM-DD
+        time_slot = data.get("time_slot")  # Must be a valid slot like "10:00 AM"
+        duration = data.get("duration", "60")  # Default to 60 minutes
+        location = data.get("location", "Indoor Pool")
+        lane = data.get("lane", "1")
+
+        # Ensure lane is formatted as "Lane 1", "Lane 2", etc.
+        if lane.isdigit():
+            lane = f"Lane {lane}"
+
+        # Ensure duration is formatted as "30 Min", "60 Min", etc.
+        if duration.isdigit():
+            duration = f"{duration} Min"
+
+        response, status_code = book_swim_lane_action(date, time_slot, duration, location, lane)
+        
+        return jsonify(response), status_code
+
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 @app.route("/cancel", methods=["POST"])
 def cancel_lane():

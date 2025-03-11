@@ -41,26 +41,30 @@ def get_appointments_schedule(token, start_date, end_date):
         print(f"❌ Failed to fetch appointments: {response.text}")
         return None, response.status_code
 
-def book_swim_lane(token, start_date, duration, location, lane):
+def book_swim_lane(token, appointment_date_time, duration, location, lane):
+    """
+    Book a swim lane using the provided token.
+    """
     url = BOOKING_URL
     headers = {
         'Accept': 'application/json, text/plain, */*',
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
-        'x-companyid': '510726',
+        'x-companyid': COMPANY_ID,
         'x-customerid': str(CUSTOMER_ID)
     }
 
     # Map the input values to the corresponding IDs and names
-    resource_type_id = RESOURCE_TYPE_IDS.get(location)
+    resource_type_id = RESOURCE_TYPE_IDS.get(location) 
     location_short_name = LOCATION_SHORT_NAMES.get(location)
-   
     appointment_item_id = APPOINTMENT_ITEMS.get(f"{duration} {location_short_name} Lane Reservation")
-
     assigned_resource_id = ASSIGNED_RESOURCE_IDS.get(f"{duration} {location_short_name}")
 
     book_selection_name = f"{location_short_name} {lane}"
     book_selection_id = BOOK_SELECTION_IDS.get(book_selection_name)
+
+    if not appointment_item_id or not assigned_resource_id or not book_selection_id:
+        return {"error": "Invalid location or lane"}, 400
 
     payload = {
         "ClubId": 2,
@@ -80,14 +84,18 @@ def book_swim_lane(token, start_date, duration, location, lane):
         "PackageItemId": 0,
         "PackageQuantity": 0,
         "ChangeFeeId": 0,
-        "StartDate": start_date,
+        "StartDate": appointment_date_time,  # ✅ Uses converted UTC timestamp
         "UserDisplayedPayNowGrandTotal": 0,
         "DisplayedAmountDueAtTimeOfService": 0,
         "CancellationAppointmentId": 0
     }
 
     response = requests.post(url, headers=headers, json=payload, verify=False)
-    return response.json(), response.status_code
+
+    if response.status_code == 200:
+        return response.json(), response.status_code
+    else:
+        return {"error": "Booking request failed"}, response.status_code
 
 def cancel_appointment(token, appointment_id):
     """Cancel an appointment using a valid token."""
