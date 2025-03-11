@@ -29,7 +29,7 @@ def get_user_appointments():
 
     response, status_code = get_scheduled_appointments(start_date, end_date)
     
-    if status_code == 200 and response:
+    if status_code == 200:
         appointments = response
         if appointments:
             appointment = appointments[0]  # Assuming only one appointment per day
