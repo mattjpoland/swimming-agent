@@ -37,8 +37,8 @@ def get_appointments_schedule_action(date_str):
         except ValueError:
             time = "Unknown Time"
         
-        print(f"Found appointment for {pool_name} {lane} at {time} on {date_str}")
-        message = f"You have {pool_name} {lane} at {time} on {date_str}."
+        print(f"Found appointment for {lane} at {time} on {date_str}")
+        message = f"You have {lane} at {time} on {date_str}."
     else:
         print(f"No appointment found for {date_str}")
         message = f"You do not have a swim lane on {date_str}."
