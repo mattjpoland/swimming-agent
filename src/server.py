@@ -44,9 +44,9 @@ def get_user_appointments():
             except ValueError:
                 time = "Unknown Time"
             
-            message = f"You have {lane} at {time} today."
+            message = f"You have {lane} at {time}."
         else:
-            message = "You do not have a swim lane today."
+            message = "You do not have a swim lane."
     else:
         message = "Error retrieving swim lane information."
 
