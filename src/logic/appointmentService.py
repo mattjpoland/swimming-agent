@@ -18,8 +18,12 @@ def get_appointments_schedule_action(date_str):
     start_date = eastern.localize(date.replace(hour=0, minute=0, second=0))
     end_date = eastern.localize(date.replace(hour=23, minute=59, second=59))
 
-    print(f"Fetching appointments between {start_date} and {end_date}")
-    appointments, status_code = get_appointments_schedule(token, start_date.isoformat(), end_date.isoformat())
+    # Format dates as ISO 8601 strings
+    start_date_str = start_date.isoformat(timespec='seconds')
+    end_date_str = end_date.isoformat(timespec='seconds')
+
+    print(f"Fetching appointments between {start_date_str} and {end_date_str}")
+    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str)
 
     if status_code != 200:
         return {"message": "Error retrieving swim lane information."}, status_code

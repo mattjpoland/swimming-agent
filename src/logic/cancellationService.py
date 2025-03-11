@@ -18,9 +18,13 @@ def cancel_appointment_action(appointment_date):
     start_date = eastern.localize(date.replace(hour=0, minute=0, second=0))
     end_date = eastern.localize(date.replace(hour=23, minute=59, second=59))
     
+    # Format dates as ISO 8601 strings
+    start_date_str = start_date.isoformat(timespec='seconds')
+    end_date_str = end_date.isoformat(timespec='seconds')
+
     # Fetch appointments for the given date
-    print(f"Fetching appointments between {start_date} and {end_date}")
-    appointments, status_code = get_appointments_schedule(token, start_date, end_date)
+    print(f"Fetching appointments between {start_date_str} and {end_date_str}")
+    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str)
 
     if status_code != 200 or not appointments:
         print(f"Error searching for appointments on {appointment_date} to cancel")
