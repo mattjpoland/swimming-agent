@@ -4,15 +4,21 @@ import datetime
 import pytz
 import requests
 
-def get_appointments_schedule_action(start_date, end_date):
+def get_appointments_schedule_action(date_str):
     """
-    Fetch scheduled swim lane appointments for a given date range.
+    Fetch scheduled swim lane appointments for a given date.
     """
     token = login()
     if not token:
         return {"error": "Authentication failed"}, 401
 
-    appointments, status_code = get_appointments_schedule(token, start_date, end_date)
+    # Localize the date to Eastern Time
+    eastern = pytz.timezone('US/Eastern')
+    date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    start_date = eastern.localize(date.replace(hour=0, minute=0, second=0, microsecond=0))
+    end_date = eastern.localize(date.replace(hour=23, minute=59, second=59, microsecond=999999))
+
+    appointments, status_code = get_appointments_schedule(token, start_date.isoformat(), end_date.isoformat())
 
     if status_code != 200 or not appointments:
         return {"message": "Error retrieving swim lane information."}, status_code

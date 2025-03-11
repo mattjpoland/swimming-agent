@@ -30,11 +30,10 @@ def get_swim_lane_availability():
 
 @app.route("/appointments", methods=["GET"])
 def get_user_appointments():
-    """ API Endpoint to return scheduled swim lane appointments for a given date range. """
-    start_date_str = request.args.get("start_date", datetime.datetime.now().strftime("%Y-%m-%d"))
-    end_date_str = request.args.get("end_date", (datetime.datetime.strptime(start_date_str, "%Y-%m-%d") + datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
-
-    response, status_code = get_appointments_schedule_action(start_date_str, end_date_str)
+    """ API Endpoint to return scheduled swim lane appointments for a given date. """
+    date_str = request.args.get("date", datetime.datetime.now().strftime("%Y-%m-%d"))
+    
+    response, status_code = get_appointments_schedule_action(date_str)
     
     return jsonify(response), status_code
 
@@ -59,6 +58,9 @@ def book_lane():
         # Ensure duration is formatted as "30 Min", "60 Min", etc.
         if duration.isdigit():
             duration = f"{duration} Min"
+            print(f"Booking {location} {lane} for {duration} at {time} on {date}")
+
+
 
         print(f"Booking {location} {lane} for {duration} at {time} on {date}")
 
