@@ -45,7 +45,7 @@ def book_lane():
             return jsonify({"error": "Invalid request. Expected JSON payload."}), 400
 
         date = data.get("date")  # Must be YYYY-MM-DD
-        time_slot = data.get("time_slot")  # Must be a valid slot like "10:00 AM"
+        time = data.get("time")  # Must be a valid slot like "10:00 AM"
         duration = data.get("duration", "60")  # Default to 60 minutes
         location = data.get("location", "Indoor Pool")
         lane = data.get("lane", "1")
@@ -58,12 +58,12 @@ def book_lane():
         if duration.isdigit():
             duration = f"{duration} Min"
 
-        response, status_code = book_swim_lane_action(date, time_slot, duration, location, lane)
+        response, status_code = book_swim_lane_action(date, time, duration, location, lane)
         
-        return jsonify(response), status_code
+        return jsonify(response)
 
     except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        return jsonify({"message": f"Unexpected error: {str(e)}"}), 500
 
 @app.route("/cancel", methods=["POST"])
 def cancel_lane():

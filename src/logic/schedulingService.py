@@ -55,12 +55,13 @@ def book_swim_lane_action(date, time_slot, duration, location, lane):
     # Format as ISO 8601 string
     appointment_date_time = appointment_datetime.isoformat()
 
-    appointments = book_swim_lane(token, appointment_date_time, duration, location, lane)
+    appointments, status_code = book_swim_lane(token, appointment_date_time, duration, location, lane)
 
-    if appointments is None:
-        return {"error": "Failed to book appointment"}, 500
+    if status_code != 200 or not appointments or not appointments[0].get("Success"):
+        return {"message": "Failed to book appointment"}, 500
 
-    return appointments, 200  # Return data with HTTP 200 OK
+    message = f"{location} {lane} successfully booked for {duration} on {date} at {time_slot}"
+    return {"message": message}, 200
 
 def cancel_appointment_action(appointment_date):
     """
