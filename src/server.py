@@ -2,7 +2,9 @@ import datetime
 from flask import Flask, request, send_file, jsonify
 from src.drawing.visualize import generate_visualization
 from src.logic.availabilityService import get_availability
-from src.logic.schedulingService import get_appointments_schedule_action, book_swim_lane_action, cancel_appointment_action
+from src.logic.appointmentService import get_appointments_schedule_action
+from src.logic.bookingService import book_swim_lane_action
+from src.logic.cancellationService import cancel_appointment_action
 app = Flask(__name__)
 from src.constants import ITEMS
 
