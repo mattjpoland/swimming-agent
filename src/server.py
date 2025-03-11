@@ -72,6 +72,7 @@ def cancel_lane():
     """ API Endpoint to cancel a swim lane appointment. """
     data = request.json
     appointment_date = data.get("date")
+    print(f"Cancelling appointment for {appointment_date}")
 
     response, status_code = cancel_appointment_action(appointment_date)
     
