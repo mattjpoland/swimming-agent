@@ -28,7 +28,7 @@ def cancel_appointment_action(appointment_date):
 
     if status_code != 200 or not appointments:
         print(f"Error searching for appointments on {appointment_date} to cancel")
-        return {"message": "No appointments exist on this date to cancel"}, 404
+        return {"message": "No appointments exist on this date to cancel"}, 200
 
     # Assuming only one appointment per day
     appointment = appointments[0]
