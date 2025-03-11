@@ -15,9 +15,10 @@ def get_appointments_schedule_action(date_str):
     # Localize the date to Eastern Time
     eastern = pytz.timezone('US/Eastern')
     date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-    start_date = eastern.localize(date.replace(hour=0, minute=0, second=0, microsecond=0))
-    end_date = eastern.localize(date.replace(hour=23, minute=59, second=59, microsecond=999999))
+    start_date = eastern.localize(date.replace(hour=0, minute=0, second=0))
+    end_date = eastern.localize(date.replace(hour=23, minute=59, second=59))
 
+    print(f"Fetching appointments between {start_date} and {end_date}")
     appointments, status_code = get_appointments_schedule(token, start_date.isoformat(), end_date.isoformat())
 
     if status_code != 200 or not appointments:
@@ -36,8 +37,10 @@ def get_appointments_schedule_action(date_str):
         except ValueError:
             time = "Unknown Time"
         
-        message = f"You have {pool_name} {lane} at {time} today."
+        print(f"Found appointment for {pool_name} {lane} at {time} on {date_str}")
+        message = f"You have {pool_name} {lane} at {time} on {date_str}."
     else:
-        message = "You do not have a swim lane today."
+        print(f"No appointment found for {date_str}")
+        message = f"You do not have a swim lane on {date_str}."
 
     return {"message": message}, 200
