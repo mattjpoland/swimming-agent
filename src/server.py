@@ -61,7 +61,10 @@ def book_lane():
             duration = f"{duration} Min"
             print(f"Booking {location} {lane} for {duration} at {time} on {date}")
 
-
+        if location == "Indoor":
+            location = "Indoor Pool"
+        elif location == "Outdoor": 
+            location = "Outdoor Pool"
 
         print(f"Booking {location} {lane} for {duration} at {time} on {date}")
 
