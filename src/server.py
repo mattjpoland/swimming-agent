@@ -6,7 +6,13 @@ from src.logic.appointmentService import get_appointments_schedule_action
 from src.logic.bookingService import book_swim_lane_action
 from src.logic.cancellationService import cancel_appointment_action
 app = Flask(__name__)
-from src.constants import ITEMS
+from src.constants import ITEMS, API_KEY
+
+@app.before_request
+def verify_api_key():
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or auth_header != f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
 
 @app.route("/availability", methods=["GET"])
 def get_swim_lane_availability():
