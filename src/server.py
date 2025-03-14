@@ -2,7 +2,7 @@ import datetime
 from flask import Flask, request, send_file, jsonify
 from src.drawing.visualize import generate_visualization
 from src.logic.availabilityService import get_availability
-from src.logic.appointmentService import get_appointments_schedule_action
+from src.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.logic.bookingService import book_swim_lane_action
 from src.logic.cancellationService import cancel_appointment_action
 app = Flask(__name__)
@@ -31,7 +31,9 @@ def get_swim_lane_availability():
     item_id = ITEMS[pool_name]
     availability = get_availability(item_id, date_str)
 
-    img_io = generate_visualization(availability, pool_name, date_str)
+    appt = get_appointment_data(date_str)
+
+    img_io = generate_visualization(availability, pool_name, date_str, appt)
     return send_file(img_io, mimetype="image/png")
 
 @app.route("/appointments", methods=["GET"])

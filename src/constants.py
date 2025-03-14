@@ -9,6 +9,7 @@ USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 COMPANY_ID = os.getenv("COMPANY_ID")
 CUSTOMER_ID = os.getenv("CUSTOMER_ID")
+ALT_CUSTOMER_ID = os.getenv("ALT_CUSTOMER_ID")
 API_KEY = os.getenv("API_KEY")
 
 TOKEN_CACHE_FILE = "token_cache.json"  # File to store token locally

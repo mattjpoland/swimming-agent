@@ -1,6 +1,6 @@
 import requests
 import os
-from src.constants import COMPANY_ID, CUSTOMER_ID, AVAILABILITY_URL
+from src.constants import COMPANY_ID, CUSTOMER_ID, AVAILABILITY_URL, ALT_CUSTOMER_ID
 
 
 def check_swim_lane_availability(token, date_str, item_id):
@@ -15,7 +15,7 @@ def check_swim_lane_availability(token, date_str, item_id):
 
     payload = {
         "ClubId": 2,  # Michigan Athletic Club
-        "PrimaryCustomerId": int(CUSTOMER_ID),
+        "PrimaryCustomerId": int(ALT_CUSTOMER_ID),
         "AdditionalCustomerIds": [],
         "ItemId": item_id,
         "JsonSelectedBook": "null",

@@ -86,3 +86,50 @@ def get_appointments_schedule_action(date_str):
         message = f"You do not have a swim lane on {date_str}."
 
     return {"message": message}, 200
+
+def get_appointment_data(date_str):
+    """
+    Fetch scheduled swim lane appointment data for a given date.
+    """
+    token = login()
+    if not token:
+        return {"error": "Authentication failed"}, 401
+
+    # Localize the date to Eastern Time
+    eastern = pytz.timezone('US/Eastern')
+    date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    start_date = eastern.localize(date.replace(hour=0, minute=0, second=0, microsecond=0))
+    end_date = eastern.localize(date.replace(hour=23, minute=59, second=59, microsecond=999999))
+
+    # Format dates as ISO 8601 strings
+    start_date_str = start_date.isoformat(timespec='seconds')
+    end_date_str = end_date.isoformat(timespec='seconds')
+
+    print(f"Fetching appointments between {start_date_str} and {end_date_str}")
+    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str)
+
+    if status_code != 200:
+        return {"message": "Error retrieving swim lane information."}, status_code
+
+    if appointments:
+        appointment = appointments[0]  # Assuming only one appointment per day
+        booked_resources = appointment.get("BookedResources", [])
+        lane = booked_resources[0] if booked_resources else "Unknown Lane"
+        time_str = appointment.get("StartDateTime", "Unknown Time")
+        duration = appointment.get("Duration", 60)  # Assuming duration is in minutes
+
+        # Parse and format the time
+        try:
+            appointment_time = datetime.datetime.fromisoformat(time_str)
+            time = appointment_time.strftime("%I:%M %p")
+        except ValueError:
+            time = "Unknown Time"
+            appointment_time = None
+
+        return {
+            "lane": lane,
+            "time": time,
+            "duration": duration
+        }
+
+    return {}
