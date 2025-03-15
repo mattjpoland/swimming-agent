@@ -14,18 +14,20 @@ def load_cached_token(context):
         with open(context["TOKEN_CACHE_FILE"], "r") as f:
             try:
                 data = json.load(f)
-                token = data.get("token")
-                expiration = data.get("expiration")
+                user_data = data.get(context["API_KEY"])
+                if user_data:
+                    token = user_data.get("token")
+                    expiration = user_data.get("expiration")
 
-                if token and expiration:
-                    exp_datetime = datetime.fromisoformat(expiration.replace("Z", "+00:00"))
-                    now_utc = datetime.now(timezone.utc)
+                    if token and expiration:
+                        exp_datetime = datetime.fromisoformat(expiration.replace("Z", "+00:00"))
+                        now_utc = datetime.now(timezone.utc)
 
-                    if now_utc < exp_datetime:
-                        print("🔄 Using cached token.")
-                        return token  # Token is still valid
+                        if now_utc < exp_datetime:
+                            print("🔄 Using cached token.")
+                            return token  # Token is still valid
 
-                    print("⚠️ Cached token expired. Fetching new one...")
+                        print("⚠️ Cached token expired. Fetching new one...")
             except json.JSONDecodeError:
                 print("⚠️ Token cache file is corrupted. Fetching new token...")
 
@@ -33,8 +35,18 @@ def load_cached_token(context):
 
 def save_token(token, expiration, context):
     """Save the token and its expiration timestamp to a local file."""
+    data = {}
+    if os.path.exists(context["TOKEN_CACHE_FILE"]):
+        with open(context["TOKEN_CACHE_FILE"], "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                print("⚠️ Token cache file is corrupted. Overwriting with new data...")
+
+    data[context["API_KEY"]] = {"token": token, "expiration": expiration}
+
     with open(context["TOKEN_CACHE_FILE"], "w") as f:
-        json.dump({"token": token, "expiration": expiration}, f)
+        json.dump(data, f)
 
 def login(context):
     """Fetch an authentication token, storing it if valid."""
@@ -89,6 +101,7 @@ if __name__ == "__main__":
         "CUSTOMER_ID": "67890",
         "USERNAME": "user",
         "PASSWORD": "pass",
+        "API_KEY": "example_api_key",
         "TOKEN_CACHE_FILE": "token_cache.json"
     }
     auth_token = login(context)

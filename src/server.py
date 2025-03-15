@@ -14,8 +14,13 @@ def verify_api_key():
     auth_header = request.headers.get("Authorization")
     requested_api_key = auth_header.split(" ")[1] if auth_header else None
     g.context = get_api_values(requested_api_key)
+    
     if not auth_header or auth_header != f"Bearer {g.context['API_KEY']}":
         return jsonify({"error": "Unauthorized"}), 401
+    
+    mac_password = request.headers.get("mac_password")
+    if mac_password:
+        g.context["PASSWORD"] = mac_password
 
 @app.route("/availability", methods=["GET"])
 def get_swim_lane_availability():
