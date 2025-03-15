@@ -7,37 +7,38 @@ _AVAILABILITY_URL = f"{_BASE_MAC_URL}Scheduling/GetBookAvailability"
 _LOGIN_URL = f"{_BASE_MAC_URL}CustomerAuth/CustomerLogin"
 _COMPANY_ID = os.getenv("COMPANY_ID")
 
-
-# Parse the JSON dictionary from the API_KEY environment variable
-_auth_dict = json.loads(os.getenv("AUTH_DICTIONARY"))
+# Parse the JSON dictionary from the AUTH_DICTIONARY environment variable
+auth_dict_str = os.getenv("AUTH_DICTIONARY")
+_auth_dict = json.loads(auth_dict_str)
 
 def get_api_values(api_key):
-    api_values = _auth_dict.get(api_key)
-    if not api_values:
-        raise ValueError("Invalid API_KEY provided")
-
-    return {
-        "API_KEY": api_key,
-        "USERNAME": api_values["USERNAME"],
-        "PASSWORD": api_values["PASSWORD"],
-        "CUSTOMER_ID": api_values["CUSTOMER_ID"],
-        "ALT_CUSTOMER_ID": api_values["ALT_CUSTOMER_ID"],
-        "BASE_MAC_URL": _BASE_MAC_URL,
-        "AVAILABILITY_URL": _AVAILABILITY_URL,
-        "LOGIN_URL": _LOGIN_URL,
-        "COMPANY_ID": _COMPANY_ID,
-        "TOKEN_CACHE_FILE": _TOKEN_CACHE_FILE,
-        "LANES_BY_POOL": _LANES_BY_POOL,
-        "ITEMS": _ITEMS,
-        "APPOINTMENT_ITEMS": _APPOINTMENT_ITEMS,
-        "ASSIGNED_RESOURCE_IDS": _ASSIGNED_RESOURCE_IDS,
-        "RESOURCE_TYPE_IDS": _RESOURCE_TYPE_IDS,
-        "DURATION_IDS": _DURATION_IDS,
-        "LOCATION_SHORT_NAMES": _LOCATION_SHORT_NAMES,
-        "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
-        "LANES": _LANES,
-        "TIME_SLOTS": _TIME_SLOTS
-    }
+    for name, api_values in _auth_dict.items():
+        if api_values["API_KEY"] == api_key:
+            print(f"Loading context for user: {name}")
+            return {
+                "API_KEY": api_key,
+                "USERNAME": api_values["USERNAME"],
+                "PASSWORD": api_values["PASSWORD"],
+                "CUSTOMER_ID": api_values["CUSTOMER_ID"],
+                "ALT_CUSTOMER_ID": api_values["ALT_CUSTOMER_ID"],
+                "BASE_MAC_URL": _BASE_MAC_URL,
+                "AVAILABILITY_URL": _AVAILABILITY_URL,
+                "LOGIN_URL": _LOGIN_URL,
+                "COMPANY_ID": _COMPANY_ID,
+                "TOKEN_CACHE_FILE": _TOKEN_CACHE_FILE,
+                "LANES_BY_POOL": _LANES_BY_POOL,
+                "ITEMS": _ITEMS,
+                "APPOINTMENT_ITEMS": _APPOINTMENT_ITEMS,
+                "ASSIGNED_RESOURCE_IDS": _ASSIGNED_RESOURCE_IDS,
+                "RESOURCE_TYPE_IDS": _RESOURCE_TYPE_IDS,
+                "DURATION_IDS": _DURATION_IDS,
+                "LOCATION_SHORT_NAMES": _LOCATION_SHORT_NAMES,
+                "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
+                "LANES": _LANES,
+                "TIME_SLOTS": _TIME_SLOTS,
+                "NAME": name
+            }
+    raise ValueError("Invalid API_KEY provided")
 
 _TOKEN_CACHE_FILE = "token_cache.json"  # File to store token locally
 
