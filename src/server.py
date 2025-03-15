@@ -11,6 +11,9 @@ app = Flask(__name__)
 
 @app.before_request
 def verify_api_key():
+    if request.method == 'HEAD':
+        return  # Skip processing for HEAD requests
+
     auth_header = request.headers.get("Authorization")
     requested_api_key = auth_header.split(" ")[1] if auth_header else None
     g.context = get_api_values(requested_api_key)
