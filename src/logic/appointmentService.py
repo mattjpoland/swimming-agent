@@ -1,16 +1,16 @@
 from src.api.loginGateway import login
 from src.api.appointmentGateway import get_appointments_schedule
 from src.api.availabilityGateway import check_swim_lane_availability
-from src.constants import ITEMS
+import src.constants
 import datetime
 import pytz
 import requests
 
-def get_appointments_schedule_action(date_str):
+def get_appointments_schedule_action(date_str, context):
     """
     Fetch scheduled swim lane appointments for a given date.
     """
-    token = login()
+    token = login(context)
     if not token:
         return {"error": "Authentication failed"}, 401
 
@@ -25,7 +25,7 @@ def get_appointments_schedule_action(date_str):
     end_date_str = end_date.isoformat(timespec='seconds')
 
     print(f"Fetching appointments between {start_date_str} and {end_date_str}")
-    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str)
+    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
 
     if status_code != 200:
         return {"message": "Error retrieving swim lane information."}, status_code
@@ -55,11 +55,11 @@ def get_appointments_schedule_action(date_str):
 
             # Extract pool name from lane and get item_id
             pool_key = lane.split()[0] + " Pool"
-            item_id = ITEMS.get(pool_key, None)
+            item_id = context["ITEMS"].get(pool_key, None)
             if not item_id:
                 return {"message": "Invalid pool name."}, 400
 
-            availability = check_swim_lane_availability(token, date_str, item_id)
+            availability = check_swim_lane_availability(token, date_str, item_id, context)
 
             # Flatten the availability times
             available_times = []
@@ -87,11 +87,11 @@ def get_appointments_schedule_action(date_str):
 
     return {"message": message}, 200
 
-def get_appointment_data(date_str):
+def get_appointment_data(date_str, context):
     """
     Fetch scheduled swim lane appointment data for a given date.
     """
-    token = login()
+    token = login(context)
     if not token:
         return {"error": "Authentication failed"}, 401
 
@@ -106,7 +106,7 @@ def get_appointment_data(date_str):
     end_date_str = end_date.isoformat(timespec='seconds')
 
     print(f"Fetching appointments between {start_date_str} and {end_date_str}")
-    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str)
+    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
 
     if status_code != 200:
         return {"message": "Error retrieving swim lane information."}, status_code

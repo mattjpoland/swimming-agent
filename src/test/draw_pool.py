@@ -31,7 +31,7 @@ def format_api_time(api_time):
 
 # Fetch availability data for a given pool type
 def get_availability(item_id, date_str):
-    token = login()
+    token = login(context)
     if not token:
         print("Failed to retrieve auth token.")
         return {}

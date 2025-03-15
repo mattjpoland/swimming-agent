@@ -3,11 +3,11 @@ from src.api.appointmentGateway import cancel_appointment, get_appointments_sche
 import datetime
 import pytz
 
-def cancel_appointment_action(appointment_date):
+def cancel_appointment_action(appointment_date, context):
     """
     Cancel an existing swim lane appointment on a given date.
     """
-    token = login()
+    token = login(context)
     if not token:
         return {"message": "Authentication failed"}, 401
 
@@ -24,7 +24,7 @@ def cancel_appointment_action(appointment_date):
 
     # Fetch appointments for the given date
     print(f"Fetching appointments between {start_date_str} and {end_date_str}")
-    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str)
+    appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
 
     if status_code != 200 or not appointments:
         print(f"Error searching for appointments on {appointment_date} to cancel")
@@ -41,7 +41,7 @@ def cancel_appointment_action(appointment_date):
     print(f"Cancelling appointment for {appointment_date}")
 
     # Cancel the appointment
-    result, cancel_status_code = cancel_appointment(token, appointment_id)
+    result, cancel_status_code = cancel_appointment(token, appointment_id, context)
 
     if cancel_status_code != 200:
         print(f"Error cancelling appointment for {appointment_date}")

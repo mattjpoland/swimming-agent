@@ -2,15 +2,15 @@ import matplotlib
 matplotlib.use('Agg')  # Force non-GUI backend before importing pyplot
 
 import matplotlib.pyplot as plt
-from src.constants import LANES_BY_POOL, TIME_SLOTS
+import src.constants 
 import io
 import datetime
 
-def generate_visualization(availability, pool_name, date_str, appt):
+def generate_visualization(availability, pool_name, date_str, appt, context):
     """Generate and save the swim lane availability visualization with a clean reset."""
-    lanes = LANES_BY_POOL[pool_name]
+    lanes = context["LANES_BY_POOL"][pool_name]
     num_lanes = len(lanes)
-    num_times = len(TIME_SLOTS)
+    num_times = len(context["TIME_SLOTS"])
 
     if appt:
         print(f"Appointment found: {appt}")
@@ -25,7 +25,7 @@ def generate_visualization(availability, pool_name, date_str, appt):
         appt_lane = appt.get("lane")
         appt_time = datetime.datetime.strptime(appt.get("time"), "%I:%M %p").time()
         appt_duration = appt.get("duration")
-        for j, time in enumerate(TIME_SLOTS):
+        for j, time in enumerate(context["TIME_SLOTS"]):
             slot_time = datetime.datetime.strptime(time, "%I:%M %p").time()
             if appt_time == slot_time:
                 blue_slots.add((appt_lane, j))
@@ -34,7 +34,7 @@ def generate_visualization(availability, pool_name, date_str, appt):
 
     # Draw the table cells
     for i, lane in enumerate(reversed(lanes)):  # Reverse for top-down display
-        for j, time in enumerate(TIME_SLOTS):
+        for j, time in enumerate(context["TIME_SLOTS"]):
             is_available = lane in availability.get(time, [])
             color = "green" if is_available else "red"
 
@@ -52,7 +52,7 @@ def generate_visualization(availability, pool_name, date_str, appt):
 
     # ✅ Standard Tick Labels
     ax.set_xticks(range(num_times))
-    ax.set_xticklabels(TIME_SLOTS, fontsize=8, rotation=45, ha="center")
+    ax.set_xticklabels(context["TIME_SLOTS"], fontsize=8, rotation=45, ha="center")
 
     ax.set_yticks(range(num_lanes))
     ax.set_yticklabels(reversed(lanes), fontsize=10, va="center")

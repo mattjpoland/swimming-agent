@@ -1,17 +1,20 @@
 import datetime
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, g
 from src.drawing.visualize import generate_visualization
 from src.logic.availabilityService import get_availability
 from src.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.logic.bookingService import book_swim_lane_action
 from src.logic.cancellationService import cancel_appointment_action
+from src.constants import get_api_values
+
 app = Flask(__name__)
-from src.constants import ITEMS, API_KEY
 
 @app.before_request
 def verify_api_key():
     auth_header = request.headers.get("Authorization")
-    if not auth_header or auth_header != f"Bearer {API_KEY}":
+    requested_api_key = auth_header.split(" ")[1] if auth_header else None
+    g.context = get_api_values(requested_api_key)
+    if not auth_header or auth_header != f"Bearer {g.context['API_KEY']}":
         return jsonify({"error": "Unauthorized"}), 401
 
 @app.route("/availability", methods=["GET"])
@@ -25,15 +28,15 @@ def get_swim_lane_availability():
     elif pool_name == "Outdoor": 
         pool_name = "Outdoor Pool"
 
-    if pool_name not in ITEMS:
+    if pool_name not in g.context["ITEMS"]:
         return jsonify({"error": "Invalid pool name. Use 'Indoor Pool' or 'Outdoor Pool'."}), 400
 
-    item_id = ITEMS[pool_name]
-    availability = get_availability(item_id, date_str)
+    item_id = g.context["ITEMS"][pool_name]
+    availability = get_availability(item_id, date_str, g.context)
 
-    appt = get_appointment_data(date_str)
+    appt = get_appointment_data(date_str, g.context)
 
-    img_io = generate_visualization(availability, pool_name, date_str, appt)
+    img_io = generate_visualization(availability, pool_name, date_str, appt, g.context)
     return send_file(img_io, mimetype="image/png")
 
 @app.route("/appointments", methods=["GET"])
@@ -42,7 +45,7 @@ def get_user_appointments():
     date_str = request.args.get("date")
     
     print(f"Fetching appointments for {date_str}")
-    response, status_code = get_appointments_schedule_action(date_str)
+    response, status_code = get_appointments_schedule_action(date_str, g.context)
     
     return jsonify(response), status_code
 
@@ -76,7 +79,7 @@ def book_lane():
 
         print(f"Booking {location} {lane} for {duration} at {time} on {date}")
 
-        response, status_code = book_swim_lane_action(date, time, duration, location, lane)
+        response, status_code = book_swim_lane_action(date, time, duration, location, lane, g.context)
         
         return jsonify(response)
 
@@ -90,7 +93,7 @@ def cancel_lane():
     appointment_date = data.get("date")
     print(f"Cancelling appointment for {appointment_date}")
 
-    response, status_code = cancel_appointment_action(appointment_date)
+    response, status_code = cancel_appointment_action(appointment_date, g.context)
     
     return jsonify(response), status_code
 

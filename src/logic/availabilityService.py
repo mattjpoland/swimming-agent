@@ -1,4 +1,4 @@
-from src.constants import TIME_SLOTS, ITEMS
+import src.constants
 from src.api.availabilityGateway import check_swim_lane_availability  # Import swim lane function
 from dateutil import parser  # Import this at the top
 from src.api.loginGateway import login
@@ -15,16 +15,16 @@ def format_api_time(api_time):
         print(f"Error parsing datetime: {api_time}, Error: {e}")
         return None  # Return None to handle errors gracefully
 
-def get_availability(item_id, date_str):
+def get_availability(item_id, date_str, context):
     """Fetch availability data for a given pool type and date."""
-    token = login()
+    token = login(context)
     if not token:
         return {}
 
-    data = check_swim_lane_availability(token, date_str, item_id)
+    data = check_swim_lane_availability(token, date_str, item_id, context)
 
     # Initialize all time slots as unavailable
-    availability = {time: [] for time in TIME_SLOTS}
+    availability = {time: [] for time in context["TIME_SLOTS"]}
 
     # ✅ Handle case where Availability is missing or empty
     if not data or "Availability" not in data or not data["Availability"]:

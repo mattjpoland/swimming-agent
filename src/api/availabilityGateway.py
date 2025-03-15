@@ -1,21 +1,21 @@
 import requests
 import os
-from src.constants import COMPANY_ID, CUSTOMER_ID, AVAILABILITY_URL, ALT_CUSTOMER_ID
+import src.constants
 
 
-def check_swim_lane_availability(token, date_str, item_id):
+def check_swim_lane_availability(token, date_str, item_id, context):
     """Fetch swim lane availability using a valid token."""
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "x-companyid": COMPANY_ID,
-        "x-customerid": CUSTOMER_ID,
+        "x-companyid": context["COMPANY_ID"],
+        "x-customerid": context["CUSTOMER_ID"],
         "Authorization": f"Bearer {token}"
     }
 
     payload = {
         "ClubId": 2,  # Michigan Athletic Club
-        "PrimaryCustomerId": int(ALT_CUSTOMER_ID),
+        "PrimaryCustomerId": int(context["ALT_CUSTOMER_ID"]),
         "AdditionalCustomerIds": [],
         "ItemId": item_id,
         "JsonSelectedBook": "null",
@@ -23,7 +23,7 @@ def check_swim_lane_availability(token, date_str, item_id):
         "EndDate": f"{date_str}T05:00:00.000Z"
     }
 
-    response = requests.post(AVAILABILITY_URL, headers=headers, json=payload, verify=False)
+    response = requests.post(context["AVAILABILITY_URL"], headers=headers, json=payload, verify=False)
 
     if response.status_code == 200:
         print(f"✅ Successfully retrieved availability for ItemId {item_id}!")

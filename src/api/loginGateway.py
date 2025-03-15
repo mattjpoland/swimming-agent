@@ -3,17 +3,15 @@ import json
 import os
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from src.constants import TOKEN_CACHE_FILE, COMPANY_ID, CUSTOMER_ID, USERNAME, PASSWORD, LOGIN_URL
-
 
 # Load environment variables
 if os.getenv("RENDER") is None:
     load_dotenv()
 
-def load_cached_token():
+def load_cached_token(context):
     """Load the cached token from a file if it exists and is still valid."""
-    if os.path.exists(TOKEN_CACHE_FILE):
-        with open(TOKEN_CACHE_FILE, "r") as f:
+    if os.path.exists(context["TOKEN_CACHE_FILE"]):
+        with open(context["TOKEN_CACHE_FILE"], "r") as f:
             try:
                 data = json.load(f)
                 token = data.get("token")
@@ -33,34 +31,32 @@ def load_cached_token():
 
     return None  # No valid token found
 
-
-def save_token(token, expiration):
+def save_token(token, expiration, context):
     """Save the token and its expiration timestamp to a local file."""
-    with open(TOKEN_CACHE_FILE, "w") as f:
+    with open(context["TOKEN_CACHE_FILE"], "w") as f:
         json.dump({"token": token, "expiration": expiration}, f)
 
-
-def login():
+def login(context):
     """Fetch an authentication token, storing it if valid."""
-    cached_token = load_cached_token()
+    cached_token = load_cached_token(context)
     if cached_token:
         return cached_token
 
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "x-companyid": COMPANY_ID,
-        "x-customerid": CUSTOMER_ID
+        "x-companyid": context["COMPANY_ID"],
+        "x-customerid": context["CUSTOMER_ID"]
     }
 
     payload = {
-        "UserLogin": USERNAME,
-        "Pswd": PASSWORD
+        "UserLogin": context["USERNAME"],
+        "Pswd": context["PASSWORD"]
     }
 
-    print(f"🔍 Logging in via: {LOGIN_URL}")
+    print(f"🔍 Logging in via: {context['LOGIN_URL']}")
 
-    response = requests.post(LOGIN_URL, headers=headers, json=payload, verify=False)
+    response = requests.post(context["LOGIN_URL"], headers=headers, json=payload, verify=False)
 
     print(f"🔍 Response Status Code: {response.status_code}")
     
@@ -72,7 +68,7 @@ def login():
 
             if token and expiration:
                 print("✅ Login successful! Token retrieved.")
-                save_token(token, expiration)
+                save_token(token, expiration, context)
                 return token
             else:
                 print("❌ Login failed: Token or expiration not found in response.")
@@ -84,13 +80,18 @@ def login():
         print(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
-        return None
-
-
-
 # Main script execution
 if __name__ == "__main__":
-    auth_token = login()
+    # Example context for testing
+    context = {
+        "LOGIN_URL": "https://example.com/login",
+        "COMPANY_ID": "12345",
+        "CUSTOMER_ID": "67890",
+        "USERNAME": "user",
+        "PASSWORD": "pass",
+        "TOKEN_CACHE_FILE": "token_cache.json"
+    }
+    auth_token = login(context)
 
     if auth_token:
         # Get today's date in YYYY-MM-DD format

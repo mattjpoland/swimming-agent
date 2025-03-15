@@ -3,21 +3,20 @@ import requests
 import datetime
 import pytz
 from src.api.loginGateway import login  # Import login function
-from src.constants import COMPANY_ID, CUSTOMER_ID, RESOURCE_TYPE_IDS, LOCATION_SHORT_NAMES, LANES, BOOK_SELECTION_IDS, APPOINTMENT_ITEMS, ASSIGNED_RESOURCE_IDS
-
+import src.constants
 # Construct API URL
 BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 SCHEDULING_URL = f"{BASE_MAC_URL}Scheduling/GetAppointmentsSchedule"
 BOOKING_URL = f"{BASE_MAC_URL}TransactionProcessing/BookAppointmentOnAccount"
 
-def get_appointments_schedule(token, start_date, end_date):
+def get_appointments_schedule(token, start_date, end_date, context):
     """Fetch scheduled appointments for a customer within a given date range."""
     
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "x-companyid": COMPANY_ID,
-        "x-customerid": CUSTOMER_ID,
+        "x-companyid": context["COMPANY_ID"],
+        "x-customerid": context["CUSTOMER_ID"],
         "Authorization": f"Bearer {token}"
     }
 
@@ -38,7 +37,7 @@ def get_appointments_schedule(token, start_date, end_date):
         print(f"❌ Failed to fetch appointments: {response.text}")
         return None, response.status_code
 
-def book_swim_lane(token, appointment_date_time, duration, location, lane):
+def book_swim_lane(token, appointment_date_time, duration, location, lane, context):
     """
     Book a swim lane using the provided token.
     """
@@ -47,26 +46,26 @@ def book_swim_lane(token, appointment_date_time, duration, location, lane):
         'Accept': 'application/json, text/plain, */*',
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
-        'x-companyid': COMPANY_ID,
-        'x-customerid': str(CUSTOMER_ID)
+        'x-companyid': context["COMPANY_ID"],
+        'x-customerid': str(context["CUSTOMER_ID"])
     }
 
     # Map the input values to the corresponding IDs and names
-    resource_type_id = RESOURCE_TYPE_IDS.get(location) 
-    location_short_name = LOCATION_SHORT_NAMES.get(location)
-    appointment_item_id = APPOINTMENT_ITEMS.get(f"{duration} {location_short_name} Lane Reservation")
-    assigned_resource_id = ASSIGNED_RESOURCE_IDS.get(f"{duration} {location_short_name}")
+    resource_type_id = context["RESOURCE_TYPE_IDS"].get(location) 
+    location_short_name = context["LOCATION_SHORT_NAMES"].get(location)
+    appointment_item_id = context["APPOINTMENT_ITEMS"].get(f"{duration} {location_short_name} Lane Reservation")
+    assigned_resource_id = context["ASSIGNED_RESOURCE_IDS"].get(f"{duration} {location_short_name}")
 
     book_selection_name = f"{location_short_name} {lane}"
-    book_selection_id = BOOK_SELECTION_IDS.get(book_selection_name)
+    book_selection_id = context["BOOK_SELECTION_IDS"].get(book_selection_name)
 
     if not appointment_item_id or not assigned_resource_id or not book_selection_id:
         return {"error": "Invalid location or lane"}, 400
 
     payload = {
         "ClubId": 2,
-        "LoggedInCustomerId": CUSTOMER_ID,
-        "PrimaryCustomerId": CUSTOMER_ID,
+        "LoggedInCustomerId": context["CUSTOMER_ID"],
+        "PrimaryCustomerId": context["CUSTOMER_ID"],
         "AdditionalCustomerIds": [],
         "AppointmentItemId": appointment_item_id,
         "SelectedBooks": [
@@ -96,15 +95,15 @@ def book_swim_lane(token, appointment_date_time, duration, location, lane):
         print(f"❌ Booking request failed: {response.text}")
         return {"error": "Booking request failed"}, response.status_code
 
-def cancel_appointment(token, appointment_id):
+def cancel_appointment(token, appointment_id, context):
     """Cancel an appointment using a valid token."""
     url = 'https://www.ourclublogin.com/api/Scheduling/CancelAppointment'
     headers = {
         'Accept': 'application/json, text/plain, */*',
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
-        'x-companyid': COMPANY_ID,
-        'x-customerid': CUSTOMER_ID
+        'x-companyid': context["COMPANY_ID"],
+        'x-customerid': context["CUSTOMER_ID"]
     }
     payload = {
         "AppointmentId": appointment_id

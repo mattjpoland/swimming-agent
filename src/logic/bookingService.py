@@ -3,11 +3,11 @@ from src.api.appointmentGateway import book_swim_lane
 import datetime
 import pytz
 
-def book_swim_lane_action(date, time_slot, duration, location, lane):
+def book_swim_lane_action(date, time_slot, duration, location, lane, context):
     """
     Book a swim lane for a given date range.
     """
-    token = login()
+    token = login(context)
     if not token:
         return {"message": "Authentication failed"}, 401
 
@@ -22,7 +22,7 @@ def book_swim_lane_action(date, time_slot, duration, location, lane):
     # Format as ISO 8601 string
     appointment_date_time = appointment_datetime.isoformat()
 
-    appointments, status_code = book_swim_lane(token, appointment_date_time, duration, location, lane)
+    appointments, status_code = book_swim_lane(token, appointment_date_time, duration, location, lane, context)
 
     if status_code != 200 or not appointments or not appointments.get("Success"):
         return {"message": "Failed to book appointment"}, 500
