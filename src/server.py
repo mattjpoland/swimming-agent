@@ -151,7 +151,8 @@ def register():
             context["CUSTOMER_ID"] = str(response.get("CustomerId"))
             customer = {
                 "Id": response.get("CustomerId"),
-                "DisplayName": response.get("CustomerName", {}).get("DisplayName")
+                "DisplayName": response.get("CustomerName", {}).get("DisplayName"),
+                "Username": username
             }
             family_members = get_family_members_action(username, password, context)
             if family_members is None:
@@ -166,15 +167,15 @@ def register():
 @app.route("/select_family_member", methods=["POST"])
 def select_family_member():
     selected_family_member = request.form["family_member"]
-    customer_display_name = request.form["customer_display_name"]
+    username = request.form["username"]
     customer_id = request.form["customer_id"]
     
     # Generate a new API key
     new_api_key = uuid.uuid4().hex
     
     # Store the new entry in the database
-    store_auth(customer_display_name, new_api_key, customer_id, selected_family_member)
-    logging.info(f"Stored new auth entry for {customer_display_name}")
+    store_auth(username, new_api_key, customer_id, selected_family_member)
+    logging.info(f"Stored new auth entry for {username}")
     
     return redirect(url_for("confirmation"))
 
@@ -187,9 +188,6 @@ def already_submitted():
     return render_template("already_submitted.html")
 
 if __name__ == "__main__":
-    print("Debug URL: http://127.0.0.1:5000/appointments?start_date=2025-01-05")
-    print("Deploy URL: https://swimming-agent.onrender.com/appointments?start_date=2025-01-05")
-
-    print("Debug URL: http://127.0.0.1:5000/availability?pool=Indoor%20Pool")
-    print("Deploy URL: https://swimming-agent.onrender.com/availability?pool=Indoor%20Pool")
+    print("Debug URL: http://127.0.0.1:5000/")
+    print("Deploy URL: https://swimming-agent.onrender.com/")
     app.run(host="0.0.0.0", port=5000, debug=True)
