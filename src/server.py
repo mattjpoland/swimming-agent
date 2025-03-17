@@ -3,7 +3,7 @@ import os
 import json
 import uuid
 import logging
-from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session
+from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session, send_from_directory
 from dotenv import load_dotenv
 from src.drawing.visualize import generate_visualization
 from src.logic.availabilityService import get_availability
@@ -54,6 +54,10 @@ def require_admin(f):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route("/", methods=["GET"])
 def index():
