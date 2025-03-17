@@ -8,10 +8,6 @@ _AVAILABILITY_URL = f"{_BASE_MAC_URL}Scheduling/GetBookAvailability"
 _LOGIN_URL = f"{_BASE_MAC_URL}CustomerAuth/CustomerLogin"
 _COMPANY_ID = os.getenv("COMPANY_ID")
 
-# Parse the JSON dictionary from the AUTH_DICTIONARY environment variable
-auth_dict_str = os.getenv("AUTH_DICTIONARY")
-_auth_dict = json.loads(auth_dict_str)
-
 def load_context_for_authenticated_user(api_key):
     auth_entry = get_auth_by_api_key(api_key)
     if not auth_entry:
@@ -23,7 +19,21 @@ def load_context_for_authenticated_user(api_key):
         "CUSTOMER_ID": auth_entry["customer_id"],
         "ALT_CUSTOMER_ID": auth_entry["alt_customer_id"],
         "ENABLED": auth_entry["enabled"],
-        "ITEMS": {},  # Add any additional context items here
+        "BASE_MAC_URL": _BASE_MAC_URL,
+        "AVAILABILITY_URL": _AVAILABILITY_URL,
+        "LOGIN_URL": _LOGIN_URL,
+        "COMPANY_ID": _COMPANY_ID,
+        "TOKEN_CACHE_FILE": _TOKEN_CACHE_FILE,
+        "LANES_BY_POOL": _LANES_BY_POOL,
+        "ITEMS": _ITEMS,
+        "APPOINTMENT_ITEMS": _APPOINTMENT_ITEMS,
+        "ASSIGNED_RESOURCE_IDS": _ASSIGNED_RESOURCE_IDS,
+        "RESOURCE_TYPE_IDS": _RESOURCE_TYPE_IDS,
+        "DURATION_IDS": _DURATION_IDS,
+        "LOCATION_SHORT_NAMES": _LOCATION_SHORT_NAMES,
+        "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
+        "LANES": _LANES,
+        "TIME_SLOTS": _TIME_SLOTS
     }
     return context
 

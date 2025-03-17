@@ -10,7 +10,7 @@ from src.logic.availabilityService import get_availability
 from src.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.logic.bookingService import book_swim_lane_action
 from src.logic.cancellationService import cancel_appointment_action
-from src.constants import load_context_for_authenticated_user, load_context_for_registration_pages
+from src.contextManager import load_context_for_authenticated_user, load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
 from src.sql.authGateway import get_auth, store_auth  # Import the functions from authGateway

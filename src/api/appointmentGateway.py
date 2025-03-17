@@ -3,7 +3,7 @@ import requests
 import datetime
 import pytz
 from src.api.loginGateway import login  # Import login function
-import src.constants
+import src.contextManager
 # Construct API URL
 BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 SCHEDULING_URL = f"{BASE_MAC_URL}Scheduling/GetAppointmentsSchedule"
