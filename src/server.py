@@ -13,6 +13,7 @@ from src.logic.cancellationService import cancel_appointment_action
 from src.constants import load_context_for_authenticated_user, load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Set a secret key for session management
@@ -23,31 +24,33 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-@app.before_request
-def verify_api_key():
-    if request.method == 'HEAD':
-        return  # Skip processing for HEAD requests
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+        requested_api_key = auth_header.split(" ")[1] if auth_header else None
+        g.context = load_context_for_authenticated_user(requested_api_key)
+        
+        if not auth_header or auth_header != f"Bearer {g.context['API_KEY']}":
+            return jsonify({"error": "Unauthorized"}), 401
+        
+        # Check if the API key is enabled
+        if g.context.get("ENABLED") != 1:
+            return jsonify({"error": "Account not enabled"}), 403
+        
+        mac_password = request.headers.get("mac_password")
+        if mac_password:
+            g.context["PASSWORD"] = mac_password
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
-    # Skip API key verification for the register and select_family_member routes
-    if request.endpoint in ['register', 'select_family_member', 'confirmation', 'already_submitted']:
-        return
-
-    auth_header = request.headers.get("Authorization")
-    requested_api_key = auth_header.split(" ")[1] if auth_header else None
-    g.context = load_context_for_authenticated_user(requested_api_key)
-    
-    if not auth_header or auth_header != f"Bearer {g.context['API_KEY']}":
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    # Check if the API key is enabled
-    if g.context.get("ENABLED") != 1:
-        return jsonify({"error": "Account not enabled"}), 403
-    
-    mac_password = request.headers.get("mac_password")
-    if mac_password:
-        g.context["PASSWORD"] = mac_password
+@app.route("/", methods=["GET"])
+def index():
+    return redirect(url_for("register"))
 
 @app.route("/availability", methods=["GET"])
+@require_api_key
 def get_swim_lane_availability():
     """API Endpoint to return a visualization of swim lane availability."""
     pool_name = request.args.get("pool", "Indoor Pool")
@@ -70,6 +73,7 @@ def get_swim_lane_availability():
     return send_file(img_io, mimetype="image/png")
 
 @app.route("/appointments", methods=["GET"])
+@require_api_key
 def get_user_appointments():
     """ API Endpoint to return scheduled swim lane appointments for a given date. """
     date_str = request.args.get("date")
@@ -80,6 +84,7 @@ def get_user_appointments():
     return jsonify(response), status_code
 
 @app.route("/book", methods=["POST"])
+@require_api_key
 def book_lane():
     """ API Endpoint to book a swim lane. """
     try:
@@ -117,6 +122,7 @@ def book_lane():
         return jsonify({"message": f"Unexpected error: {str(e)}"}), 500
 
 @app.route("/cancel", methods=["POST"])
+@require_api_key
 def cancel_lane():
     """ API Endpoint to cancel a swim lane appointment. """
     data = request.json
