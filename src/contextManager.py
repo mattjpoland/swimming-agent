@@ -33,7 +33,8 @@ def load_context_for_authenticated_user(api_key):
         "LOCATION_SHORT_NAMES": _LOCATION_SHORT_NAMES,
         "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
         "LANES": _LANES,
-        "TIME_SLOTS": _TIME_SLOTS
+        "TIME_SLOTS": _TIME_SLOTS,
+        "PASSWORD": "placeholder"
     }
     return context
 

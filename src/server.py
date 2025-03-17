@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 
 def require_api_key(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def decorated_function(*args, **kwargs):       
         auth_header = request.headers.get("Authorization")
         requested_api_key = auth_header.split(" ")[1] if auth_header else None
         g.context = load_context_for_authenticated_user(requested_api_key)
@@ -35,13 +35,14 @@ def require_api_key(f):
         if not g.context:
             return jsonify({"error": "Unauthorized"}), 401
         
+        # Log all headers
+        mac_password = request.headers.get("x-mac-pw")
+        if mac_password:
+            g.context["PASSWORD"] = mac_password
+
         # Check if the API key is enabled
         if g.context.get("ENABLED") != 1:
             return jsonify({"error": "Account not enabled"}), 403
-        
-        mac_password = request.headers.get("mac_password")
-        if mac_password:
-            g.context["PASSWORD"] = mac_password
         
         return f(*args, **kwargs)
     return decorated_function
