@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration</title>
+</head>
+<body>
+    <h1>Registration</h1>
+    {% if customer %}
+        <p>Welcome, {{ customer.DisplayName }}!</p>
+        <form action="/select_family_member" method="post">
+            <input type="hidden" name="customer_display_name" value="{{ customer.DisplayName }}">
+            <input type="hidden" name="customer_id" value="{{ customer.Id }}">
+            <label for="family_member">Select Family Member for Availability Searches:</label>
+            <select id="family_member" name="family_member">
+                {% for member in family_members %}
+                    <option value="{{ member.Id }}">{{ member.DisplayName }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Select</button>
+        </form>
+    {% else %}
+        <form action="/register" method="post">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required><br><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br><br>
+            <button type="submit">Register</button>
+        </form>
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
+    {% endif %}
+</body>
+</html>

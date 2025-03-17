@@ -1,25 +1,43 @@
 import datetime
-from flask import Flask, request, send_file, jsonify, g
+import os
+import json
+import uuid
+from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session
+from dotenv import load_dotenv, set_key
 from src.drawing.visualize import generate_visualization
 from src.logic.availabilityService import get_availability
 from src.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.logic.bookingService import book_swim_lane_action
 from src.logic.cancellationService import cancel_appointment_action
-from src.constants import get_api_values
+from src.constants import load_context_for_authenticated_user, load_context_for_registration_pages
+from src.web.gateways.webLoginGateway import login_with_credentials
+from src.web.services.familyService import get_family_members_action
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'  # Set a secret key for session management
+
+# Load environment variables from .env file
+load_dotenv()
 
 @app.before_request
 def verify_api_key():
     if request.method == 'HEAD':
         return  # Skip processing for HEAD requests
 
+    # Skip API key verification for the register and select_family_member routes
+    if request.endpoint in ['register', 'select_family_member', 'confirmation']:
+        return
+
     auth_header = request.headers.get("Authorization")
     requested_api_key = auth_header.split(" ")[1] if auth_header else None
-    g.context = get_api_values(requested_api_key)
+    g.context = load_context_for_authenticated_user(requested_api_key)
     
     if not auth_header or auth_header != f"Bearer {g.context['API_KEY']}":
         return jsonify({"error": "Unauthorized"}), 401
+    
+    # Check if the API key is enabled
+    if g.context.get("ENABLED") != 1:
+        return jsonify({"error": "Account not enabled"}), 403
     
     mac_password = request.headers.get("mac_password")
     if mac_password:
@@ -104,6 +122,62 @@ def cancel_lane():
     response, status_code = cancel_appointment_action(appointment_date, g.context)
     
     return jsonify(response), status_code
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    context = load_context_for_registration_pages()
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        response = login_with_credentials(username, password, context)
+        if response:
+            context["CUSTOMER_ID"] = str(response.get("CustomerId"))
+            customer = {
+                "Id": response.get("CustomerId"),
+                "DisplayName": response.get("CustomerName", {}).get("DisplayName")
+            }
+            family_members = get_family_members_action(username, password, context)
+            if family_members is None:
+                family_members = []
+            family_members.append(customer)  # Add the customer to the family_members list
+            return render_template("registration.html", customer=customer, family_members=family_members)
+        else:
+            error = "Login failed. Please check your credentials."
+            return render_template("registration.html", error=error)
+    return render_template("registration.html")
+
+@app.route("/select_family_member", methods=["POST"])
+def select_family_member():
+    selected_family_member = request.form["family_member"]
+    customer_display_name = request.form["customer_display_name"]
+    customer_id = request.form["customer_id"]
+    
+    # Generate a new API key
+    new_api_key = uuid.uuid4().hex
+    
+    # Load the existing AUTH_DICTIONARY from the environment variable
+    auth_dict_str = os.getenv("AUTH_DICTIONARY")
+    auth_dict = json.loads(auth_dict_str) if auth_dict_str else {}
+    
+    # Add the new entry to the AUTH_DICTIONARY
+    auth_dict[customer_display_name] = {
+        "API_KEY": new_api_key,
+        "USERNAME": customer_display_name,
+        "PASSWORD": "",  # You can set this if needed
+        "CUSTOMER_ID": customer_id,
+        "ALT_CUSTOMER_ID": selected_family_member,
+        "ENABLED": 0  # Set to 0 (disabled) by default
+    }
+    
+    # Update the AUTH_DICTIONARY environment variable
+    new_auth_dict_str = json.dumps(auth_dict)
+    set_key(".env", "AUTH_DICTIONARY", new_auth_dict_str)
+    
+    return redirect(url_for("confirmation"))
+
+@app.route("/confirmation", methods=["GET"])
+def confirmation():
+    return render_template("confirmation.html")
 
 if __name__ == "__main__":
     print("Debug URL: http://127.0.0.1:5000/appointments?start_date=2025-01-05")

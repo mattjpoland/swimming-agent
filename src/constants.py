@@ -11,7 +11,7 @@ _COMPANY_ID = os.getenv("COMPANY_ID")
 auth_dict_str = os.getenv("AUTH_DICTIONARY")
 _auth_dict = json.loads(auth_dict_str)
 
-def get_api_values(api_key):
+def load_context_for_authenticated_user(api_key):
     for name, api_values in _auth_dict.items():
         if api_values["API_KEY"] == api_key:
             print(f"Loading context for user: {name}")
@@ -39,6 +39,26 @@ def get_api_values(api_key):
                 "NAME": name
             }
     raise ValueError("Invalid API_KEY provided")
+
+def load_context_for_registration_pages():
+    """Load context for registration pages without requiring an API key."""
+    return {
+        "BASE_MAC_URL": _BASE_MAC_URL,
+        "AVAILABILITY_URL": _AVAILABILITY_URL,
+        "LOGIN_URL": _LOGIN_URL,
+        "COMPANY_ID": _COMPANY_ID,
+        "TOKEN_CACHE_FILE": _TOKEN_CACHE_FILE,
+        "LANES_BY_POOL": _LANES_BY_POOL,
+        "ITEMS": _ITEMS,
+        "APPOINTMENT_ITEMS": _APPOINTMENT_ITEMS,
+        "ASSIGNED_RESOURCE_IDS": _ASSIGNED_RESOURCE_IDS,
+        "RESOURCE_TYPE_IDS": _RESOURCE_TYPE_IDS,
+        "DURATION_IDS": _DURATION_IDS,
+        "LOCATION_SHORT_NAMES": _LOCATION_SHORT_NAMES,
+        "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
+        "LANES": _LANES,
+        "TIME_SLOTS": _TIME_SLOTS
+    }
 
 _TOKEN_CACHE_FILE = "token_cache.json"  # File to store token locally
 
