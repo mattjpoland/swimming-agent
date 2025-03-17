@@ -2,6 +2,7 @@ import datetime
 import os
 import json
 import uuid
+import logging
 from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session
 from dotenv import load_dotenv, set_key
 from src.drawing.visualize import generate_visualization
@@ -18,6 +19,9 @@ app.secret_key = 'your_secret_key'  # Set a secret key for session management
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 @app.before_request
 def verify_api_key():
@@ -181,6 +185,11 @@ def select_family_member():
     # Update the AUTH_DICTIONARY environment variable
     new_auth_dict_str = json.dumps(auth_dict)
     set_key(".env", "AUTH_DICTIONARY", new_auth_dict_str)
+    logging.info(f"Updated AUTH_DICTIONARY: {new_auth_dict_str}")
+    
+    # Verify the update
+    updated_auth_dict_str = os.getenv("AUTH_DICTIONARY")
+    logging.info(f"Verified AUTH_DICTIONARY: {updated_auth_dict_str}")
     
     return redirect(url_for("confirmation"))
 
