@@ -25,7 +25,7 @@ def verify_api_key():
         return  # Skip processing for HEAD requests
 
     # Skip API key verification for the register and select_family_member routes
-    if request.endpoint in ['register', 'select_family_member', 'confirmation']:
+    if request.endpoint in ['register', 'select_family_member', 'confirmation', 'already_submitted']:
         return
 
     auth_header = request.headers.get("Authorization")
@@ -129,6 +129,15 @@ def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+        
+        # Load the existing AUTH_DICTIONARY from the environment variable
+        auth_dict_str = os.getenv("AUTH_DICTIONARY")
+        auth_dict = json.loads(auth_dict_str) if auth_dict_str else {}
+        
+        # Check if the username already exists in the AUTH_DICTIONARY
+        if username in auth_dict:
+            return redirect(url_for("already_submitted"))
+        
         response = login_with_credentials(username, password, context)
         if response:
             context["CUSTOMER_ID"] = str(response.get("CustomerId"))
@@ -178,6 +187,10 @@ def select_family_member():
 @app.route("/confirmation", methods=["GET"])
 def confirmation():
     return render_template("confirmation.html")
+
+@app.route("/already_submitted", methods=["GET"])
+def already_submitted():
+    return render_template("already_submitted.html")
 
 if __name__ == "__main__":
     print("Debug URL: http://127.0.0.1:5000/appointments?start_date=2025-01-05")
