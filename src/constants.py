@@ -1,6 +1,7 @@
 import os
 import datetime
 import json
+from src.sql.authGateway import get_auth
 
 _BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 _AVAILABILITY_URL = f"{_BASE_MAC_URL}Scheduling/GetBookAvailability"
@@ -12,33 +13,35 @@ auth_dict_str = os.getenv("AUTH_DICTIONARY")
 _auth_dict = json.loads(auth_dict_str)
 
 def load_context_for_authenticated_user(api_key):
-    for name, api_values in _auth_dict.items():
-        if api_values["API_KEY"] == api_key:
-            print(f"Loading context for user: {name}")
-            return {
-                "API_KEY": api_key,
-                "USERNAME": api_values["USERNAME"],
-                "PASSWORD": api_values["PASSWORD"],
-                "CUSTOMER_ID": api_values["CUSTOMER_ID"],
-                "ALT_CUSTOMER_ID": api_values["ALT_CUSTOMER_ID"],
-                "BASE_MAC_URL": _BASE_MAC_URL,
-                "AVAILABILITY_URL": _AVAILABILITY_URL,
-                "LOGIN_URL": _LOGIN_URL,
-                "COMPANY_ID": _COMPANY_ID,
-                "TOKEN_CACHE_FILE": _TOKEN_CACHE_FILE,
-                "LANES_BY_POOL": _LANES_BY_POOL,
-                "ITEMS": _ITEMS,
-                "APPOINTMENT_ITEMS": _APPOINTMENT_ITEMS,
-                "ASSIGNED_RESOURCE_IDS": _ASSIGNED_RESOURCE_IDS,
-                "RESOURCE_TYPE_IDS": _RESOURCE_TYPE_IDS,
-                "DURATION_IDS": _DURATION_IDS,
-                "LOCATION_SHORT_NAMES": _LOCATION_SHORT_NAMES,
-                "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
-                "LANES": _LANES,
-                "TIME_SLOTS": _TIME_SLOTS,
-                "NAME": name
-            }
-    raise ValueError("Invalid API_KEY provided")
+    auth_entry = get_auth_by_api_key(api_key)
+    if not auth_entry:
+        return None
+
+    context = {
+        "API_KEY": auth_entry["api_key"],
+        "USERNAME": auth_entry["username"],
+        "CUSTOMER_ID": auth_entry["customer_id"],
+        "ALT_CUSTOMER_ID": auth_entry["alt_customer_id"],
+        "ENABLED": auth_entry["enabled"],
+        "ITEMS": {},  # Add any additional context items here
+    }
+    return context
+
+def get_auth_by_api_key(api_key):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM auth_data WHERE api_key = %s", (api_key,))
+    result = cursor.fetchone()
+    conn.close()
+    if result:
+        return {
+            "username": result[0],
+            "api_key": result[1],
+            "customer_id": result[2],
+            "alt_customer_id": result[3],
+            "enabled": result[4],
+        }
+    return None
 
 def load_context_for_registration_pages():
     """Load context for registration pages without requiring an API key."""

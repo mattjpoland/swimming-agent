@@ -4,7 +4,7 @@ import json
 import uuid
 import logging
 from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session
-from dotenv import load_dotenv, set_key
+from dotenv import load_dotenv
 from src.drawing.visualize import generate_visualization
 from src.logic.availabilityService import get_availability
 from src.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
@@ -13,6 +13,7 @@ from src.logic.cancellationService import cancel_appointment_action
 from src.constants import load_context_for_authenticated_user, load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
+from src.sql.authGateway import get_auth, store_auth  # Import the functions from authGateway
 from functools import wraps
 
 app = Flask(__name__)
@@ -31,7 +32,7 @@ def require_api_key(f):
         requested_api_key = auth_header.split(" ")[1] if auth_header else None
         g.context = load_context_for_authenticated_user(requested_api_key)
         
-        if not auth_header or auth_header != f"Bearer {g.context['API_KEY']}":
+        if not g.context:
             return jsonify({"error": "Unauthorized"}), 401
         
         # Check if the API key is enabled
@@ -140,12 +141,9 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
         
-        # Load the existing AUTH_DICTIONARY from the environment variable
-        auth_dict_str = os.getenv("AUTH_DICTIONARY")
-        auth_dict = json.loads(auth_dict_str) if auth_dict_str else {}
-        
-        # Check if the username already exists in the AUTH_DICTIONARY
-        if username in auth_dict:
+        # Check if the username already exists in the database
+        auth_entry = get_auth(username)
+        if auth_entry:
             return redirect(url_for("already_submitted"))
         
         response = login_with_credentials(username, password, context)
@@ -174,28 +172,9 @@ def select_family_member():
     # Generate a new API key
     new_api_key = uuid.uuid4().hex
     
-    # Load the existing AUTH_DICTIONARY from the environment variable
-    auth_dict_str = os.getenv("AUTH_DICTIONARY")
-    auth_dict = json.loads(auth_dict_str) if auth_dict_str else {}
-    
-    # Add the new entry to the AUTH_DICTIONARY
-    auth_dict[customer_display_name] = {
-        "API_KEY": new_api_key,
-        "USERNAME": customer_display_name,
-        "PASSWORD": "",  # You can set this if needed
-        "CUSTOMER_ID": customer_id,
-        "ALT_CUSTOMER_ID": selected_family_member,
-        "ENABLED": 0  # Set to 0 (disabled) by default
-    }
-    
-    # Update the AUTH_DICTIONARY environment variable
-    new_auth_dict_str = json.dumps(auth_dict)
-    set_key(".env", "AUTH_DICTIONARY", new_auth_dict_str)
-    logging.info(f"Updated AUTH_DICTIONARY: {new_auth_dict_str}")
-    
-    # Verify the update
-    updated_auth_dict_str = os.getenv("AUTH_DICTIONARY")
-    logging.info(f"Verified AUTH_DICTIONARY: {updated_auth_dict_str}")
+    # Store the new entry in the database
+    store_auth(customer_display_name, new_api_key, customer_id, selected_family_member)
+    logging.info(f"Stored new auth entry for {customer_display_name}")
     
     return redirect(url_for("confirmation"))
 
