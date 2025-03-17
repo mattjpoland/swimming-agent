@@ -1,7 +1,7 @@
 import os
 import datetime
 import json
-from src.sql.authGateway import get_auth
+from src.sql.authGateway import get_auth, get_db_connection
 
 _BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 _AVAILABILITY_URL = f"{_BASE_MAC_URL}Scheduling/GetBookAvailability"
