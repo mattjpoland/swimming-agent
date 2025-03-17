@@ -9,17 +9,17 @@
     <h1>Registration</h1>
     {% if customer %}
         <p>Welcome, {{ customer.DisplayName }}!</p>
-        <form action="/select_family_member" method="post">
+        <form method="POST" action="{{ url_for('select_family_member') }}">
             <input type="hidden" name="username" value="{{ customer.Username }}">
             <input type="hidden" name="customer_id" value="{{ customer.Id }}">
-            <label for="family_member">Select Family Member for Availability Searches:</label>
-            <p>(For best results, select someone least likely to actually book a swim lane in their name)</p>
+            <label for="family_member">Select Family Member:</label>
             <select id="family_member" name="family_member">
                 {% for member in family_members %}
                     <option value="{{ member.Id }}">{{ member.DisplayName }}</option>
                 {% endfor %}
             </select>
-            <button type="submit">Select</button>
+            <br>
+            <button type="submit">Submit</button>
         </form>
     {% else %}
         <form action="/register" method="post">

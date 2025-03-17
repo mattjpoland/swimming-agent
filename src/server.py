@@ -13,7 +13,7 @@ from src.logic.cancellationService import cancel_appointment_action
 from src.contextManager import load_context_for_authenticated_user, load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
-from src.sql.authGateway import get_auth, store_auth  # Import the functions from authGateway
+from src.sql.authGateway import get_auth, store_auth, get_all_auth_data, toggle_auth_enabled  # Import the functions from authGateway
 from functools import wraps
 
 app = Flask(__name__)
@@ -47,9 +47,17 @@ def require_api_key(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def require_admin(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session or session['username'] != "m_poland1@hotmail.com":
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route("/", methods=["GET"])
 def index():
-    return redirect(url_for("register"))
+    return redirect(url_for("login"))
 
 @app.route("/availability", methods=["GET"])
 @require_api_key
@@ -135,8 +143,8 @@ def cancel_lane():
     
     return jsonify(response), status_code
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
+@app.route("/login", methods=["GET", "POST"])
+def login():
     context = load_context_for_registration_pages()
     if request.method == "POST":
         username = request.form["username"]
@@ -145,7 +153,11 @@ def register():
         # Check if the username already exists in the database
         auth_entry = get_auth(username)
         if auth_entry:
-            return redirect(url_for("already_submitted"))
+            session['username'] = username  # Store the username in the session
+            if username == "m_poland1@hotmail.com":
+                return redirect(url_for("admin_page"))
+            else:
+                return redirect(url_for("already_submitted"))
         
         response = login_with_credentials(username, password, context)
         if response:
@@ -162,8 +174,8 @@ def register():
             return render_template("registration.html", customer=customer, family_members=family_members)
         else:
             error = "Login failed. Please check your credentials."
-            return render_template("registration.html", error=error)
-    return render_template("registration.html")
+            return render_template("login.html", error=error)
+    return render_template("login.html")
 
 @app.route("/select_family_member", methods=["POST"])
 def select_family_member():
@@ -187,6 +199,20 @@ def confirmation():
 @app.route("/already_submitted", methods=["GET"])
 def already_submitted():
     return render_template("already_submitted.html")
+
+@app.route("/admin", methods=["GET"])
+@require_admin
+def admin_page():
+    """Admin page to display all auth_data records and toggle the enabled column."""
+    auth_data = get_all_auth_data()
+    return render_template("admin.html", auth_data=auth_data)
+
+@app.route("/toggle_enabled/<username>", methods=["POST"])
+@require_admin
+def toggle_enabled(username):
+    """Toggle the enabled column for a given auth_data record."""
+    toggle_auth_enabled(username)
+    return redirect(url_for("admin_page"))
 
 if __name__ == "__main__":
     print("Debug URL: http://127.0.0.1:5000/")
