@@ -23,18 +23,19 @@ def get_auth(username):
         }
     return None
 
-def store_auth(username, api_key, customer_id, alt_customer_id, is_admin=False):
+def store_auth(username, api_key, customer_id, alt_customer_id, is_enabled=False, is_admin=False):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO auth_data (username, api_key, customer_id, alt_customer_id, is_enabled, is_admin)
-        VALUES (%s, %s, %s, %s, 0, %s)
+        VALUES (%s, %s, %s, %s, %s, %s)
         ON CONFLICT (username) DO UPDATE SET 
         api_key = EXCLUDED.api_key,
         customer_id = EXCLUDED.customer_id,
         alt_customer_id = EXCLUDED.alt_customer_id,
+        is_enabled = EXCLUDED.is_enabled,
         is_admin = EXCLUDED.is_admin;
-    """, (username, api_key, customer_id, alt_customer_id, is_admin))
+    """, (username, api_key, customer_id, alt_customer_id, is_enabled, is_admin))
     conn.commit()
     conn.close()
 

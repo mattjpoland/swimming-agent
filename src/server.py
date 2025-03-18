@@ -203,7 +203,7 @@ def select_family_member():
     new_api_key = uuid.uuid4().hex
     
     # Store the new entry in the database
-    store_auth(username, new_api_key, customer_id, selected_family_member)
+    store_auth(username, new_api_key, customer_id, selected_family_member, is_enabled=False)
     logging.info(f"Stored new auth entry for {username}")
     
     return redirect(url_for("confirmation"))
