@@ -28,9 +28,13 @@
                 <td>{{ record.alt_customer_id }}</td>
                 <td>{{ record.enabled }}</td>
                 <td>
+                    {% if not record.is_admin %}
                     <form action="{{ url_for('toggle_enabled', username=record.username) }}" method="post">
                         <button type="submit">Toggle Enabled</button>
                     </form>
+                    {% else %}
+                    Admin
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

@@ -27,7 +27,21 @@ logging.basicConfig(level=logging.INFO)
 
 def require_api_key(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):       
+    def decorated_function(*args, **kwargs):
+        # Initialize g.context as a dictionary
+        if not hasattr(g, 'context'):
+            g.context = {}
+
+        # Log all headers
+        logging.info(f"Request headers: {request.headers}")
+
+        mac_password = request.headers.get("mac_password")
+        if mac_password:
+            g.context["PASSWORD"] = mac_password
+            logging.info(f"mac_password header found: {mac_password}")
+        else:
+            logging.info("mac_password header not found")
+       
         auth_header = request.headers.get("Authorization")
         requested_api_key = auth_header.split(" ")[1] if auth_header else None
         g.context = load_context_for_authenticated_user(requested_api_key)
@@ -35,11 +49,6 @@ def require_api_key(f):
         if not g.context:
             return jsonify({"error": "Unauthorized"}), 401
         
-        # Log all headers
-        mac_password = request.headers.get("x-mac-pw")
-        if mac_password:
-            g.context["PASSWORD"] = mac_password
-
         # Check if the API key is enabled
         if g.context.get("ENABLED") != 1:
             return jsonify({"error": "Account not enabled"}), 403
@@ -50,7 +59,10 @@ def require_api_key(f):
 def require_admin(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in session or session['username'] != "m_poland1@hotmail.com":
+        if 'username' not in session:
+            return jsonify({"error": "Unauthorized"}), 401
+        auth_entry = get_auth(session['username'])
+        if not auth_entry or not auth_entry.get("is_admin"):
             return jsonify({"error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated_function
@@ -158,7 +170,7 @@ def login():
         auth_entry = get_auth(username)
         if auth_entry:
             session['username'] = username  # Store the username in the session
-            if username == "m_poland1@hotmail.com":
+            if auth_entry.get("is_admin"):
                 return redirect(url_for("admin_page"))
             else:
                 return redirect(url_for("already_submitted"))
@@ -215,6 +227,9 @@ def admin_page():
 @require_admin
 def toggle_enabled(username):
     """Toggle the enabled column for a given auth_data record."""
+    auth_entry = get_auth(username)
+    if auth_entry and auth_entry.get("is_admin"):
+        return jsonify({"error": "Cannot toggle enabled status for admin users."}), 403
     toggle_auth_enabled(username)
     return redirect(url_for("admin_page"))
 
