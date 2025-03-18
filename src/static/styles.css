@@ -17,6 +17,16 @@ body {
     margin: 0 auto 20px;
     width: 150px; /* Adjust the width as needed */
 }
+.app-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+.page-name {
+    font-size: 20px;
+    color: #666;
+    margin-top: 5px;
+}
 h1 {
     text-align: center;
     color: #333;
