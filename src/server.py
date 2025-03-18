@@ -221,7 +221,19 @@ def already_submitted():
 def admin_page():
     """Admin page to display all auth_data records and toggle the enabled column."""
     auth_data = get_all_auth_data()
-    return render_template("admin.html", auth_data=auth_data)
+    # Convert the auth_data to a list of dictionaries
+    auth_data_list = [
+        {
+            "username": record[0],
+            "api_key": record[1],
+            "customer_id": record[2],
+            "alt_customer_id": record[3],
+            "enabled": record[4],
+            "is_admin": record[5]
+        }
+        for record in auth_data
+    ]
+    return render_template("admin.html", auth_data=auth_data_list)
 
 @app.route("/toggle_enabled/<username>", methods=["POST"])
 @require_admin
