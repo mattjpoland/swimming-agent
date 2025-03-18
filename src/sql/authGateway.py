@@ -19,22 +19,41 @@ def get_auth(username):
             "customer_id": result[2],
             "alt_customer_id": result[3],
             "enabled": result[4],
+            "is_admin": result[5]
         }
     return None
 
-def store_auth(username, api_key, customer_id, alt_customer_id):
+def store_auth(username, api_key, customer_id, alt_customer_id, is_admin=False):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO auth_data (username, api_key, customer_id, alt_customer_id, enabled)
-        VALUES (%s, %s, %s, %s, 0)
+        INSERT INTO auth_data (username, api_key, customer_id, alt_customer_id, enabled, is_admin)
+        VALUES (%s, %s, %s, %s, 0, %s)
         ON CONFLICT (username) DO UPDATE SET 
         api_key = EXCLUDED.api_key,
         customer_id = EXCLUDED.customer_id,
-        alt_customer_id = EXCLUDED.alt_customer_id;
-    """, (username, api_key, customer_id, alt_customer_id))
+        alt_customer_id = EXCLUDED.alt_customer_id,
+        is_admin = EXCLUDED.is_admin;
+    """, (username, api_key, customer_id, alt_customer_id, is_admin))
     conn.commit()
     conn.close()
+
+def get_auth_by_api_key(api_key):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM auth_data WHERE api_key = %s", (api_key,))
+    result = cursor.fetchone()
+    conn.close()
+    if result:
+        return {
+            "username": result[0],
+            "api_key": result[1],
+            "customer_id": result[2],
+            "alt_customer_id": result[3],
+            "enabled": result[4],
+            "is_admin": result[5]
+        }
+    return None
 
 def get_all_auth_data():
     conn = get_db_connection()
@@ -42,16 +61,7 @@ def get_all_auth_data():
     cursor.execute("SELECT * FROM auth_data")
     results = cursor.fetchall()
     conn.close()
-    return [
-        {
-            "username": row[0],
-            "api_key": row[1],
-            "customer_id": row[2],
-            "alt_customer_id": row[3],
-            "enabled": row[4],
-        }
-        for row in results
-    ]
+    return results
 
 def toggle_auth_enabled(username):
     conn = get_db_connection()
