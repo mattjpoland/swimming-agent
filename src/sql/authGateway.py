@@ -18,7 +18,7 @@ def get_auth(username):
             "api_key": result[1],
             "customer_id": result[2],
             "alt_customer_id": result[3],
-            "enabled": result[4],
+            "is_enabled": result[4],
             "is_admin": result[5]
         }
     return None
@@ -27,7 +27,7 @@ def store_auth(username, api_key, customer_id, alt_customer_id, is_admin=False):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO auth_data (username, api_key, customer_id, alt_customer_id, enabled, is_admin)
+        INSERT INTO auth_data (username, api_key, customer_id, alt_customer_id, is_enabled, is_admin)
         VALUES (%s, %s, %s, %s, 0, %s)
         ON CONFLICT (username) DO UPDATE SET 
         api_key = EXCLUDED.api_key,
@@ -50,7 +50,7 @@ def get_auth_by_api_key(api_key):
             "api_key": result[1],
             "customer_id": result[2],
             "alt_customer_id": result[3],
-            "enabled": result[4],
+            "is_enabled": result[4],
             "is_admin": result[5]
         }
     return None
@@ -66,6 +66,6 @@ def get_all_auth_data():
 def toggle_auth_enabled(username):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE auth_data SET enabled = NOT enabled WHERE username = %s", (username,))
+    cursor.execute("UPDATE auth_data SET is_enabled = NOT is_enabled WHERE username = %s", (username,))
     conn.commit()
     conn.close()

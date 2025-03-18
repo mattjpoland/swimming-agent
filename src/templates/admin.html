@@ -26,7 +26,7 @@
                 <td>{{ record.api_key }}</td>
                 <td>{{ record.customer_id }}</td>
                 <td>{{ record.alt_customer_id }}</td>
-                <td>{{ record.enabled }}</td>
+                <td>{{ record.is_enabled }}</td>
                 <td>
                     {% if not record.is_admin %}
                     <form action="{{ url_for('toggle_enabled', username=record.username) }}" method="post">

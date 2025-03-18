@@ -50,7 +50,7 @@ def require_api_key(f):
             return jsonify({"error": "Unauthorized"}), 401
         
         # Check if the API key is enabled
-        if g.context.get("ENABLED") != 1:
+        if g.context.get("is_enabled") != 1:
             return jsonify({"error": "Account not enabled"}), 403
         
         return f(*args, **kwargs)
@@ -228,7 +228,7 @@ def admin_page():
             "api_key": record[1],
             "customer_id": record[2],
             "alt_customer_id": record[3],
-            "enabled": record[4],
+            "is_enabled": record[4],
             "is_admin": record[5]
         }
         for record in auth_data
