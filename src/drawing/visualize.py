@@ -6,6 +6,8 @@ import src.contextManager
 import io
 import datetime
 from io import BytesIO
+import matplotlib.image as mpimg
+import numpy as np
 
 def generate_visualization(availability, pool_name, date_str, appt, context):
     """Generate and save the swim lane availability visualization with a clean reset."""
@@ -95,18 +97,33 @@ def combine_visualizations(img1, img2):
         BytesIO: The combined image.
     """
     # Read the images from BytesIO
-    img1_fig = plt.imread(BytesIO(img1.getvalue()))
-    img2_fig = plt.imread(BytesIO(img2.getvalue()))
+    img1_fig = mpimg.imread(BytesIO(img1.getvalue()))
+    img2_fig = mpimg.imread(BytesIO(img2.getvalue()))
+
+    # Determine the height and width of the combined image
+    img1_height, img1_width, _ = img1_fig.shape
+    img2_height, img2_width, _ = img2_fig.shape
+
+    # Ensure both images have the same width by padding if necessary
+    max_width = max(img1_width, img2_width)
+    if img1_width < max_width:
+        padding = ((0, 0), (0, max_width - img1_width), (0, 0))
+        img1_fig = np.pad(img1_fig, padding, mode='constant', constant_values=255)
+    if img2_width < max_width:
+        padding = ((0, 0), (0, max_width - img2_width), (0, 0))
+        img2_fig = np.pad(img2_fig, padding, mode='constant', constant_values=255)
 
     # Create a new figure to combine the images
-    combined_fig, ax = plt.subplots(figsize=(14, 16))
-    ax.imshow(img1_fig, aspect="auto", extent=(0, 1, 0.5, 1))
-    ax.imshow(img2_fig, aspect="auto", extent=(0, 1, 0, 0.5))
+    combined_height = img1_height + img2_height
+    combined_fig, ax = plt.subplots(figsize=(max_width / 100, combined_height / 100), dpi=100)
+
+    # Display the images in the correct positions
+    ax.imshow(np.vstack((img1_fig, img2_fig)))
     ax.axis("off")
 
     # Save the combined image to a BytesIO object
     combined_img_io = BytesIO()
-    plt.savefig(combined_img_io, format="png", bbox_inches="tight")
+    plt.savefig(combined_img_io, format="png", bbox_inches="tight", pad_inches=0)
     combined_img_io.seek(0)
 
     # Close the figure to free memory
