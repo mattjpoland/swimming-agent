@@ -13,12 +13,13 @@
         <form method="POST" action="{{ url_for('select_family_member') }}">
             <input type="hidden" name="username" value="{{ customer.Username }}">
             <input type="hidden" name="customer_id" value="{{ customer.Id }}">
-            <label for="family_member">Select Family Member:</label>
+            <label for="family_member">Family Member to Retrieve Availability:</label>
             <select id="family_member" name="family_member">
                 {% for member in family_members %}
                     <option value="{{ member.Id }}">{{ member.DisplayName }}</option>
                 {% endfor %}
             </select>
+            <p>(It's best to pick someone that is not you and someone you're least likely to actually book lane appointments with.)</p>
             <br>
             <button type="submit">Submit</button>
         </form>
