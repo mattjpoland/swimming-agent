@@ -6,10 +6,10 @@ import logging
 from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session, send_from_directory
 from dotenv import load_dotenv
 from src.drawing.visualize import generate_visualization
-from src.logic.availabilityService import get_availability
-from src.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
-from src.logic.bookingService import book_swim_lane_action
-from src.logic.cancellationService import cancel_appointment_action
+from src.api.logic.availabilityService import get_availability
+from src.api.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
+from src.api.logic.bookingService import book_swim_lane_action
+from src.api.logic.cancellationService import cancel_appointment_action
 from src.contextManager import load_context_for_authenticated_user, load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
