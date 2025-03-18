@@ -28,29 +28,22 @@ logging.basicConfig(level=logging.INFO)
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Initialize g.context as a dictionary
         if not hasattr(g, 'context'):
             g.context = {}
 
-        # Log all headers
         logging.info(f"Request headers: {request.headers}")
 
-        mac_password = request.headers.get("mac_password")
-        if mac_password:
-            g.context["PASSWORD"] = mac_password
-            logging.info(f"mac_password header found: {mac_password}")
-        else:
-            logging.info("mac_password header not found")
+        mac_password = request.headers.get("x-mac-pw")
        
         auth_header = request.headers.get("Authorization")
         requested_api_key = auth_header.split(" ")[1] if auth_header else None
-        g.context = load_context_for_authenticated_user(requested_api_key)
+        g.context = load_context_for_authenticated_user(requested_api_key, mac_password)  # Pass mac_password
         
         if not g.context:
             return jsonify({"error": "Unauthorized"}), 401
         
         # Check if the API key is enabled
-        if g.context.get("is_enabled") != 1:
+        if not g.context.get("IS_ENABLED"):  # Updated to "IS_ENABLED"
             return jsonify({"error": "Account not enabled"}), 403
         
         return f(*args, **kwargs)
@@ -228,8 +221,8 @@ def admin_page():
             "api_key": record[1],
             "customer_id": record[2],
             "alt_customer_id": record[3],
-            "is_enabled": record[4],
-            "is_admin": record[5]
+            "is_enabled": bool(record[4]),  # Convert to boolean
+            "is_admin": bool(record[5])    # Convert to boolean
         }
         for record in auth_data
     ]

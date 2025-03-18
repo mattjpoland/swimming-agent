@@ -18,8 +18,8 @@ def get_auth(username):
             "api_key": result[1],
             "customer_id": result[2],
             "alt_customer_id": result[3],
-            "is_enabled": result[4],
-            "is_admin": result[5]
+            "is_enabled": bool(result[4]),  # Convert to boolean
+            "is_admin": bool(result[5])    # Convert to boolean
         }
     return None
 
@@ -67,6 +67,10 @@ def get_all_auth_data():
 def toggle_auth_enabled(username):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE auth_data SET is_enabled = NOT is_enabled WHERE username = %s", (username,))
+    cursor.execute("""
+        UPDATE auth_data
+        SET is_enabled = NOT is_enabled
+        WHERE username = %s
+    """, (username,))
     conn.commit()
     conn.close()

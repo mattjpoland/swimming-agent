@@ -1,15 +1,15 @@
 import os
 import datetime
-import json
-from src.sql.authGateway import get_auth, get_db_connection
+from src.sql.authGateway import get_auth_by_api_key  # Use the function from authGateway
 
 _BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 _AVAILABILITY_URL = f"{_BASE_MAC_URL}Scheduling/GetBookAvailability"
 _LOGIN_URL = f"{_BASE_MAC_URL}CustomerAuth/CustomerLogin"
 _COMPANY_ID = os.getenv("COMPANY_ID")
 
-def load_context_for_authenticated_user(api_key):
-    auth_entry = get_auth_by_api_key(api_key)
+def load_context_for_authenticated_user(api_key, mac_password):
+    """Load context for an authenticated user using their API key and mac_password."""
+    auth_entry = get_auth_by_api_key(api_key)  # Use the function from authGateway
     if not auth_entry:
         return None
 
@@ -18,7 +18,8 @@ def load_context_for_authenticated_user(api_key):
         "USERNAME": auth_entry["username"],
         "CUSTOMER_ID": auth_entry["customer_id"],
         "ALT_CUSTOMER_ID": auth_entry["alt_customer_id"],
-        "ENABLED": auth_entry["enabled"],
+        "IS_ENABLED": auth_entry["is_enabled"],  # Updated key to "IS_ENABLED"
+        "IS_ADMIN": auth_entry["is_admin"],      # Reflect the updated schema
         "BASE_MAC_URL": _BASE_MAC_URL,
         "AVAILABILITY_URL": _AVAILABILITY_URL,
         "LOGIN_URL": _LOGIN_URL,
@@ -34,25 +35,9 @@ def load_context_for_authenticated_user(api_key):
         "BOOK_SELECTION_IDS": _BOOK_SELECTION_IDS,
         "LANES": _LANES,
         "TIME_SLOTS": _TIME_SLOTS,
-        "PASSWORD": "placeholder"
+        "PASSWORD": mac_password  # Set to mac_password instead of "placeholder"
     }
     return context
-
-def get_auth_by_api_key(api_key):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM auth_data WHERE api_key = %s", (api_key,))
-    result = cursor.fetchone()
-    conn.close()
-    if result:
-        return {
-            "username": result[0],
-            "api_key": result[1],
-            "customer_id": result[2],
-            "alt_customer_id": result[3],
-            "enabled": result[4],
-        }
-    return None
 
 def load_context_for_registration_pages():
     """Load context for registration pages without requiring an API key."""
