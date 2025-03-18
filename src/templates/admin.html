@@ -5,40 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAC Swimming Agent - Admin Page</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>MAC Swimming Agent - Admin Page</h1>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Username</th>
-                <th>API Key</th>
-                <th>Customer ID</th>
-                <th>Alt Customer ID</th>
-                <th>Enabled</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for record in auth_data %}
-            <tr>
-                <td>{{ record.username }}</td>
-                <td>{{ record.api_key }}</td>
-                <td>{{ record.customer_id }}</td>
-                <td>{{ record.alt_customer_id }}</td>
-                <td>{{ record.is_enabled }}</td>
-                <td>
-                    {% if not record.is_admin %}
-                    <form action="{{ url_for('toggle_enabled', username=record.username) }}" method="post">
-                        <button type="submit">Toggle Enabled</button>
-                    </form>
-                    {% else %}
-                    Admin
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="container">
+        <img src="{{ url_for('static', filename='swimming_logo.png') }}" alt="Swimming Logo" class="logo">
+        <h1>MAC Swimming Agent - Admin Page</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>API Key</th>
+                    <th>Customer ID</th>
+                    <th>Alt Customer ID</th>
+                    <th>Enabled</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in auth_data %}
+                <tr>
+                    <td>{{ record.username }}</td>
+                    <td>{{ record.api_key }}</td>
+                    <td>{{ record.customer_id }}</td>
+                    <td>{{ record.alt_customer_id }}</td>
+                    <td>{{ record.is_enabled }}</td>
+                    <td>
+                        {% if not record.is_admin %}
+                        <form action="{{ url_for('toggle_enabled', username=record.username) }}" method="post">
+                            <button type="submit">Toggle Enabled</button>
+                        </form>
+                        {% else %}
+                        Admin
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>

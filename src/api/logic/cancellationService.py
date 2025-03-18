@@ -1,5 +1,5 @@
-from src.api.loginGateway import login
-from src.api.appointmentGateway import cancel_appointment, get_appointments_schedule
+from src.api.gateways.loginGateway import login
+from src.api.gateways.appointmentGateway import cancel_appointment, get_appointments_schedule
 import datetime
 import pytz
 

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import datetime
 import pytz
-from src.api.loginGateway import login, check_swim_lane_availability
+from src.api.gateways.loginGateway import login, check_swim_lane_availability
 
 # Constants
 LANES_BY_POOL = {

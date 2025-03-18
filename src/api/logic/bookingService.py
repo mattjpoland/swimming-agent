@@ -1,5 +1,5 @@
-from src.api.loginGateway import login
-from src.api.appointmentGateway import book_swim_lane
+from src.api.gateways.loginGateway import login
+from src.api.gateways.appointmentGateway import book_swim_lane
 import datetime
 import pytz
 

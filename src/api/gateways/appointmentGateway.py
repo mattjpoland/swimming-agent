@@ -2,7 +2,7 @@ import os
 import requests
 import datetime
 import pytz
-from src.api.loginGateway import login  # Import login function
+from src.api.gateways.loginGateway import login  # Import login function
 import src.contextManager
 # Construct API URL
 BASE_MAC_URL = os.getenv("BASE_MAC_URL")

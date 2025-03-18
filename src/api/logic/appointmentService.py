@@ -1,6 +1,6 @@
-from src.api.loginGateway import login
-from src.api.appointmentGateway import get_appointments_schedule
-from src.api.availabilityGateway import check_swim_lane_availability
+from src.api.gateways.loginGateway import login
+from src.api.gateways.appointmentGateway import get_appointments_schedule
+from src.api.gateways.availabilityGateway import check_swim_lane_availability
 import src.contextManager
 import datetime
 import pytz

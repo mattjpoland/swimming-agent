@@ -5,35 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAC Swimming Agent - Registration</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>MAC Swimming Agent - Registration</h1>
-    {% if customer %}
-        <p>Welcome, {{ customer.DisplayName }}!</p>
-        <form method="POST" action="{{ url_for('select_family_member') }}">
-            <input type="hidden" name="username" value="{{ customer.Username }}">
-            <input type="hidden" name="customer_id" value="{{ customer.Id }}">
-            <label for="family_member">Family Member to Retrieve Availability:</label>
-            <select id="family_member" name="family_member">
-                {% for member in family_members %}
-                    <option value="{{ member.Id }}">{{ member.DisplayName }}</option>
-                {% endfor %}
-            </select>
-            <p>(It's best to pick someone that is not you and someone you're least likely to actually book lane appointments with.)</p>
-            <br>
-            <button type="submit">Submit</button>
-        </form>
-    {% else %}
-        <form action="/register" method="post">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required><br><br>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required><br><br>
-            <button type="submit">Register</button>
-        </form>
-        {% if error %}
-            <p style="color: red;">{{ error }}</p>
+    <div class="container">
+        <img src="{{ url_for('static', filename='swimming_logo.png') }}" alt="Swimming Logo" class="logo">
+        <h1>MAC Swimming Agent - Registration</h1>
+        {% if customer %}
+            <p>Welcome, {{ customer.DisplayName }}!</p>
+            <form method="POST" action="{{ url_for('select_family_member') }}">
+                <input type="hidden" name="username" value="{{ customer.Username }}">
+                <input type="hidden" name="customer_id" value="{{ customer.Id }}">
+                <label for="family_member">Family Member to Retrieve Availability:</label>
+                <select id="family_member" name="family_member">
+                    {% for member in family_members %}
+                        <option value="{{ member.Id }}">{{ member.DisplayName }}</option>
+                    {% endfor %}
+                </select>
+                <p>(It's best to pick someone that is not you and someone you're least likely to actually book lane appointments with.)</p>
+                <br>
+                <button type="submit">Submit</button>
+            </form>
+        {% else %}
+            <form action="{{ url_for('register') }}" method="post">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+                <button type="submit">Register</button>
+            </form>
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
         {% endif %}
-    {% endif %}
+    </div>
 </body>
 </html>
