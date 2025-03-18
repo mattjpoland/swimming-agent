@@ -5,7 +5,7 @@ import uuid
 import logging
 from flask import Flask, request, send_file, jsonify, g, render_template, redirect, url_for, session, send_from_directory
 from dotenv import load_dotenv
-from src.drawing.visualize import generate_visualization
+from src.drawing.visualize import generate_visualization, combine_visualizations
 from src.api.logic.availabilityService import get_availability
 from src.api.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.api.logic.bookingService import book_swim_lane_action
@@ -15,6 +15,8 @@ from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
 from src.sql.authGateway import get_auth, store_auth, get_all_auth_data, toggle_auth_enabled  # Import the functions from authGateway
 from functools import wraps
+from matplotlib import pyplot as plt
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Set a secret key for session management
@@ -75,17 +77,40 @@ def get_swim_lane_availability():
     pool_name = request.args.get("pool", "Indoor Pool")
     date_str = request.args.get("date", datetime.datetime.now().strftime("%Y-%m-%d"))
 
-    if pool_name == "Indoor":
-        pool_name = "Indoor Pool"
-    elif pool_name == "Outdoor": 
-        pool_name = "Outdoor Pool"
+    if pool_name in ["Indoor", "Outdoor"]:
+        pool_name = f"{pool_name} Pool"
 
+    if pool_name == "Both" or pool_name == "Both Pools":
+        # Generate visualizations for both pools
+        indoor_pool_name = "Indoor Pool"
+        outdoor_pool_name = "Outdoor Pool"
+
+        # Generate availability and appointments for both pools
+        indoor_item_id = g.context["ITEMS"][indoor_pool_name]
+        outdoor_item_id = g.context["ITEMS"][outdoor_pool_name]
+
+        indoor_availability = get_availability(indoor_item_id, date_str, g.context)
+        outdoor_availability = get_availability(outdoor_item_id, date_str, g.context)
+
+        indoor_appt = get_appointment_data(date_str, g.context)
+        outdoor_appt = get_appointment_data(date_str, g.context)
+
+        # Generate visualizations for both pools
+        indoor_img = generate_visualization(indoor_availability, indoor_pool_name, date_str, indoor_appt, g.context)
+        outdoor_img = generate_visualization(outdoor_availability, outdoor_pool_name, date_str, outdoor_appt, g.context)
+
+        # Combine the two images using the new function
+        combined_img_io = combine_visualizations(indoor_img, outdoor_img)
+
+        return send_file(combined_img_io, mimetype="image/png")
+
+    # Validate pool_name for single pool
     if pool_name not in g.context["ITEMS"]:
-        return jsonify({"error": "Invalid pool name. Use 'Indoor Pool' or 'Outdoor Pool'."}), 400
+        return jsonify({"error": "Invalid pool name. Use 'Indoor Pool', 'Outdoor Pool', or 'Both Pools'."}), 400
 
+    # Generate visualization for a single pool
     item_id = g.context["ITEMS"][pool_name]
     availability = get_availability(item_id, date_str, g.context)
-
     appt = get_appointment_data(date_str, g.context)
 
     img_io = generate_visualization(availability, pool_name, date_str, appt, g.context)

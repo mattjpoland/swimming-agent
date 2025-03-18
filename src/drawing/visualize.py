@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import src.contextManager 
 import io
 import datetime
+from io import BytesIO
 
 def generate_visualization(availability, pool_name, date_str, appt, context):
     """Generate and save the swim lane availability visualization with a clean reset."""
@@ -81,3 +82,34 @@ def generate_visualization(availability, pool_name, date_str, appt, context):
     plt.close(fig)  # Close the figure to free memory
 
     return img_io
+
+def combine_visualizations(img1, img2):
+    """
+    Combine two images vertically and return the combined image as a BytesIO object.
+
+    Args:
+        img1 (BytesIO): The first image (top).
+        img2 (BytesIO): The second image (bottom).
+
+    Returns:
+        BytesIO: The combined image.
+    """
+    # Read the images from BytesIO
+    img1_fig = plt.imread(BytesIO(img1.getvalue()))
+    img2_fig = plt.imread(BytesIO(img2.getvalue()))
+
+    # Create a new figure to combine the images
+    combined_fig, ax = plt.subplots(figsize=(14, 16))
+    ax.imshow(img1_fig, aspect="auto", extent=(0, 1, 0.5, 1))
+    ax.imshow(img2_fig, aspect="auto", extent=(0, 1, 0, 0.5))
+    ax.axis("off")
+
+    # Save the combined image to a BytesIO object
+    combined_img_io = BytesIO()
+    plt.savefig(combined_img_io, format="png", bbox_inches="tight")
+    combined_img_io.seek(0)
+
+    # Close the figure to free memory
+    plt.close(combined_fig)
+
+    return combined_img_io
