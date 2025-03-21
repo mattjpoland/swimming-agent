@@ -273,7 +273,7 @@ def toggle_enabled(username):
     toggle_auth_enabled(username)
     return redirect(url_for("admin_page"))
 
-@app.route("/cron_hello", methods=["GET"])
+@app.route("/cron_schedule_swim_lanes", methods=["GET"])
 def cron_hello():
     logging.info("CRON job executed successfully!")
     return jsonify({"message": "Hello, World! CRON job executed successfully!"}), 200
