@@ -273,6 +273,11 @@ def toggle_enabled(username):
     toggle_auth_enabled(username)
     return redirect(url_for("admin_page"))
 
+@app.route("/cron_hello", methods=["GET"])
+def cron_hello():
+    logging.info("CRON job executed successfully!")
+    return jsonify({"message": "Hello, World! CRON job executed successfully!"}), 200
+
 if __name__ == "__main__":
     print("Debug URL: http://127.0.0.1:5000/")
     print("Deploy URL: https://swimming-agent.onrender.com/")
