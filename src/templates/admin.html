@@ -33,7 +33,7 @@
                     <td>{{ record.is_enabled }}</td>
                     <td>
                         {% if not record.is_admin %}
-                        <form action="{{ url_for('toggle_enabled', username=record.username) }}" method="post">
+                        <form action="{{ url_for('web.toggle_enabled', username=record.username) }}" method="post">
                             <button type="submit">Toggle Enabled</button>
                         </form>
                         {% else %}

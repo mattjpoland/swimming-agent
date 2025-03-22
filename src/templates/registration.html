@@ -14,7 +14,7 @@
         <div class="page-name">Registration</div>
         {% if customer %}
             <p>Welcome, {{ customer.DisplayName }}!</p>
-            <form method="POST" action="{{ url_for('select_family_member') }}">
+            <form method="POST" action="{{ url_for('web.select_family_member') }}">
                 <input type="hidden" name="username" value="{{ customer.Username }}">
                 <input type="hidden" name="customer_id" value="{{ customer.Id }}">
                 <label for="family_member">Family Member to Retrieve Availability:</label>
@@ -28,7 +28,7 @@
                 <button type="submit">Submit</button>
             </form>
         {% else %}
-            <form action="{{ url_for('register') }}" method="post">
+            <form action="{{ url_for('web.register') }}" method="post">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
                 <label for="password">Password:</label>
