@@ -1,8 +1,8 @@
 from src.web.gateways.webFamilyGateway import get_family_members
-from src.api.gateways.loginGateway import login
+from src.api.gateways.loginGateway import login_via_context
 
 def get_family_members_action(context):
-    token = login(context)
+    token = login_via_context(context)
     if not token:
         return {}
     

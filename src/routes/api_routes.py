@@ -12,7 +12,7 @@ from src.drawing.visualize import generate_visualization, combine_visualizations
 from src.decorators import require_api_key
 from src.sql.authGateway import get_auth  # Assuming this retrieves user data
 from src.web.gateways.webLoginGateway import login_with_credentials  # Import login gateway
-from src.api.gateways.loginGateway import login  # Import the updated login function
+from src.api.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
 
 api_bp = Blueprint('api', __name__)
 
@@ -108,7 +108,7 @@ def generate_barcode():
             return jsonify({"error": "Username or password not found in context"}), 400
 
         # Use loginGateway to fetch the login response
-        login_response = login(username, password)
+        login_response = login_via_credentials(username, password)
         if not login_response:
             return jsonify({"error": "Failed to fetch login response"}), 401
 

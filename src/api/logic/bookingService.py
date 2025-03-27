@@ -1,4 +1,4 @@
-from src.api.gateways.loginGateway import login
+from src.api.gateways.loginGateway import login_via_context
 from src.api.gateways.appointmentGateway import book_swim_lane
 import datetime
 import pytz
@@ -7,7 +7,7 @@ def book_swim_lane_action(date, time_slot, duration, location, lane, context):
     """
     Book a swim lane for a given date range.
     """
-    token = login(context)
+    token = login_via_context(context)
     if not token:
         return {"message": "Authentication failed"}, 401
 

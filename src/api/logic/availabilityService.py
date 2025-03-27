@@ -1,7 +1,7 @@
 import src.contextManager
 from src.api.gateways.availabilityGateway import check_swim_lane_availability  # Import swim lane function
 from dateutil import parser  # Import this at the top
-from src.api.gateways.loginGateway import login
+from src.api.gateways.loginGateway import login_via_context
 import pytz
 
 
@@ -17,7 +17,7 @@ def format_api_time(api_time):
 
 def get_availability(item_id, date_str, context):
     """Fetch availability data for a given pool type and date."""
-    token = login(context)
+    token = login_via_context(context)
     if not token:
         return {}
 

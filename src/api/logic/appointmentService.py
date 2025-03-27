@@ -1,4 +1,4 @@
-from src.api.gateways.loginGateway import login
+from src.api.gateways.loginGateway import login_via_context
 from src.api.gateways.appointmentGateway import get_appointments_schedule
 from src.api.gateways.availabilityGateway import check_swim_lane_availability
 import src.contextManager
@@ -10,7 +10,7 @@ def get_appointments_schedule_action(date_str, context):
     """
     Fetch scheduled swim lane appointments for a given date.
     """
-    token = login(context)
+    token = login_via_context(context)
     if not token:
         return {"error": "Authentication failed"}, 401
 
@@ -91,7 +91,7 @@ def get_appointment_data(date_str, context):
     """
     Fetch scheduled swim lane appointment data for a given date.
     """
-    token = login(context)
+    token = login_via_context(context)
     if not token:
         return {"error": "Authentication failed"}, 401
 

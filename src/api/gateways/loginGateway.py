@@ -48,7 +48,7 @@ def save_token(token, expiration, context):
     with open(context["TOKEN_CACHE_FILE"], "w") as f:
         json.dump(data, f)
 
-def login(context):
+def login_via_context(context):
     """Fetch an authentication token, storing it if valid."""
     cached_token = load_cached_token(context)
     if cached_token:
@@ -92,13 +92,12 @@ def login(context):
         print(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
-def login(username, password):
+def login_via_credentials(username, password):
     """
     Authenticate the user and return the full login response.
     """
     url = "https://www.ourclublogin.com/api/CustomerAuth/CustomerLogin"
 
-    # Define headers similar to login(context)
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
@@ -106,7 +105,6 @@ def login(username, password):
         "x-customerid": os.getenv("CUSTOMER_ID")  # Use environment variable for CUSTOMER_ID
     }
 
-    # Define payload similar to login(context)
     payload = {
         "UserLogin": username,
         "Pswd": password
@@ -141,7 +139,7 @@ if __name__ == "__main__":
         "API_KEY": "example_api_key",
         "TOKEN_CACHE_FILE": "token_cache.json"
     }
-    auth_token = login(context)
+    auth_token = login_via_context(context)
 
     if auth_token:
         # Get today's date in YYYY-MM-DD format

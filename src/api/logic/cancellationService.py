@@ -1,4 +1,4 @@
-from src.api.gateways.loginGateway import login
+from src.api.gateways.loginGateway import login_via_context
 from src.api.gateways.appointmentGateway import cancel_appointment, get_appointments_schedule
 import datetime
 import pytz
@@ -7,7 +7,7 @@ def cancel_appointment_action(appointment_date, context):
     """
     Cancel an existing swim lane appointment on a given date.
     """
-    token = login(context)
+    token = login_via_context(context)
     if not token:
         return {"message": "Authentication failed"}, 401
 
