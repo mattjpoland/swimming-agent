@@ -92,6 +92,43 @@ def login(context):
         print(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
+def login(username, password):
+    """
+    Authenticate the user and return the full login response.
+    """
+    url = "https://www.ourclublogin.com/api/CustomerAuth/CustomerLogin"
+
+    # Define headers similar to login(context)
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "x-companyid": os.getenv("COMPANY_ID"),  # Use environment variable for COMPANY_ID
+        "x-customerid": os.getenv("CUSTOMER_ID")  # Use environment variable for CUSTOMER_ID
+    }
+
+    # Define payload similar to login(context)
+    payload = {
+        "UserLogin": username,
+        "Pswd": password
+    }
+
+    print(f"🔍 Logging in via: {url}")
+
+    # Make the POST request
+    response = requests.post(url, headers=headers, json=payload, verify=False)
+
+    print(f"🔍 Response Status Code: {response.status_code}")
+
+    if response.status_code == 200:
+        try:
+            return response.json()  # Return the full response
+        except json.JSONDecodeError:
+            print("❌ Error: Response is not valid JSON.")
+            return None
+    else:
+        print(f"❌ Login failed: {response.status_code} - {response.text}")
+        return None
+
 # Main script execution
 if __name__ == "__main__":
     # Example context for testing

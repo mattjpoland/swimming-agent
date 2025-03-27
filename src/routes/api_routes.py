@@ -1,12 +1,18 @@
 from flask import Blueprint, jsonify, request, g, send_file
 from datetime import datetime
 import logging
+import io
+import barcode
+from barcode.writer import ImageWriter
 from src.api.logic.availabilityService import get_availability
 from src.api.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.api.logic.bookingService import book_swim_lane_action
 from src.api.logic.cancellationService import cancel_appointment_action
 from src.drawing.visualize import generate_visualization, combine_visualizations
 from src.decorators import require_api_key
+from src.sql.authGateway import get_auth  # Assuming this retrieves user data
+from src.web.gateways.webLoginGateway import login_with_credentials  # Import login gateway
+from src.api.gateways.loginGateway import login  # Import the updated login function
 
 api_bp = Blueprint('api', __name__)
 
@@ -84,3 +90,40 @@ def cancel_lane():
     appointment_date = data.get("date")
     response, status_code = cancel_appointment_action(appointment_date, g.context)
     return jsonify(response), status_code
+
+@api_bp.route("/barcode", methods=["GET"])
+@require_api_key
+def generate_barcode():
+    """
+    API Endpoint to generate a barcode image for a user's BarcodeId using Code 39.
+    """
+    # Attempt to get the BarcodeId from the context
+    barcode_id = g.context.get("BarcodeId")
+
+    # If BarcodeId is not in the context, use loginGateway to fetch it
+    if not barcode_id:
+        username = g.context.get("USERNAME")
+        password = g.context.get("PASSWORD")  # Ensure PASSWORD is securely stored in the context
+        if not username or not password:
+            return jsonify({"error": "Username or password not found in context"}), 400
+
+        # Use loginGateway to fetch the login response
+        login_response = login(username, password)
+        if not login_response:
+            return jsonify({"error": "Failed to fetch login response"}), 401
+
+        # Extract the BarcodeId from the login response
+        barcode_id = login_response.get("BarcodeId")
+        if not barcode_id:
+            return jsonify({"error": "BarcodeId not found in login response"}), 404
+
+    # Generate the barcode image using Code 39 without checksum
+    barcode_class = barcode.get_barcode_class('code39')  # Get the Code 39 barcode class
+    barcode_format = barcode_class(barcode_id, writer=ImageWriter(), add_checksum=False)
+    barcode_format.add_checksum = False  # Disable the checksum
+    barcode_image = io.BytesIO()
+    barcode_format.write(barcode_image)
+    barcode_image.seek(0)
+
+    # Return the barcode image as a response
+    return send_file(barcode_image, mimetype="image/png")
