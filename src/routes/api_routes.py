@@ -74,10 +74,16 @@ def book_lane():
     location = data.get("location", "Indoor Pool")
     lane = data.get("lane", "1")
 
+    if pool_name in ["Indoor", "Outdoor"]:
+        pool_name = f"{pool_name} Pool"
+
     if lane.isdigit():
         lane = f"Lane {lane}"
     if duration.isdigit():
         duration = f"{duration} Min"
+
+    # log date, time, duration, location, lane
+    logging.info(f"Booking request: {date}, {time}, {duration}, {location}, {lane}")
 
     response, status_code = book_swim_lane_action(date, time, duration, location, lane, g.context)
     return jsonify(response), status_code

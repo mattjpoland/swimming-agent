@@ -25,6 +25,7 @@ def book_swim_lane_action(date, time_slot, duration, location, lane, context):
     appointments, status_code = book_swim_lane(token, appointment_date_time, duration, location, lane, context)
 
     if status_code != 200 or not appointments or not appointments.get("Success"):
+        
         return {"message": "Failed to book appointment"}, 500
 
     message = f"{location} {lane} successfully booked for {duration} on {date} at {time_slot}"
