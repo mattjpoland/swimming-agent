@@ -8,6 +8,7 @@ import datetime
 from io import BytesIO
 import matplotlib.image as mpimg
 import numpy as np
+import logging
 
 def generate_visualization(availability, pool_name, date_str, appt, context):
     """Generate and save the swim lane availability visualization with a clean reset."""

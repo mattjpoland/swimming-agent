@@ -2,6 +2,7 @@ from src.api.gateways.loginGateway import login_via_context
 from src.api.gateways.appointmentGateway import book_swim_lane
 import datetime
 import pytz
+import logging
 
 def book_swim_lane_action(date, time_slot, duration, location, lane, context):
     """

@@ -1,7 +1,7 @@
 import requests
 import os
 import src.contextManager
-
+import logging
 
 def check_swim_lane_availability(token, date_str, item_id, context):
     """Fetch swim lane availability using a valid token."""

@@ -1,5 +1,6 @@
 import psycopg2
 import os
+import logging
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 

@@ -1,6 +1,7 @@
 import os
 import datetime
 from src.sql.authGateway import get_auth_by_api_key  # Use the function from authGateway
+import logging
 
 _BASE_MAC_URL = os.getenv("BASE_MAC_URL")
 _AVAILABILITY_URL = f"{_BASE_MAC_URL}Scheduling/GetBookAvailability"

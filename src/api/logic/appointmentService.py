@@ -5,6 +5,7 @@ import src.contextManager
 import datetime
 import pytz
 import requests
+import logging
 
 def get_appointments_schedule_action(date_str, context):
     """
