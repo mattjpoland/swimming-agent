@@ -2,6 +2,7 @@ from flask import Flask, redirect, url_for
 from src.routes.api_routes import api_bp
 from src.routes.web_routes import web_bp
 from src.routes.legacy_routes import legacy_bp
+import logging
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -10,6 +11,9 @@ app.secret_key = 'your_secret_key'
 app.register_blueprint(api_bp, url_prefix="/api")
 app.register_blueprint(web_bp, url_prefix="/web")
 app.register_blueprint(legacy_bp)
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.info("Server started.")
 
 @app.route("/", methods=["GET"])
 def index():
