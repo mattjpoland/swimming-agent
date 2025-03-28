@@ -74,8 +74,8 @@ def book_lane():
     location = data.get("location", "Indoor Pool")
     lane = data.get("lane", "1")
 
-    if pool_name in ["Indoor", "Outdoor"]:
-        pool_name = f"{pool_name} Pool"
+    if location in ["Indoor", "Outdoor"]:
+        location = f"{pool_name} Pool"
 
     if lane.isdigit():
         lane = f"Lane {lane}"
