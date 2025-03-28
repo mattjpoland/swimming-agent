@@ -1,4 +1,5 @@
 import src.contextManager
+import logging
 from src.api.gateways.availabilityGateway import check_swim_lane_availability  # Import swim lane function
 from dateutil import parser  # Import this at the top
 from src.api.gateways.loginGateway import login_via_context
@@ -12,7 +13,7 @@ def format_api_time(api_time):
         et_dt = utc_dt.astimezone(pytz.timezone("America/New_York"))  # Convert to ET
         return et_dt.strftime("%I:%M %p").lstrip("0")  # Match TIME_SLOTS format
     except Exception as e:
-        print(f"Error parsing datetime: {api_time}, Error: {e}")
+        logging.info(f"Error parsing datetime: {api_time}, Error: {e}")
         return None  # Return None to handle errors gracefully
 
 def get_availability(item_id, date_str, context):
@@ -28,7 +29,7 @@ def get_availability(item_id, date_str, context):
 
     # ✅ Handle case where Availability is missing or empty
     if not data or "Availability" not in data or not data["Availability"]:
-        print(f"⚠️ No availability data returned for ItemId {item_id} on {date_str}")
+        logging.info(f"⚠️ No availability data returned for ItemId {item_id} on {date_str}")
         return availability  # Return empty availability instead of breaking
 
     for slot in data["Availability"][0]["AvailableTimes"]:

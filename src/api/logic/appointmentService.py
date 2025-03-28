@@ -24,7 +24,7 @@ def get_appointments_schedule_action(date_str, context):
     start_date_str = start_date.isoformat(timespec='seconds')
     end_date_str = end_date.isoformat(timespec='seconds')
 
-    print(f"Fetching appointments between {start_date_str} and {end_date_str}")
+    logging.info(f"Fetching appointments between {start_date_str} and {end_date_str}")
     appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
 
     if status_code != 200:
@@ -82,7 +82,7 @@ def get_appointments_schedule_action(date_str, context):
                 message += " The lane is free before your appointment."
 
     else:
-        print(f"No appointment found for {date_str}")
+        logging.info(f"No appointment found for {date_str}")
         message = f"You do not have a swim lane on {date_str}."
 
     return {"message": message}, 200
@@ -105,7 +105,7 @@ def get_appointment_data(date_str, context):
     start_date_str = start_date.isoformat(timespec='seconds')
     end_date_str = end_date.isoformat(timespec='seconds')
 
-    print(f"Fetching appointments between {start_date_str} and {end_date_str}")
+    logging.info(f"Fetching appointments between {start_date_str} and {end_date_str}")
     appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
 
     if status_code != 200:

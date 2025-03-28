@@ -16,7 +16,7 @@ def generate_visualization(availability, pool_name, date_str, appt, context):
     num_times = len(context["TIME_SLOTS"])
 
     if appt:
-        print(f"Appointment found: {appt}")
+        logging.info(f"Appointment found: {appt}")
 
     fig, ax = plt.subplots(figsize=(14, 8))
 

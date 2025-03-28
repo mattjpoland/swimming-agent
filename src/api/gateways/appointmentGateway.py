@@ -1,4 +1,5 @@
 import os
+import logging
 import requests
 import datetime
 import pytz
@@ -31,10 +32,10 @@ def get_appointments_schedule(token, start_date, end_date, context):
     response = requests.post(SCHEDULING_URL, headers=headers, json=payload, verify=False)
 
     if response.status_code == 200:
-        print("✅ Successfully retrieved scheduled appointments!")
+        logging.info("✅ Successfully retrieved scheduled appointments!")
         return response.json(), response.status_code
     else:
-        print(f"❌ Failed to fetch appointments: {response.text}")
+        logging.info(f"❌ Failed to fetch appointments: {response.text}")
         return None, response.status_code
 
 def book_swim_lane(token, appointment_date_time, duration, location, lane, context):
@@ -86,13 +87,13 @@ def book_swim_lane(token, appointment_date_time, duration, location, lane, conte
         "CancellationAppointmentId": 0
     }
 
-    print(f"📅 Booking swim lane for {location} {lane} for {duration} on {appointment_date_time}")
+    logging.info(f"📅 Booking swim lane for {location} {lane} for {duration} on {appointment_date_time}")
     response = requests.post(url, headers=headers, json=payload, verify=False)
 
     if response.status_code == 200:
         return response.json(), response.status_code
     else:
-        print(f"❌ Booking request failed: {response.text}")
+        logging.info(f"❌ Booking request failed: {response.text}")
         return {"error": "Booking request failed"}, response.status_code
 
 def cancel_appointment(token, appointment_id, context):
@@ -112,8 +113,8 @@ def cancel_appointment(token, appointment_id, context):
     response = requests.post(url, headers=headers, json=payload, verify=False)
 
     if response.status_code == 200:
-        print(f"✅ Successfully cancelled appointment with ID {appointment_id}!")
+        logging.info(f"✅ Successfully cancelled appointment with ID {appointment_id}!")
         return response.json(), response.status_code
     else:
-        print(f"❌ Failed to cancel appointment with ID {appointment_id}: {response.text}")
+        logging.info(f"❌ Failed to cancel appointment with ID {appointment_id}: {response.text}")
         return None, response.status_code

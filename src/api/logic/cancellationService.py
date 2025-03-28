@@ -23,11 +23,11 @@ def cancel_appointment_action(appointment_date, context):
     end_date_str = end_date.isoformat(timespec='seconds')
 
     # Fetch appointments for the given date
-    print(f"Fetching appointments between {start_date_str} and {end_date_str}")
+    logging.info(f"Fetching appointments between {start_date_str} and {end_date_str}")
     appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
 
     if status_code != 200 or not appointments:
-        print(f"Error searching for appointments on {appointment_date} to cancel")
+        logging.info(f"Error searching for appointments on {appointment_date} to cancel")
         return {"message": "No appointments exist on this date to cancel"}, 200
 
     # Assuming only one appointment per day
@@ -35,17 +35,17 @@ def cancel_appointment_action(appointment_date, context):
     appointment_id = appointment.get("Id")
 
     if not appointment_id:
-        print(f"No appointments to cancel found for {appointment_date}")
+        logging.info(f"No appointments to cancel found for {appointment_date}")
         return {"message": "No appointments exist on this date to cancel"}, 404
 
-    print(f"Cancelling appointment for {appointment_date}")
+    logging.info(f"Cancelling appointment for {appointment_date}")
 
     # Cancel the appointment
     result, cancel_status_code = cancel_appointment(token, appointment_id, context)
 
     if cancel_status_code != 200:
-        print(f"Error cancelling appointment for {appointment_date}")
+        logging.info(f"Error cancelling appointment for {appointment_date}")
         return {"message": "Failed to cancel appointment"}, 500
 
-    print(f"Appointment for {appointment_date} has been cancelled")
+    logging.info(f"Appointment for {appointment_date} has been cancelled")
     return {"message": f"The appointment for {appointment_date} has been cancelled."}, 200

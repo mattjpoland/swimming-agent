@@ -1,4 +1,5 @@
 import requests
+import logging
 import json
 import os
 from datetime import datetime, timezone
@@ -24,12 +25,12 @@ def load_cached_token(context):
                         now_utc = datetime.now(timezone.utc)
 
                         if now_utc < exp_datetime:
-                            print("🔄 Using cached token.")
+                            logging.info("🔄 Using cached token.")
                             return token  # Token is still valid
 
-                        print("⚠️ Cached token expired. Fetching new one...")
+                        logging.info("⚠️ Cached token expired. Fetching new one...")
             except json.JSONDecodeError:
-                print("⚠️ Token cache file is corrupted. Fetching new token...")
+                logging.info("⚠️ Token cache file is corrupted. Fetching new token...")
 
     return None  # No valid token found
 
@@ -41,7 +42,7 @@ def save_token(token, expiration, context):
             try:
                 data = json.load(f)
             except json.JSONDecodeError:
-                print("⚠️ Token cache file is corrupted. Overwriting with new data...")
+                logging.info("⚠️ Token cache file is corrupted. Overwriting with new data...")
 
     data[context["API_KEY"]] = {"token": token, "expiration": expiration}
 
@@ -66,11 +67,11 @@ def login_via_context(context):
         "Pswd": context["PASSWORD"]
     }
 
-    print(f"🔍 Logging in via: {context['LOGIN_URL']}")
+    logging.info(f"🔍 Logging in via: {context['LOGIN_URL']}")
 
     response = requests.post(context["LOGIN_URL"], headers=headers, json=payload, verify=False)
 
-    print(f"🔍 Response Status Code: {response.status_code}")
+    logging.info(f"🔍 Response Status Code: {response.status_code}")
     
     if response.status_code == 200:
         try:
@@ -79,17 +80,17 @@ def login_via_context(context):
             expiration = data.get("data", {}).get("tokenExpiration")  # Assuming response contains an expiration field
 
             if token and expiration:
-                print("✅ Login successful! Token retrieved.")
+                logging.info("✅ Login successful! Token retrieved.")
                 save_token(token, expiration, context)
                 return token
             else:
-                print("❌ Login failed: Token or expiration not found in response.")
+                logging.info("❌ Login failed: Token or expiration not found in response.")
                 return None
         except json.JSONDecodeError:
-            print("❌ Error: Response is not valid JSON.")
+            logging.info("❌ Error: Response is not valid JSON.")
             return None
     else:
-        print(f"❌ Login failed: {response.status_code} - {response.text}")
+        logging.info(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
 def login_via_credentials(username, password):
@@ -110,21 +111,21 @@ def login_via_credentials(username, password):
         "Pswd": password
     }
 
-    print(f"🔍 Logging in via: {url}")
+    logging.info(f"🔍 Logging in via: {url}")
 
     # Make the POST request
     response = requests.post(url, headers=headers, json=payload, verify=False)
 
-    print(f"🔍 Response Status Code: {response.status_code}")
+    logging.info(f"🔍 Response Status Code: {response.status_code}")
 
     if response.status_code == 200:
         try:
             return response.json()  # Return the full response
         except json.JSONDecodeError:
-            print("❌ Error: Response is not valid JSON.")
+            logging.info("❌ Error: Response is not valid JSON.")
             return None
     else:
-        print(f"❌ Login failed: {response.status_code} - {response.text}")
+        logging.info(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
 # Main script execution

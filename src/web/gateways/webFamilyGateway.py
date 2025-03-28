@@ -20,10 +20,10 @@ def get_family_members(token, context):
         try:
             return response.json()
         except json.JSONDecodeError:
-            print("Error: Response is not valid JSON.")
+            logging.info("Error: Response is not valid JSON.")
             return None
     else:
-        print(f"Error: {response.status_code} - {response.text}")
+        logging.info(f"Error: {response.status_code} - {response.text}")
         return None
 
 # Example usage

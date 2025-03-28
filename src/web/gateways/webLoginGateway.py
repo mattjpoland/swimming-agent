@@ -14,20 +14,20 @@ def login_with_credentials(username, password, context):
         "Pswd": password
     }
 
-    print(f"🔍 Logging in via: {context['LOGIN_URL']}")
+    logging.info(f"🔍 Logging in via: {context['LOGIN_URL']}")
 
     response = requests.post(context["LOGIN_URL"], headers=headers, json=payload, verify=False)
 
-    print(f"🔍 Response Status Code: {response.status_code}")
+    logging.info(f"🔍 Response Status Code: {response.status_code}")
     
     if response.status_code == 200:
         try:
             return response.json()
         except json.JSONDecodeError:
-            print("❌ Error: Response is not valid JSON.")
+            logging.info("❌ Error: Response is not valid JSON.")
             return None
     else:
-        print(f"❌ Login failed: {response.status_code} - {response.text}")
+        logging.info(f"❌ Login failed: {response.status_code} - {response.text}")
         return None
 
 # Example usage
