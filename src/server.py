@@ -2,6 +2,7 @@ from flask import Flask, redirect, url_for
 from src.routes.api_routes import api_bp
 from src.routes.web_routes import web_bp
 from src.routes.legacy_routes import legacy_bp
+from src.routes.agent_routes import agent_bp  # Import the new agent_routes
 import logging
 import os
 
@@ -10,6 +11,7 @@ app.secret_key = 'your_secret_key'
 
 # Register Blueprints
 app.register_blueprint(api_bp, url_prefix="/api")
+app.register_blueprint(agent_bp, url_prefix="/agent")  # Register the new agent blueprint
 app.register_blueprint(web_bp, url_prefix="/web")
 app.register_blueprint(legacy_bp)
 
