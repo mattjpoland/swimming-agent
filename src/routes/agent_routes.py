@@ -26,17 +26,16 @@ def handle_agent_request():
 
     user_input = data["user_input"]
     response_format = data.get("response_format", "auto")
-    is_siri = data.get("is_siri", False)  # Check if request is from Siri
+    is_siri = data.get("is_siri", False)
     
     # Get conversation history (if provided)
     conversation_history = data.get("conversation_history", [])
     
-    # Build system prompt, optionally enhanced for voice
+    # Build messages array with history
     system_prompt = registry.get_system_prompt()
     if is_siri:
-        system_prompt += " Since your response will be read aloud by Siri, keep answers brief, clear, and suitable for voice. Avoid visual elements like tables or charts in your responses."
+        system_prompt += " Since your response will be read aloud by Siri, keep answers brief, clear, and suitable for voice."
     
-    # Build messages array with history
     messages = [{"role": "system", "content": system_prompt}]
     
     # Add conversation history
@@ -94,36 +93,32 @@ def handle_agent_request():
                     "content_type": "application/json"
                 }), 500
             
-            # Execute the action
+            # Execute the action and get the response
             action_response = action.execute(
                 arguments=arguments,
                 context=g.context,
                 user_input=user_input,
-                response_format=response_format
+                response_format=response_format,
+                is_siri=is_siri
             )
             
-            # Check if the response is a tuple (response, status_code)
-            if isinstance(action_response, tuple) and len(action_response) == 2:
-                response_body, status_code = action_response
-                
-                # If it's a Flask response object (like from send_file)
-                if hasattr(response_body, 'headers') and hasattr(response_body, 'data'):
-                    # Return the original file response without modification
-                    return response_body
-                
-                # For JSON responses, add content_type
-                if isinstance(response_body, dict):
-                    response_body["content_type"] = "application/json"
-                    
-                return jsonify(response_body), status_code
+            # Special handling for availability with Siri
+            if is_siri and function_name == "check_lane_availability":
+                # Only intercept streamed responses for Siri
+                from flask import Response
+                if isinstance(action_response, tuple) and len(action_response) == 2:
+                    resp, status = action_response
+                    if isinstance(resp, Response) and resp.is_streamed:
+                        # Convert to Siri-friendly response
+                        return jsonify({
+                            "message": "I've checked the lane availability. There are various times available. For a detailed schedule, please check on your device.",
+                            "status": "success",
+                            "content_type": "application/json"
+                        })
             
-            # For direct responses, add content_type
-            return jsonify({
-                "message": str(action_response),
-                "status": "success",
-                "content_type": "application/json"
-            })
-            
+            # Return the action response as-is
+            # This preserves the original behavior for all responses including streamed HTML and images
+            return action_response
         else:
             return jsonify({
                 "message": f"I don't know how to {function_name} yet.",
