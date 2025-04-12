@@ -108,28 +108,7 @@ def handle_agent_request():
                 
                 # If it's a Flask response object (like from send_file)
                 if hasattr(response_body, 'headers') and hasattr(response_body, 'data'):
-                    # For file responses (like barcodes)
-                    content_type = response_body.headers.get('Content-Type', 'application/octet-stream')
-                    
-                    # For Siri requests, we convert file responses to a special format
-                    if is_siri and 'image' in content_type:
-                        import base64
-                        # Get the file data
-                        file_data = response_body.data
-                        # Convert to base64
-                        encoded_data = base64.b64encode(file_data).decode('utf-8')
-                        
-                        # Create a JSON response with embedded image data
-                        return jsonify({
-                            "message": "I've generated your barcode. Here it is.",
-                            "status": "success",
-                            "content_type": content_type,
-                            "is_file": True,
-                            "file_data": encoded_data,
-                            "file_name": response_body.headers.get('X-Barcode-ID', 'barcode') + ".png"
-                        })
-                    
-                    # Return the original file response for non-Siri requests
+                    # Return the original file response without modification
                     return response_body
                 
                 # For JSON responses, add content_type
