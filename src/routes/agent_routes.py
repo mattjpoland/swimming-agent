@@ -2,8 +2,9 @@ from flask import Blueprint, request, jsonify, g
 from openai import OpenAI
 import os
 import json
-from src.api.logic.availabilityService import get_availability
-from src.decorators import require_api_key  # Import the decorator
+import logging
+from src.decorators import require_api_key
+from src.agent.registry import registry
 
 # Define the Flask Blueprint
 agent_bp = Blueprint("agent", __name__)
@@ -11,14 +12,12 @@ agent_bp = Blueprint("agent", __name__)
 # Initialize the OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@agent_bp.route("/agent", methods=["POST"])
-@require_api_key  # Add this decorator to ensure g.context is available
+@agent_bp.route("/chat", methods=["POST"])
+@require_api_key
 def handle_agent_request():
     """
     Handle agent requests by processing the user input and integrating GPT-4 function calling.
-
-    Returns:
-        dict: A response indicating the result of processing the user input.
+    Returns appropriate responses based on the action type (visualization, barcode, text).
     """
     # Parse JSON body
     data = request.get_json()
@@ -26,32 +25,18 @@ def handle_agent_request():
         return jsonify({"error": "User input is required"}), 400
 
     user_input = data["user_input"]
+    response_format = data.get("response_format", "auto")  # Allow client to request specific format
 
-    # Define the GPT tool/function as a tool in v1.0.0
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "check_lane_availability",
-                "description": "Check swim lane availability for a specific pool and date.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "pool_name": {"type": "string", "description": "The name of the pool (e.g., 'Indoor Pool', 'Outdoor Pool')."},
-                        "date": {"type": "string", "description": "The date to check availability (YYYY-MM-DD)."}
-                    },
-                    "required": ["pool_name", "date"]
-                }
-            }
-        }
-    ]
+    # Get tools and system prompt from registry
+    tools = registry.get_tools_for_openai()
+    system_prompt = registry.get_system_prompt()
 
     # Call GPT-4 with the user input and function definition
     try:
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that checks swim lane availability."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
             ],
             tools=tools,
@@ -60,7 +45,7 @@ def handle_agent_request():
     except Exception as e:
         return jsonify({"error": f"Error communicating with OpenAI: {str(e)}"}), 500
 
-    # Check if GPT returned a tool call (function call in v1.0.0)
+    # Check if GPT returned a tool call
     message = response.choices[0].message
     tool_calls = message.tool_calls
 
@@ -69,32 +54,25 @@ def handle_agent_request():
         tool_call = tool_calls[0]
         function_name = tool_call.function.name
         
-        # Parse the arguments from JSON string
-        try:
-            arguments = json.loads(tool_call.function.arguments)
-        except json.JSONDecodeError:
-            return jsonify({"error": "Failed to parse function arguments"}), 500
+        # Get the corresponding action
+        action = registry.get_action(function_name)
+        
+        if action:
+            # Parse the arguments from JSON string
+            try:
+                arguments = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError:
+                return jsonify({"error": "Failed to parse function arguments"}), 500
+            
+            # Execute the action
+            return action.execute(
+                arguments=arguments,
+                context=g.context,
+                user_input=user_input,
+                response_format=response_format
+            )
+        else:
+            return jsonify({"error": f"Unknown function: {function_name}"}), 400
 
-        if function_name == "check_lane_availability":
-            # Extract arguments
-            pool_name = arguments.get("pool_name")
-            date = arguments.get("date")
-
-            # Validate pool_name
-            if "ITEMS" not in g.context or pool_name not in g.context["ITEMS"]:
-                return jsonify({"error": f"Invalid pool name: {pool_name}"}), 400
-
-            # Get item_id and check availability
-            item_id = g.context["ITEMS"][pool_name]
-            availability = get_availability(item_id, date, g.context)
-
-            # Format the availability response
-            availability_message = f"Availability for {pool_name} on {date}:\n"
-            for time_slot, lanes in availability.items():
-                availability_message += f"{time_slot}: Lanes {', '.join(map(str, lanes))}\n"
-
-            # Return the formatted availability message
-            return jsonify({"message": availability_message, "status": "success"})
-
-    # If no tool calls, return GPT's response
+    # If no tool calls or not a recognized action, return GPT's text response
     return jsonify({"message": message.content, "status": "success"})
