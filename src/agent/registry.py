@@ -1,6 +1,11 @@
 from src.agent.actions.availability import AvailabilityAction
 from src.agent.actions.barcode import BarcodeAction
+from src.agent.actions.booking import BookLaneAction
+from src.agent.actions.appointments import AppointmentsAction
+from src.agent.actions.cancellation import CancelAppointmentAction  # Add import
 from src.agent.utils.date_resolver import get_current_dates
+from datetime import datetime, timedelta
+import pytz
 
 class AgentRegistry:
     def __init__(self):
@@ -12,7 +17,10 @@ class AgentRegistry:
         # Add more actions here as they are created
         actions = [
             AvailabilityAction(),
-            BarcodeAction()
+            BarcodeAction(),
+            BookLaneAction(),
+            AppointmentsAction(),
+            CancelAppointmentAction()  # Add the new action
         ]
         
         for action in actions:
@@ -32,10 +40,6 @@ class AgentRegistry:
     
     def get_system_prompt(self):
         """Generate a system prompt based on registered actions."""
-        # Get detailed date information with day of week and timezone
-        from datetime import datetime, timedelta
-        import pytz
-        
         # Use Eastern timezone
         eastern_tz = pytz.timezone('US/Eastern')
         now = datetime.now(eastern_tz)
@@ -85,6 +89,35 @@ class AgentRegistry:
                 "accessing the facility with their membership, use the get_membership_barcode function. "
             )
             
+        if "book_lane" in self._actions:
+            prompt += (
+                "You can also help users book a lane in the pool. "
+                "When a user wants to book a lane, use the book_lane function. "
+                "They will need to specify which pool (Indoor or Outdoor), the date, starting time (in 12-hour format with AM/PM, e.g., '6:00 AM', '7:30 PM'), "
+                "and lane number. The duration defaults to 60 minutes but can also be 30 minutes. "
+                "If they don't provide all required information, ask for the missing details before making the booking. "
+                "Remember that users can only book a specific pool (either 'Indoor Pool' or 'Outdoor Pool'), not 'Both Pools'. "
+            )
+        
+        if "check_appointments" in self._actions:
+            prompt += (
+                "You can help users check their scheduled swim lane appointments. "
+                "When a user asks about their appointments, use the check_appointments function. "
+                "They can ask about appointments for a specific date (e.g., 'tomorrow', 'Monday') "
+                "or for a date range (e.g., 'this week', 'next month'). "
+                "If they don't specify a date or range, check for today's appointments. "
+            )
+        
+        if "cancel_appointment" in self._actions:
+            prompt += (
+                "You can help users cancel their scheduled swim lane appointments. "
+                "When a user asks to cancel an appointment, use the cancel_appointment function with the date parameter. "
+                "If they specify a day like 'Monday' or 'tomorrow', convert it to the appropriate date (YYYY-MM-DD) using the date reference information provided above. "
+                "If they've clearly expressed intent to cancel (phrases like 'cancel my lane', 'cancel my appointment', etc.), set the 'confirm' parameter to true. "
+                "Only ask for confirmation if their intent seems ambiguous or they're just asking about the cancellation process. "
+                "Be proactive - when a user clearly wants to cancel for a specific day, directly use the cancel_appointment function rather than asking for more information. "
+            )
+        
         # Add any other general instructions
         prompt += "Always try to be helpful and provide clear information to the user."
         

@@ -114,13 +114,55 @@ def generate_barcode():
     # Extract the barcode ID from the response
     barcode_id = response.get("barcode_id")
     
-    # Generate the barcode image using Code 39 without checksum
-    barcode_class = barcode.get_barcode_class('code39')  # Get the Code 39 barcode class
-    barcode_format = barcode_class(barcode_id, writer=ImageWriter())
-    barcode_format.add_checksum = False  # Disable the checksum
-    barcode_image = io.BytesIO()
-    barcode_format.write(barcode_image)
-    barcode_image.seek(0)
-
-    # Return the barcode image as a response
-    return send_file(barcode_image, mimetype="image/png")
+    # Log the original barcode ID for verification
+    logging.info(f"Generating barcode for ID: {barcode_id}")
+    
+    try:
+        # Import the barcode libraries
+        import barcode
+        from barcode.writer import ImageWriter
+        
+        # Generate the barcode image using Code 39 without checksum
+        barcode_class = barcode.get_barcode_class('code39')
+        
+        # Create the ImageWriter instance without options parameter
+        writer = ImageWriter()
+        
+        # Set writer attributes individually (for older versions)
+        writer.quiet_zone = 2.5
+        writer.text = True  # Enable text rendering
+        
+        # Try with add_checksum parameter first
+        try:
+            barcode_format = barcode_class(barcode_id, writer=writer, add_checksum=False)
+        except TypeError:
+            # Fallback for older versions that don't support add_checksum parameter
+            barcode_format = barcode_class(barcode_id, writer=writer)
+            # Try to set the property after initialization
+            try:
+                barcode_format.add_checksum = False
+            except (AttributeError, TypeError):
+                logging.warning("Could not disable checksum through property, using default behavior")
+        
+        # Verify the encoded data doesn't have an added checksum
+        try:
+            encoded_data = barcode_format.get_fullcode()
+            logging.info(f"Encoded barcode data: {encoded_data}")
+            
+            # Validate that no checksum was added
+            if encoded_data != barcode_id:
+                logging.warning(f"WARNING: Encoded data ({encoded_data}) doesn't match original ID ({barcode_id})")
+        except (AttributeError, TypeError):
+            logging.warning("Could not verify encoded data, continuing with generation")
+        
+        # Generate the barcode image
+        barcode_image = io.BytesIO()
+        barcode_format.write(barcode_image)
+        barcode_image.seek(0)
+        
+        # Return the barcode image as a response
+        return send_file(barcode_image, mimetype="image/png")
+    
+    except Exception as e:
+        logging.exception(f"Error generating barcode: {str(e)}")
+        return jsonify({"error": f"Failed to generate barcode: {str(e)}"}), 500

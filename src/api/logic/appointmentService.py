@@ -10,6 +10,7 @@ import logging
 def get_appointments_schedule_action(date_str, context):
     """
     Fetch scheduled swim lane appointments for a given date.
+    Returns both the formatted message and the raw appointments data.
     """
     token = login_via_context(context)
     if not token:
@@ -82,11 +83,18 @@ def get_appointments_schedule_action(date_str, context):
             elif before_free and not after_free:
                 message += " The lane is free before your appointment."
 
+        # Return both the message and the raw appointment data
+        return {
+            "message": message,
+            "appointments": appointments
+        }, 200
     else:
         logging.info(f"No appointment found for {date_str}")
-        message = f"You do not have a swim lane on {date_str}."
-
-    return {"message": message}, 200
+        message = f"You do not have a swim lane appointment on {date_str}."
+        return {
+            "message": message,
+            "appointments": []
+        }, 200
 
 def get_appointment_data(date_str, context):
     """

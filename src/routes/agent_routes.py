@@ -25,20 +25,32 @@ def handle_agent_request():
         return jsonify({"error": "User input is required"}), 400
 
     user_input = data["user_input"]
-    response_format = data.get("response_format", "auto")  # Allow client to request specific format
-
-    # Get tools and system prompt from registry
+    response_format = data.get("response_format", "auto")
+    
+    # Get conversation history (if provided)
+    conversation_history = data.get("conversation_history", [])
+    
+    # Build messages array with history
+    messages = [{"role": "system", "content": registry.get_system_prompt()}]
+    
+    # Add conversation history
+    for message in conversation_history:
+        role = message.get("role", "user")
+        content = message.get("content", "")
+        if role in ["user", "assistant"] and content:
+            messages.append({"role": role, "content": content})
+    
+    # Add the current user message
+    messages.append({"role": "user", "content": user_input})
+    
+    # Get tools from registry
     tools = registry.get_tools_for_openai()
-    system_prompt = registry.get_system_prompt()
 
-    # Call GPT-4 with the user input and function definition
+    # Call GPT-4 with the messages and tools
     try:
         response = client.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
+            messages=messages,
             tools=tools,
             tool_choice="auto"
         )
@@ -53,6 +65,9 @@ def handle_agent_request():
         # Get the first tool call
         tool_call = tool_calls[0]
         function_name = tool_call.function.name
+        
+        # Log the function call for debugging
+        logging.info(f"Function call: {function_name} with arguments: {tool_call.function.arguments}")
         
         # Get the corresponding action
         action = registry.get_action(function_name)
