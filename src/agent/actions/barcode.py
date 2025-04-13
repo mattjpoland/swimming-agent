@@ -21,6 +21,26 @@ class BarcodeAction(AgentAction):
             "required": []  # No parameters required for barcode generation
         }
     
+    @property
+    def prompt_instructions(self):
+        return (
+                "If the user asks for their membership barcode or anything related to "
+                "accessing the facility with their membership, use the get_membership_barcode function. "        )
+    
+    def get_tool_definition(self):
+        """
+        Get the tool definition for OpenAI API.
+        This is required for the function calling API.
+        """
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters
+            }
+        }
+
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the barcode generation action."""
         try:

@@ -22,6 +22,13 @@ class AgentAction(ABC):
         """Parameters schema for the action."""
         pass
     
+
+    @property
+    @abstractmethod
+    def prompt_instructions(self):
+        """Prompt instructions for the Open AI API."""
+        pass
+
     @abstractmethod
     def execute(self, arguments, context, user_input, **kwargs):
         """

@@ -4,7 +4,7 @@ from src.agent.utils.date_resolver import validate_and_resolve_date
 from src.agent.utils.pool_resolver import normalize_pool_name
 from src.api.logic.availabilityService import get_availability
 from src.api.logic.appointmentService import get_appointment_data
-from src.drawing.visualize import generate_visualization, combine_visualizations
+from src.drawing.availabilityVisualGenerator import generate_visualization, combine_visualizations
 import logging
 
 class AvailabilityAction(AgentAction):
@@ -27,6 +27,30 @@ class AvailabilityAction(AgentAction):
             "required": ["date"]  # Only date is required, pool_name is optional
         }
     
+    @property
+    def prompt_instructions(self):
+        return (
+                "You can help with checking pool availability. "
+                "Use the check_lane_availability function when asked about pool availability. "
+                "If the user doesn't specify which pool, assume they want to check 'Both Pools'. "
+                "For date parameters, use the YYYY-MM-DD format. "
+                "When calculating dates from day names (like 'Sunday' or 'Monday'), always refer to the date information provided above. "
+        )
+    
+    def get_tool_definition(self):
+        """
+        Get the tool definition for OpenAI API.
+        This is required for the function calling API.
+        """
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters
+            }
+        }
+
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the availability check action."""
         try:

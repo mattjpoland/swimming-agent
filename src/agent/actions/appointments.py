@@ -31,6 +31,30 @@ class AppointmentsAction(AgentAction):
             "required": []  # At least one of date or date_range should be provided
         }
     
+    @property
+    def prompt_instructions(self):
+        return (
+                "You can help users check their scheduled swim lane appointments. "
+                "When a user asks about their appointments, use the check_appointments function. "
+                "They can ask about appointments for a specific date (e.g., 'tomorrow', 'Monday') "
+                "or for a date range (e.g., 'this week', 'next month'). "
+                "If they don't specify a date or range, check for today's appointments. "
+        )
+    
+    def get_tool_definition(self):
+        """
+        Get the tool definition for OpenAI API.
+        This is required for the function calling API.
+        """
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters
+            }
+        }
+
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the appointments check action."""
         try:

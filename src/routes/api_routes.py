@@ -9,11 +9,13 @@ from src.api.logic.appointmentService import get_appointments_schedule_action, g
 from src.api.logic.bookingService import book_swim_lane_action
 from src.api.logic.cancellationService import cancel_appointment_action
 from src.api.logic.membershipService import get_barcode_id_action
-from src.drawing.visualize import generate_visualization, combine_visualizations
+from src.api.logic.weatherService import get_weather_for_zip, get_weather_forecast_for_date
+from src.drawing.availabilityVisualGenerator import generate_visualization, combine_visualizations
 from src.decorators import require_api_key
 from src.sql.authGateway import get_auth  # Assuming this retrieves user data
 from src.web.gateways.webLoginGateway import login_with_credentials  # Import login gateway
 from src.api.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
+from src.drawing.barcodeGenerator import generate_barcode_image
 
 api_bp = Blueprint('api', __name__)
 
@@ -118,51 +120,71 @@ def generate_barcode():
     logging.info(f"Generating barcode for ID: {barcode_id}")
     
     try:
-        # Import the barcode libraries
-        import barcode
-        from barcode.writer import ImageWriter
-        
-        # Generate the barcode image using Code 39 without checksum
-        barcode_class = barcode.get_barcode_class('code39')
-        
-        # Create the ImageWriter instance without options parameter
-        writer = ImageWriter()
-        
-        # Set writer attributes individually (for older versions)
-        writer.quiet_zone = 2.5
-        writer.text = True  # Enable text rendering
-        
-        # Try with add_checksum parameter first
-        try:
-            barcode_format = barcode_class(barcode_id, writer=writer, add_checksum=False)
-        except TypeError:
-            # Fallback for older versions that don't support add_checksum parameter
-            barcode_format = barcode_class(barcode_id, writer=writer)
-            # Try to set the property after initialization
-            try:
-                barcode_format.add_checksum = False
-            except (AttributeError, TypeError):
-                logging.warning("Could not disable checksum through property, using default behavior")
-        
-        # Verify the encoded data doesn't have an added checksum
-        try:
-            encoded_data = barcode_format.get_fullcode()
-            logging.info(f"Encoded barcode data: {encoded_data}")
-            
-            # Validate that no checksum was added
-            if encoded_data != barcode_id:
-                logging.warning(f"WARNING: Encoded data ({encoded_data}) doesn't match original ID ({barcode_id})")
-        except (AttributeError, TypeError):
-            logging.warning("Could not verify encoded data, continuing with generation")
-        
-        # Generate the barcode image
-        barcode_image = io.BytesIO()
-        barcode_format.write(barcode_image)
-        barcode_image.seek(0)
-        
+        # Generate the barcode image using the helper function
+        barcode_image = generate_barcode_image(barcode_id)
+
         # Return the barcode image as a response
         return send_file(barcode_image, mimetype="image/png")
-    
-    except Exception as e:
+
+    except RuntimeError as e:
         logging.exception(f"Error generating barcode: {str(e)}")
         return jsonify({"error": f"Failed to generate barcode: {str(e)}"}), 500
+
+@api_bp.route("/weather", methods=["GET"])
+@require_api_key
+def get_weather():
+    """
+    API Endpoint to fetch the current weather for ZIP code 48823.
+    """
+    zip_code = "48823"
+    country_code = "us"
+
+    try:
+        # Call the weather service to get formatted weather data
+        weather = get_weather_for_zip(zip_code, country_code)
+
+        # Return the weather data as JSON
+        return jsonify({
+            "status": "success",
+            "weather": weather
+        }), 200
+
+    except RuntimeError as e:
+        logging.exception(f"Error in weather service: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Failed to fetch weather data. Please try again later."
+        }), 500
+
+@api_bp.route("/weather/forecast", methods=["GET"])
+@require_api_key
+def get_weather_forecast():
+    """
+    API Endpoint to fetch the weather forecast for a specific future date.
+    """
+    zip_code = "48823"
+    country_code = "us"
+    target_date = request.args.get("date")  # Expecting a date in YYYY-MM-DD format
+
+    if not target_date:
+        return jsonify({
+            "status": "error",
+            "message": "Missing required 'date' parameter in YYYY-MM-DD format."
+        }), 400
+
+    try:
+        # Call the weather service to get the forecast for the target date
+        forecast = get_weather_forecast_for_date(zip_code, country_code, target_date)
+
+        # Return the forecast data as JSON
+        return jsonify({
+            "status": "success",
+            "forecast": forecast
+        }), 200
+
+    except RuntimeError as e:
+        logging.exception(f"Error in weather forecast service: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Failed to fetch weather forecast. Please try again later."
+        }), 500

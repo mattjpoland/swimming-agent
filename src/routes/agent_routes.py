@@ -127,8 +127,26 @@ def handle_agent_request():
             }), 400
 
     # If no tool calls or not a recognized action, return GPT's text response
+    response_message = message.content
+    is_conversation_over = False
+
+    # Check if the message content contains JSON with is_conversation_over
+    try:
+        # Check for JSON in the content
+        if response_message.strip().startswith('{') and response_message.strip().endswith('}'):
+            # Try to parse it as JSON
+            response_json = json.loads(response_message)
+            if 'is_conversation_over' in response_json:
+                is_conversation_over = response_json.get('is_conversation_over', False)
+                # If it's a valid JSON, use the message field if available
+                response_message = response_json.get('message', response_message)
+    except:
+        # If parsing fails, just use the original message
+        pass
+
     return jsonify({
-        "message": message.content,
+        "message": response_message,
         "status": "success",
-        "content_type": "application/json"
+        "content_type": "application/json",
+        "is_conversation_over": is_conversation_over
     })

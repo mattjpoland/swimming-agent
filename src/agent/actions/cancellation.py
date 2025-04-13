@@ -31,6 +31,31 @@ class CancelAppointmentAction(AgentAction):
             "required": ["date", "confirm"]
         }
     
+    @property
+    def prompt_instructions(self):
+        return (
+                "You can help users cancel their scheduled swim lane appointments. "
+                "When a user asks to cancel an appointment, use the cancel_appointment function with the date parameter. "
+                "If they specify a day like 'Monday' or 'tomorrow', convert it to the appropriate date (YYYY-MM-DD) using the date reference information provided above. "
+                "If they've clearly expressed intent to cancel (phrases like 'cancel my lane', 'cancel my appointment', etc.), set the 'confirm' parameter to true. "
+                "Only ask for confirmation if their intent seems ambiguous or they're just asking about the cancellation process. "
+                "Be proactive - when a user clearly wants to cancel for a specific day, directly use the cancel_appointment function rather than asking for more information. "
+        )
+    
+    def get_tool_definition(self):
+        """
+        Get the tool definition for OpenAI API.
+        This is required for the function calling API.
+        """
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters
+            }
+        }
+
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the appointment cancellation action."""
         try:

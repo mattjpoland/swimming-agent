@@ -43,6 +43,31 @@ class BookLaneAction(AgentAction):
             "required": ["date", "time", "location", "lane"]
         }
     
+    @property
+    def prompt_instructions(self):
+        return (
+                "You can also help users book a lane in the pool. "
+                "When a user wants to book a lane, use the book_lane function. "
+                "They will need to specify which pool (Indoor or Outdoor), the date, starting time (in 12-hour format with AM/PM, e.g., '6:00 AM', '7:30 PM'), "
+                "and lane number. The duration defaults to 60 minutes but can also be 30 minutes. "
+                "If they don't provide all required information, ask for the missing details before making the booking. "
+                "Remember that users can only book a specific pool (either 'Indoor Pool' or 'Outdoor Pool'), not 'Both Pools'. "
+        )
+    
+    def get_tool_definition(self):
+        """
+        Get the tool definition for OpenAI API.
+        This is required for the function calling API.
+        """
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters
+            }
+        }
+
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the lane booking action."""
         try:
