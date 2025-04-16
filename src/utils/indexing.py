@@ -10,6 +10,9 @@ import tiktoken
 from PyPDF2 import PdfReader
 import tempfile
 from src.sql.ragSourceGateway import get_all_rag_sources
+import time
+
+openai.verify_ssl_certs = False  # Disable SSL verification for OpenAI API")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536  # For text-embedding-3-small
@@ -19,7 +22,7 @@ def load_text_from_pdf(pdf_path):
     return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 def load_text_from_pdf_url(pdf_url):
-    resp = requests.get(pdf_url, verify=False)  # Disable SSL verification
+    resp = requests.get(pdf_url)  # Disable SSL verification
     resp.raise_for_status()
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(resp.content)
@@ -29,7 +32,7 @@ def load_text_from_pdf_url(pdf_url):
     return text
 
 def load_text_from_url(url):
-    resp = requests.get(url, verify=False)  # Disable SSL verification
+    resp = requests.get(url)  # Disable SSL verification
     resp.raise_for_status()
     return resp.text
 
@@ -51,14 +54,51 @@ def chunk_text(text, max_tokens=300):
         chunks.append(" ".join(chunk))
     return chunks
 
-def embed_chunks(chunks):
+def embed_chunks(chunks, batch_size=8):  # Reduced from 32 to 8
     embeddings = []
-    for chunk in chunks:
-        resp = openai.embeddings.create(
-            input=chunk,
-            model=EMBEDDING_MODEL
-        )
-        embeddings.append(resp.data[0].embedding)
+    batch_count = (len(chunks) + batch_size - 1) // batch_size
+    
+    logging.info(f"Starting embedding of {len(chunks)} chunks in {batch_count} batches")
+    
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i:i+batch_size]
+        batch_num = i // batch_size + 1
+        
+        logging.info(f"Processing batch {batch_num}/{batch_count} ({len(batch)} chunks)")
+        
+        # Ensure chunks aren't too large (max 8192 chars per item recommended)
+        batch = [chunk[:8000] for chunk in batch]  
+        
+        last_exception = None
+        for retry in range(5):  # Increased from 3 to 5 retries
+            try:
+                resp = openai.embeddings.create(
+                    input=batch,
+                    model=EMBEDDING_MODEL
+                )
+                for item in resp.data:
+                    embeddings.append(item.embedding)
+                
+                logging.info(f"Batch {batch_num}/{batch_count} successfully embedded")
+                break
+                
+            except openai.APIConnectionError as e:
+                # Exponential backoff
+                wait_time = (2 ** retry) + 1  # 3, 5, 9, 17, 33 seconds
+                logging.warning(f"Connection error on batch {batch_num}/{batch_count}, retry {retry+1}/5, waiting {wait_time}s: {e}")
+                last_exception = e
+                time.sleep(wait_time)
+        else:
+            logging.error(f"Failed to embed batch {batch_num}/{batch_count} after 5 retries.")
+            if last_exception:
+                raise last_exception
+            else:
+                raise RuntimeError(f"Failed to embed batch {batch_num} after retries")
+                
+        # Longer delay between batches
+        time.sleep(2)  # Increased from 1s to 2s
+    
+    logging.info(f"Successfully embedded {len(embeddings)} chunks")
     return np.array(embeddings, dtype="float32")
 
 def rebuild_index(source_type="pdf", source_path=None, source_url=None, faiss_path="index.faiss", meta_path="chunks.json"):
@@ -104,133 +144,100 @@ def rebuild_index(source_type="pdf", source_path=None, source_url=None, faiss_pa
         logging.error(f"Failed to rebuild index: {e}")
         return False, str(e)
 
-def rebuild_index_from_config(
-    config_path="rag_sources.json",
-    faiss_path="index.faiss",
-    meta_path="chunks.json"
-):
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            sources = json.load(f)
-
-        all_chunks = []
-        all_metadata = []
-        chunk_id = 0
-
-        for source in sources:
-            label = source.get("label") or source.get("path") or source.get("url")
-            if source["type"] == "pdf":
-                text = load_text_from_pdf(source["path"])
-            elif source["type"] == "url":
-                text = load_text_from_url(source["url"])
-            elif source["type"] == "text":
-                with open(source["path"], "r", encoding="utf-8") as tf:
-                    text = tf.read()
-            else:
-                logging.warning(f"Unknown source type: {source['type']}")
-                continue
-
-            chunks = chunk_text(text)
-            for chunk in chunks:
-                all_chunks.append(chunk)
-                all_metadata.append({
-                    "chunk_id": chunk_id,
-                    "source": label,
-                    "text": chunk
-                })
-                chunk_id += 1
-
-        if not all_chunks:
-            raise ValueError("No chunks found from sources.")
-
-        embeddings = embed_chunks(all_chunks)
-
-        index = faiss.IndexFlatL2(EMBEDDING_DIM)
-        index.add(embeddings)
-        faiss.write_index(index, faiss_path)
-
-        with open(meta_path, "w", encoding="utf-8") as f:
-            json.dump(all_metadata, f, ensure_ascii=False, indent=2)
-
-        logging.info(f"Index rebuilt successfully from {len(sources)} sources, {len(all_chunks)} chunks.")
-        return True, f"Indexed {len(all_chunks)} chunks from {len(sources)} sources."
-    except Exception as e:
-        logging.error(f"Failed to rebuild index from config: {e}")
-        return False, str(e)
-
 def rebuild_index_from_db(
     faiss_path="index.faiss",
     meta_path="chunks.json"
 ):
     try:
         sources = get_all_rag_sources()
-        all_chunks = []
         all_metadata = []
+        all_embeddings = []
         chunk_id = 0
+        success_count = 0
 
-        for source in sources:
+        # Process each source individually
+        for source_idx, source in enumerate(sources):
             label = source.get("label") or source.get("path") or source.get("url")
-            text = None
-
-            # Handle PDF (local or URL)
-            if source["type"] == "pdf":
-                if "path" in source and source["path"]:
-                    text = load_text_from_pdf(source["path"])
-                elif "url" in source and source["url"]:
-                    text = load_text_from_pdf_url(source["url"])
-                else:
-                    logging.warning(f"No path or url for PDF source: {label}")
-                    continue
-            # Handle URL (web page or PDF)
-            elif source["type"] == "url":
-                url = source.get("url")
-                if url and url.lower().endswith(".pdf"):
-                    text = load_text_from_pdf_url(url)
-                elif url:
-                    text = load_text_from_url(url)
-                else:
-                    logging.warning(f"No url for URL source: {label}")
-                    continue
-            # Handle plain text file
-            elif source["type"] == "text":
-                if "path" in source and source["path"]:
+            logging.info(f"Processing source {source_idx+1}/{len(sources)}: {label}")
+            
+            try:
+                # Extract text from the appropriate source
+                text = None
+                if source["type"] == "pdf":
+                    if "path" in source and source["path"]:
+                        text = load_text_from_pdf(source["path"])
+                    elif "url" in source and source["url"]:
+                        text = load_text_from_pdf_url(source["url"])
+                elif source["type"] == "url":
+                    url = source.get("url")
+                    if url and url.lower().endswith(".pdf"):
+                        text = load_text_from_pdf_url(url)
+                    elif url:
+                        text = load_text_from_url(url)
+                elif source["type"] == "text" and "path" in source and source["path"]:
                     with open(source["path"], "r", encoding="utf-8") as tf:
                         text = tf.read()
-                else:
-                    logging.warning(f"No path for text source: {label}")
+                
+                if not text:
+                    logging.warning(f"No text extracted for source: {label}")
                     continue
-            else:
-                logging.warning(f"Unknown source type: {source.get('type')}")
-                continue
-
-            if not text:
-                logging.warning(f"No text extracted for source: {label}")
-                continue
-
-            chunks = chunk_text(text)
-            for chunk in chunks:
-                all_chunks.append(chunk)
-                all_metadata.append({
-                    "chunk_id": chunk_id,
-                    "source": label,
-                    "text": chunk
-                })
-                chunk_id += 1
-
-        if not all_chunks:
-            raise ValueError("No chunks found from sources.")
-
-        embeddings = embed_chunks(all_chunks)
-
-        index = faiss.IndexFlatL2(EMBEDDING_DIM)
-        index.add(embeddings)
-        faiss.write_index(index, faiss_path)
-
-        with open(meta_path, "w", encoding="utf-8") as f:
-            json.dump(all_metadata, f, ensure_ascii=False, indent=2)
-
-        logging.info(f"Index rebuilt successfully from {len(sources)} sources, {len(all_chunks)} chunks.")
-        return True, f"Indexed {len(all_chunks)} chunks from {len(sources)} sources."
+                
+                # Chunk the text
+                chunks = chunk_text(text)
+                if not chunks:
+                    logging.warning(f"No chunks generated for source: {label}")
+                    continue
+                
+                # Embed the chunks for this source
+                logging.info(f"Embedding {len(chunks)} chunks for source: {label}")
+                
+                # Use very small batch size
+                source_embeddings = embed_chunks(chunks, batch_size=4)
+                
+                # Store metadata and embeddings for this source
+                source_metadata = []
+                for chunk in chunks:
+                    source_metadata.append({
+                        "chunk_id": chunk_id,
+                        "source": label,
+                        "text": chunk
+                    })
+                    chunk_id += 1
+                
+                # Append to the full collections
+                all_metadata.extend(source_metadata)
+                all_embeddings.append(source_embeddings)
+                
+                # Save partial progress after each successful source
+                partial_meta_path = f"{meta_path}.partial"
+                with open(partial_meta_path, "w", encoding="utf-8") as f:
+                    json.dump(all_metadata, f, ensure_ascii=False, indent=2)
+                
+                logging.info(f"Successfully processed source: {label}")
+                success_count += 1
+                
+            except Exception as e:
+                logging.error(f"Error processing source {label}: {e}")
+                # Continue with next source instead of failing completely
+        
+        # If we processed at least one source successfully, build the index
+        if all_embeddings:
+            combined_embeddings = np.vstack(all_embeddings)
+            
+            # Build and save the FAISS index
+            index = faiss.IndexFlatL2(EMBEDDING_DIM)
+            index.add(combined_embeddings)
+            faiss.write_index(index, faiss_path)
+            
+            # Save the final metadata
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(all_metadata, f, ensure_ascii=False, indent=2)
+            
+            logging.info(f"Index rebuilt with {len(all_metadata)} chunks from {success_count}/{len(sources)} sources.")
+            return True, f"Indexed {len(all_metadata)} chunks from {success_count}/{len(sources)} sources."
+        else:
+            return False, "No sources could be processed successfully."
+            
     except Exception as e:
         logging.error(f"Failed to rebuild index from DB: {e}")
         return False, str(e)

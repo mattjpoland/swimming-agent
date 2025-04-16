@@ -115,7 +115,7 @@ def login_via_credentials(username, password):
     logging.info(f"🔍 Logging in via: {url}")
 
     # Make the POST request
-    response = requests.post(url, headers=headers, json=payload, verify=False)
+    response = requests.post(url, headers=headers, json=payload)
 
     logging.info(f"🔍 Response Status Code: {response.status_code}")
 

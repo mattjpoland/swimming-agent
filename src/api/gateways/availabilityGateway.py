@@ -23,7 +23,7 @@ def check_swim_lane_availability(token, date_str, item_id, context):
         "EndDate": f"{date_str}T05:00:00.000Z"
     }
 
-    response = requests.post(context["AVAILABILITY_URL"], headers=headers, json=payload, verify=False)
+    response = requests.post(context["AVAILABILITY_URL"], headers=headers, json=payload)
 
     if response.status_code == 200:
         logging.info(f"✅ Successfully retrieved availability for ItemId {item_id}!")

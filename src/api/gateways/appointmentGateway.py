@@ -29,7 +29,7 @@ def get_appointments_schedule(token, start_date, end_date, context):
         "EndDate": end_date
     }
 
-    response = requests.post(SCHEDULING_URL, headers=headers, json=payload, verify=False)
+    response = requests.post(SCHEDULING_URL, headers=headers, json=payload)
 
     if response.status_code == 200:
         logging.info("✅ Successfully retrieved scheduled appointments!")
@@ -88,7 +88,7 @@ def book_swim_lane(token, appointment_date_time, duration, location, lane, conte
     }
 
     logging.info(f"📅 Booking swim lane for {location} {lane} for {duration} on {appointment_date_time}")
-    response = requests.post(url, headers=headers, json=payload, verify=False)
+    response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
         return response.json(), response.status_code
@@ -110,7 +110,7 @@ def cancel_appointment(token, appointment_id, context):
         "AppointmentId": appointment_id
     }
 
-    response = requests.post(url, headers=headers, json=payload, verify=False)
+    response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
         logging.info(f"✅ Successfully cancelled appointment with ID {appointment_id}!")

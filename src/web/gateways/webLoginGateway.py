@@ -16,7 +16,7 @@ def login_with_credentials(username, password, context):
 
     logging.info(f"🔍 Logging in via: {context['LOGIN_URL']}")
 
-    response = requests.post(context["LOGIN_URL"], headers=headers, json=payload, verify=False)
+    response = requests.post(context["LOGIN_URL"], headers=headers, json=payload)
 
     logging.info(f"🔍 Response Status Code: {response.status_code}")
     

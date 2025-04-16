@@ -34,7 +34,7 @@ def get_member_information(context):
     logging.info(f"🔍 Getting member information from: {url}")
     
     try:
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers)
         logging.info(f"🔍 Response Status Code: {response.status_code}")
         
         if response.status_code == 200:
