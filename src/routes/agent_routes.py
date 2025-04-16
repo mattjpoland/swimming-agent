@@ -119,8 +119,16 @@ def handle_agent_request():
             # Check if this is a non-text response (image, stream, etc.)
             is_special_response = False
             content_type = "application/json"
-
-            if isinstance(action_response, tuple) and len(action_response) == 2:
+            
+            # FIRST check for direct Response objects (like the image from _generate_visualization)
+            from flask import Response
+            if isinstance(action_response, Response):
+                if action_response.mimetype and action_response.mimetype.startswith(('image/', 'text/html', 'application/pdf')):
+                    logging.info(f"Detected direct special response with mimetype: {action_response.mimetype}")
+                    return action_response
+            
+            # Then check for responses inside tuples (with status codes)
+            elif isinstance(action_response, tuple) and len(action_response) == 2:
                 resp, status_code = action_response
                 # Check if it's a Response object or has a special content type
                 if hasattr(resp, 'headers') and 'Content-Type' in resp.headers:
@@ -129,7 +137,7 @@ def handle_agent_request():
                 elif isinstance(resp, dict) and resp.get("content_type") not in ["application/json", "text/plain", None]:
                     is_special_response = True
 
-            # For media responses, return directly
+            # For media responses in tuples, return directly
             if is_special_response:
                 return action_response
 
