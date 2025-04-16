@@ -100,14 +100,35 @@ class AgentRegistry:
         prompt += "Always try to be helpful and provide clear information to the user."
 
         prompt += (
+            "When responding to the user after checking appointments, always include the specific appointment details "
+            "such as dates, times, and lane information from the data. Do not just acknowledge appointments exist without "
+            "listing them. Always show the complete list of appointments contained in the response if any are found.  "
+            "Make sure to use humanized dates formats."
+            "Instead of 'MM/DD/YYYY' use: 'today', 'tomorrow', 'yesterday' when appropriate; 'Monday', 'next Tuesday', etc. for dates within a week or so; 'the 5th', 'May 5th' if slightly farther out;"
+        )
+
+        prompt += (
+            "When responding to the user after checking appointments, you MUST only list the exact appointments provided "
+            "in the tool response. DO NOT invent or generate any fictional appointments. If the tool response says "
+            "there are 4 appointments on specific dates, you must list exactly those 4 appointments with their correct "
+            "details (dates, times, lanes, duration)."
+        )
+
+        prompt += (
             "\n\nVERY IMPORTANT - CONVERSATION MANAGEMENT INSTRUCTIONS:\n"
-            "For any response that doesn't call a function you must include \"is_conversation_over\" element in the response JSON.\n"
+            "Always format your response as a JSON object with these fields:\n"
+            "{\n"
+            "  \"is_conversation_over\": boolean,\n"
+            "  \"message\": \"Your natural language response here\"\n"
+            "}\n\n"
             "Follow these specific rules to determine the value of \"is_conversation_over\":\n"
-            "1. If the user's message indicates they are done with the conversation or their needs are met (examples: \"thanks, that's all\", \"goodbye\", \"exit\", \"that's all I needed\", \"I'm done\", \"bye\", \"I'm all set.\", etc.), set \"is_conversation_over\" to true.\n"
-            "2. For all other responses, set \"is_conversation_over\" to false.\n"
+            "1. Set to true only when user indicates they're finished (thanks, bye, that's all).\n"
+            "2. For all other responses, set to false.\n"
             "\n"
-            "When \"is_conversation_over\" is true, make your response message brief and include a closing phrase like \"You're welcome!\" or \"Happy to help. Have a great day!\".\n"
-            "\n"
+            "For appointment listings, format them clearly with dates, times, and lane information in the message field:\n"
+            "- On Thursday at 6:00 PM you have Indoor lane 3 for 30 minutes.\n"
+            "- On Saturday at 8:00 AM you have Outdoor lane 1 for 60 minutes.\n"
+            "Do not mention the 'Michigan Athletic Club' because its already implied.\n"
         )
 
         # Then return the updated prompt

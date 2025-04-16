@@ -23,12 +23,16 @@ class AppointmentsAction(AgentAction):
                     "type": "string", 
                     "description": "A specific date to check for appointments (YYYY-MM-DD). Used for single day queries."
                 },
-                "date_range": {
+                "start_date": {
                     "type": "string", 
-                    "description": "A string specifying a date range like 'today', 'tomorrow', 'this week', 'next week', etc. Used for date range queries."
+                    "description": "The start date of the date range (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "type": "string", 
+                    "description": "The end date of the date range (YYYY-MM-DD)."
                 }
             },
-            "required": []  # At least one of date or date_range should be provided
+            "required": []  # At least one parameter should be provided
         }
     
     @property
@@ -38,6 +42,9 @@ class AppointmentsAction(AgentAction):
                 "When a user asks about their appointments, use the check_appointments function. "
                 "They can ask about appointments for a specific date (e.g., 'tomorrow', 'Monday') "
                 "or for a date range (e.g., 'this week', 'next month'). "
+                "When a user asks for appointments in natural language (e.g., 'this week', 'next month'), "
+                "YOU should determine the appropriate start_date and end_date in YYYY-MM-DD format "
+                "based on the current date and the user's request. "
                 "If they don't specify a date or range, check for today's appointments. "
         )
     
@@ -66,175 +73,150 @@ class AppointmentsAction(AgentAction):
             # Get today's date in Eastern Time
             eastern = pytz.timezone('US/Eastern')
             today = datetime.now(eastern)
+            today_str = today.strftime("%Y-%m-%d")
             
-            # Determine if we're checking a single date or a range
+            # Get arguments from the request
             date = arguments.get("date")
-            date_range = arguments.get("date_range", "").lower()
+            start_date = arguments.get("start_date")
+            end_date = arguments.get("end_date")
             
-            # If neither is provided, default to today
-            if not date and not date_range:
-                date = today.strftime("%Y-%m-%d")
-                date_range = "today"
-            
-            # If a specific date is provided
+            # Case 1: Single date specified
             if date:
                 # Validate and resolve the date
                 date = validate_and_resolve_date(date, user_input)
                 
-                # Get appointments for the single date
-                response, status_code = get_appointments_schedule_action(date, context)
-                
-                if status_code != 200:
-                    return jsonify({
-                        "message": f"I couldn't retrieve your appointments. {response.get('message', 'Please try again later.')}",
-                        "status": "error"
-                    }), status_code
-                
-                # Return the message from get_appointments_schedule_action
-                return jsonify({
-                    "message": response.get("message", f"No appointments found for {date}."),
-                    "appointments": response.get("appointments", []),
-                    "status": "success"
-                })
+                # Use the same date for both start and end (single day query)
+                start_date = date
+                end_date = date
             
-            # If a date range is provided
-            elif date_range:
-                # Calculate start and end dates based on the range
-                start_date, end_date = self._calculate_date_range(date_range, today)
+            # Case 2: Date range specified
+            elif start_date and end_date:
+                # Validate and resolve the dates
+                start_date = start_date
+                end_date = end_date
                 
-                # Format dates as ISO 8601 strings
-                start_date_str = start_date.isoformat(timespec='seconds')
-                end_date_str = end_date.isoformat(timespec='seconds')
+                # Create date objects to ensure start_date is before end_date
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
                 
-                # Get auth token
-                token = login_via_context(context)
-                if not token:
-                    return jsonify({"error": "Authentication failed"}), 401
-                
-                # Fetch appointments for the date range
-                appointments, status_code = get_appointments_schedule(token, start_date_str, end_date_str, context)
-                
-                if status_code != 200 or not appointments:
+                if start_dt > end_dt:
                     return jsonify({
-                        "message": f"I couldn't find any appointments for {date_range}.",
-                        "status": "error" if status_code != 200 else "success"
-                    }), 200
-                
-                # Format the appointments into a user-friendly message
-                formatted_appointments = self._format_appointments_message(appointments, date_range)
-                
+                        "message": "Start date must be before end date.",
+                        "status": "error"
+                    }), 400
+            
+            # Case 3: No dates specified, default to today
+            else:
+                start_date = today_str
+                end_date = today_str
+            
+            # Get appointments using start_date and end_date
+            response, status_code = get_appointments_schedule_action(
+                start_date=start_date, 
+                end_date=end_date, 
+                context=context
+            )
+            
+            if status_code != 200:
                 return jsonify({
-                    "message": formatted_appointments,
-                    "appointments": appointments,
-                    "status": "success"
-                })
+                    "message": f"I couldn't retrieve your appointments. {response.get('message', 'Please try again later.')}",
+                    "status": "error"
+                }), status_code
+            
+            # Check if appointments were found
+            appointments = response.get("appointments", [])
+            appointment_details = response.get("appointment_details", [])
+            
+            # If we received appointment_details, format them into a user-friendly message
+            if appointment_details:
+                # Convert start_date and end_date to datetime objects for friendly date formatting
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                date_range = self._get_friendly_date_range(start_dt, end_dt)
+                
+                # Format a message with the appointment details
+                message = f"You have {len(appointment_details)} swim lane appointment(s) for {date_range}:\n\n"
+                for appt in appointment_details:
+                    message += f"- Date: {appt['date']}, Time: {appt['time']}\n"
+                    message += f"  Pool: {appt['pool']}, Lane: {appt['lane']}\n" 
+                    message += f"  Duration: {appt['duration']} minutes\n\n"
+            else:
+                # Use the message from the service if it exists, otherwise create a fallback message
+                message = response.get("message")
+                if not message:
+                    # Convert dates to datetime objects for friendly date formatting
+                    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                    date_range = self._get_friendly_date_range(start_dt, end_dt)
+                    message = f"No appointments found for {date_range}."
+            
+            return jsonify({
+                "message": message,
+                "appointment_details": appointment_details,
+                "status": "success"
+            })
                 
         except Exception as e:
             logging.exception(f"Error in check_appointments action: {str(e)}")
             return self.handle_error(e, "I'm sorry, but I encountered an error while checking your appointments. Please try again later.")
     
-    def _calculate_date_range(self, date_range, today):
-        """Calculate start and end dates based on a date range string."""
-        # Default to today
-        start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    def _get_friendly_date_range(self, start_dt, end_dt):
+        """Return a user-friendly description of the date range."""
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
         
-        if date_range in ["today", "now"]:
-            # Already set to today
-            pass
-        
-        elif date_range == "tomorrow":
-            start_date = start_date + timedelta(days=1)
-            end_date = end_date + timedelta(days=1)
-        
-        elif date_range in ["this week", "current week"]:
-            # Start of week (Monday)
-            days_since_monday = today.weekday()
-            start_date = start_date - timedelta(days=days_since_monday)
-            # End of week (Sunday)
-            end_date = start_date + timedelta(days=6, hours=23, minutes=59, seconds=59)
-        
-        elif date_range in ["next week", "upcoming week"]:
-            # Start of next week (next Monday)
-            days_until_next_monday = 7 - today.weekday()
-            start_date = start_date + timedelta(days=days_until_next_monday)
-            # End of next week (next Sunday)
-            end_date = start_date + timedelta(days=6, hours=23, minutes=59, seconds=59)
-        
-        elif date_range in ["this weekend", "upcoming weekend"]:
-            # Start of weekend (Saturday)
-            days_until_saturday = (5 - today.weekday()) % 7
-            start_date = start_date + timedelta(days=days_until_saturday)
-            # End of weekend (Sunday)
-            end_date = start_date + timedelta(days=1, hours=23, minutes=59, seconds=59)
-        
-        elif date_range in ["next weekend"]:
-            # Start of next weekend (Saturday after next)
-            days_until_next_saturday = (5 - today.weekday()) % 7 + 7
-            start_date = start_date + timedelta(days=days_until_next_saturday)
-            # End of next weekend (Sunday after next)
-            end_date = start_date + timedelta(days=1, hours=23, minutes=59, seconds=59)
-        
-        elif date_range in ["this month", "current month"]:
-            # Start of month
-            start_date = start_date.replace(day=1)
-            # End of month - go to first of next month and subtract one day
-            if start_date.month == 12:
-                end_date = start_date.replace(year=start_date.year + 1, month=1, day=1) - timedelta(days=1)
+        # If start and end date are the same
+        if start_dt.date() == end_dt.date():
+            if start_dt.date() == today.date():
+                return "today"
+            elif start_dt.date() == tomorrow.date():
+                return "tomorrow"
             else:
-                end_date = start_date.replace(month=start_date.month + 1, day=1) - timedelta(days=1)
-            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+                return start_dt.strftime("%A, %B %d")
         
-        elif date_range in ["next month", "upcoming month"]:
-            # Start of next month
-            if today.month == 12:
-                start_date = start_date.replace(year=today.year + 1, month=1, day=1)
-            else:
-                start_date = start_date.replace(month=today.month + 1, day=1)
-            # End of next month
-            if start_date.month == 12:
-                end_date = start_date.replace(year=start_date.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_date = start_date.replace(month=start_date.month + 1, day=1) - timedelta(days=1)
-            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        # Check for this week
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        if start_dt.date() == start_of_week.date() and end_dt.date() == end_of_week.date():
+            return "this week"
         
-        return start_date, end_date
+        # Check for next week
+        next_week_start = start_of_week + timedelta(days=7)
+        next_week_end = next_week_start + timedelta(days=6)
+        if start_dt.date() == next_week_start.date() and end_dt.date() == next_week_end.date():
+            return "next week"
+        
+        # Default to date range
+        return f"{start_dt.strftime('%B %d')} to {end_dt.strftime('%B %d')}"
     
     def _format_appointments_message(self, appointments, date_range):
         """Format appointments into a user-friendly message."""
         if not appointments:
             return f"You don't have any scheduled swim lane appointments for {date_range}."
         
-        # Start building the message
-        if len(appointments) == 1:
-            message = f"You have 1 scheduled swim lane appointment for {date_range}:\n\n"
-        else:
-            message = f"You have {len(appointments)} scheduled swim lane appointments for {date_range}:\n\n"
-        
-        # Format each appointment
-        for i, appointment in enumerate(appointments, 1):
+        # Create a clean bullet-point list that's easy for the LLM to format
+        lines = []
+        for appointment in appointments:
             pool_name = appointment.get("ClubName", "Unknown Pool")
             booked_resources = appointment.get("BookedResources", [])
             lane = booked_resources[0] if booked_resources else "Unknown Lane"
             
-            # Parse and format the date and time
+            # Parse and format date/time
             time_str = appointment.get("StartDateTime", "Unknown Time")
             try:
-                appointment_datetime = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-                date_formatted = appointment_datetime.strftime("%A, %B %d, %Y")
-                time_formatted = appointment_datetime.strftime("%I:%M %p")
-            except (ValueError, TypeError):
-                date_formatted = "Unknown Date"
-                time_formatted = "Unknown Time"
-            
-            # Extract the actual duration from the appointment data
-            duration = appointment.get("DurationInMinutes", appointment.get("Duration", 60))
-            
-            # Add to message
-            message += f"📅 Appointment {i}:\n"
-            message += f"   Date: {date_formatted}\n"
-            message += f"   Time: {time_formatted}\n"
-            message += f"   Lane: {lane}\n"
-            message += f"   Duration: {duration} minutes\n\n"
+                appt_datetime = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                day_name = appt_datetime.strftime("%A")
+                date = appt_datetime.strftime("%B %d")
+                start_time = appt_datetime.strftime("%I:%M %p").lstrip("0")
+                
+                # Calculate end time based on duration
+                duration = appointment.get("DurationInMinutes", 60)  # Fixed to use correct field
+                end_datetime = appt_datetime + timedelta(minutes=duration)
+                end_time = end_datetime.strftime("%I:%M %p").lstrip("0")
+                
+                # Create a formatted line
+                lines.append(f"- On {day_name}, {date}, from {start_time} to {end_time} in {lane} at the {pool_name}.")
+            except:
+                lines.append(f"- Appointment with {lane} at {pool_name} (time details unavailable)")
         
-        return message
+        return f"You have the following swim lane appointments for {date_range}:\n\n" + "\n".join(lines)
