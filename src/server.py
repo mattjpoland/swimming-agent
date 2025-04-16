@@ -3,11 +3,18 @@ from src.routes.api_routes import api_bp
 from src.routes.web_routes import web_bp
 from src.routes.legacy_routes import legacy_bp
 from src.routes.agent_routes import agent_bp  # Import the new agent_routes
+from src.sql.ragSourceGateway import ensure_rag_sources_table, get_all_rag_sources, add_rag_source, rag_source_exists
 import logging
 import os
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
+
+# Print all RAG sources to the console
+rag_sources = get_all_rag_sources()
+print("RAG Sources from database:")
+for source in rag_sources:
+    print(source)
 
 # Register Blueprints
 app.register_blueprint(api_bp, url_prefix="/api")

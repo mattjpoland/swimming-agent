@@ -11,6 +11,7 @@ agent_bp = Blueprint("agent", __name__)
 
 # Initialize the OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+#openai.verify_ssl(os.getenv("OPENAI_API_SSL_VERIFY", "true") == "true")
 
 @agent_bp.route("/chat", methods=["POST"])
 @require_api_key

@@ -4,6 +4,7 @@ import logging
 import io
 import barcode
 from barcode.writer import ImageWriter
+import json
 from src.api.logic.availabilityService import get_availability
 from src.api.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
 from src.api.logic.bookingService import book_swim_lane_action
@@ -16,6 +17,7 @@ from src.sql.authGateway import get_auth  # Assuming this retrieves user data
 from src.web.gateways.webLoginGateway import login_with_credentials  # Import login gateway
 from src.api.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
 from src.drawing.barcodeGenerator import generate_barcode_image
+from src.utils.indexing import rebuild_index_from_db  # Make sure this import path matches your project
 
 api_bp = Blueprint('api', __name__)
 
@@ -188,3 +190,14 @@ def get_weather_forecast():
             "status": "error",
             "message": "Failed to fetch weather forecast. Please try again later."
         }), 500
+
+@api_bp.route("/rebuild-index", methods=["POST"])
+def api_rebuild_index():
+    success, msg = rebuild_index_from_db()
+    if success:
+        logging.info(f"/api/rebuild-index: {msg}")
+        return jsonify({"status": "success", "message": msg})
+    else:
+        logging.error(f"/api/rebuild-index failed: {msg}")
+        return jsonify({"status": "error", "message": msg}), 500
+
