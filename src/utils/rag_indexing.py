@@ -9,6 +9,8 @@ import openai
 import tiktoken
 from PyPDF2 import PdfReader
 import tempfile
+from bs4 import BeautifulSoup  # Add this import
+from pathlib import Path
 from src.sql.ragSourceGateway import get_all_rag_sources
 import time
 
@@ -34,9 +36,29 @@ def load_text_from_pdf_url(pdf_url):
 def load_text_from_url(url):
     resp = requests.get(url)  # Disable SSL verification
     resp.raise_for_status()
-    return resp.text
+    
+    # Parse HTML with BeautifulSoup
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    
+    # Remove script and style elements
+    for script in soup(["script", "style", "nav", "footer", "header"]):
+        script.decompose()
+        
+    # Get text and clean it up
+    text = soup.get_text(separator=' ', strip=True)
+    
+    # Remove excessive whitespace
+    lines = (line.strip() for line in text.splitlines())
+    text = ' '.join(chunk for chunk in lines if chunk)
+    
+    logging.info(f"Extracted {len(text)} characters of clean text from URL")
+    return text
 
 def chunk_text(text, max_tokens=300):
+    # Reduce max_tokens to keep related content together
+    max_tokens = 200
+    
+    # Add logging to see chunks
     enc = tiktoken.get_encoding("cl100k_base")
     words = text.split()
     chunks = []
@@ -52,6 +74,9 @@ def chunk_text(text, max_tokens=300):
         token_count += tokens
     if chunk:
         chunks.append(" ".join(chunk))
+    
+    for chunk in chunks:
+        logging.info(f"Generated chunk: {chunk[:100]}...")  # Log first 100 chars
     return chunks
 
 def embed_chunks(chunks, batch_size=8):  # Reduced from 32 to 8
@@ -144,12 +169,10 @@ def rebuild_index(source_type="pdf", source_path=None, source_url=None, faiss_pa
         logging.error(f"Failed to rebuild index: {e}")
         return False, str(e)
 
-def rebuild_index_from_db(
-    faiss_path="index.faiss",
-    meta_path="chunks.json"
-):
+def rebuild_index_from_db(faiss_path="index.faiss", meta_path="chunks.json"):
     try:
         sources = get_all_rag_sources()
+        logging.info(f"Found {len(sources)} sources to process")
         all_metadata = []
         all_embeddings = []
         chunk_id = 0
@@ -187,6 +210,9 @@ def rebuild_index_from_db(
                 if not chunks:
                     logging.warning(f"No chunks generated for source: {label}")
                     continue
+                
+                logging.info(f"Processing source: {source.get('url') or source.get('path')}")
+                logging.info(f"Chunks generated: {len(chunks)}")
                 
                 # Embed the chunks for this source
                 logging.info(f"Embedding {len(chunks)} chunks for source: {label}")
@@ -227,12 +253,13 @@ def rebuild_index_from_db(
             # Build and save the FAISS index
             index = faiss.IndexFlatL2(EMBEDDING_DIM)
             index.add(combined_embeddings)
-            faiss.write_index(index, faiss_path)
+            faiss.write_index(index, faiss_path)  # Changed from faiss.write_index(faiss_path, index)
             
             # Save the final metadata
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(all_metadata, f, ensure_ascii=False, indent=2)
             
+            logging.info(f"Final index size: {len(all_metadata)} chunks")
             logging.info(f"Index rebuilt with {len(all_metadata)} chunks from {success_count}/{len(sources)} sources.")
             return True, f"Indexed {len(all_metadata)} chunks from {success_count}/{len(sources)} sources."
         else:
@@ -241,4 +268,67 @@ def rebuild_index_from_db(
     except Exception as e:
         logging.error(f"Failed to rebuild index from DB: {e}")
         return False, str(e)
+
+def verify_index():
+    """Verify RAG index and return detailed status information"""
+    try:
+        index_path = Path("index.faiss")
+        chunks_path = Path("chunks.json")
+        
+        status = {
+            "status": "ok",
+            "chunks_count": 0,
+            "index_size": 0,
+            "sources": {},
+            "sample_chunks": []
+        }
+
+        # Check files exist
+        if not index_path.exists() or not chunks_path.exists():
+            return {
+                "status": "error", 
+                "message": "Missing index files",
+                "index_exists": index_path.exists(),
+                "chunks_exists": chunks_path.exists()
+            }
+
+        # Load and analyze chunks
+        with open(chunks_path, 'r') as f:
+            chunks = json.load(f)
+            status["chunks_count"] = len(chunks)
+            
+            # Analyze sources distribution
+            for chunk in chunks:
+                source = chunk.get('source', 'unknown')
+                status["sources"][source] = status["sources"].get(source, 0) + 1
+            
+            # Add sample chunks (first chunk from each source)
+            seen_sources = set()
+            for chunk in chunks:
+                source = chunk.get('source', 'unknown')
+                if source not in seen_sources:
+                    seen_sources.add(source)
+                    status["sample_chunks"].append({
+                        "chunk_id": chunk.get('chunk_id', 0),
+                        "source": source,
+                        "text": chunk.get('text', '')[:150]  # Preview of text
+                    })
+
+        # Verify FAISS index
+        index = faiss.read_index(str(index_path))
+        status["index_size"] = index.ntotal
+        
+        # Verify index and chunks match
+        if status["chunks_count"] != status["index_size"]:
+            status["status"] = "warning"
+            status["message"] = f"Mismatch between chunks ({status['chunks_count']}) and index size ({status['index_size']})"
+            
+        return status
+
+    except Exception as e:
+        logging.error(f"Index verification failed: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 

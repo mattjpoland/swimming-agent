@@ -1,40 +1,45 @@
 from flask import Blueprint, request, jsonify, g
-from src.agent.logic.agentService import AgentService
-from src.decorators import require_api_key
+from .services.agent_route_service import AgentRouteService
+import logging
 
-# Define the Flask Blueprint
-agent_bp = Blueprint("agent", __name__)
-agent_service = AgentService()
+agent_bp = Blueprint('agent', __name__)
+route_service = AgentRouteService()
 
-@agent_bp.route("/chat", methods=["POST"])
-@require_api_key
-def handle_agent_request():
-    """
-    Handle agent requests by processing the user input and integrating GPT-4 function calling.
-    Returns appropriate responses based on the action type (visualization, barcode, text).
-    """
-    # Parse JSON body
-    data = request.get_json()
-    if not data or "user_input" not in data:
-        return jsonify({"error": "User input is required"}), 400
-
-    # Extract request parameters
-    user_input = data["user_input"]
-    response_format = data.get("response_format", "auto")
-    is_siri = data.get("is_siri", False)
-    conversation_history = data.get("conversation_history", [])
-    
-    # Delegate to service layer
-    response, status_code = agent_service.process_agent_request(
-        user_input=user_input,
-        response_format=response_format,
-        is_siri=is_siri,
-        conversation_history=conversation_history
-    )
-    
-    # Handle special response types (like images)
-    from flask import Response
-    if isinstance(response, Response):
-        return response, status_code
+@agent_bp.route('/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.get_json()
+        user_input = data.get('user_input')
         
-    return jsonify(response), status_code
+        if not user_input:
+            return jsonify({"error": "No user input provided"}), 400
+        
+        # Extract optional parameters
+        response_format = data.get('response_format', 'auto')
+        is_siri = data.get('is_siri', False)
+        conversation_history = data.get('conversation_history', [])
+        
+        # Get context from Flask g if available
+        context = getattr(g, 'context', {})
+        
+        # Log the incoming request
+        logging.info(f"Processing agent request: '{user_input[:50]}{'...' if len(user_input) > 50 else ''}'")
+        
+        # Process the request through the service layer
+        result, status_code = route_service.process_chat(
+            user_input=user_input,
+            context=context,
+            response_format=response_format,
+            is_siri=is_siri,
+            conversation_history=conversation_history
+        )
+        
+        return jsonify(result), status_code
+    
+    except Exception as e:
+        logging.error(f"Error in agent route: {e}", exc_info=True)
+        return jsonify({
+            "status": "error", 
+            "message": "An error occurred while processing your request",
+            "content_type": "application/json"
+        }), 500

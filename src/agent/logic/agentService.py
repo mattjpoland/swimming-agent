@@ -2,8 +2,16 @@ from flask import g, Response
 import json
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Union
+from dataclasses import dataclass
 from src.agent.gateways.openAIGateway import OpenAIGateway
 from src.agent.registry import registry
+from src.utils.rag_querying import query_rag
+
+@dataclass
+class InformationResponse:
+    answer: str
+    source_count: int
+    confidence: float
 
 class AgentService:
     def __init__(self):
@@ -239,3 +247,47 @@ class AgentService:
             "content_type": "application/json",
             "is_conversation_over": is_conversation_over
         }, 200
+
+    def get_information_response(self, question: str, context: dict) -> InformationResponse:
+        """
+        High-level method to handle information requests using RAG and LLM
+        """
+        try:
+            # Query the RAG system
+            results = query_rag(question)
+            
+            if not results:
+                return InformationResponse(
+                    answer="I'm sorry, I couldn't find specific information about that. Please contact the facility directly.",
+                    source_count=0,
+                    confidence=0.0
+                )
+            
+            # Combine relevant chunks
+            context_text = "\n".join([chunk["text"] for chunk in results])
+            
+            # Prepare prompt for LLM
+            messages = [
+                {"role": "system", "content": (
+                    "You are a helpful assistant for a swimming facility. "
+                    "Use the provided context to answer questions accurately and concisely. "
+                    "If the context doesn't fully answer the question, be honest about what you don't know."
+                )},
+                {"role": "user", "content": f"Using this context:\n\n{context_text}\n\nAnswer this question: {question}"}
+            ]
+            
+            # Get LLM response
+            response = self.openai_gateway.get_completion(messages)
+            
+            # Calculate average confidence from RAG results
+            avg_confidence = sum(r.get('similarity', 0) for r in results) / len(results)
+            
+            return InformationResponse(
+                answer=response.choices[0].message.content,
+                source_count=len(results),
+                confidence=avg_confidence
+            )
+            
+        except Exception as e:
+            logging.error(f"Error in AgentService.get_information_response: {e}")
+            raise

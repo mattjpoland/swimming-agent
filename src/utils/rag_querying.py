@@ -31,51 +31,158 @@ def get_embedding(text: str) -> np.ndarray:
     )
     return np.array(response.data[0].embedding, dtype='float32')
 
-def query_rag(query: str, k: int = 3, threshold: float = 0.7) -> List[Dict[str, Any]]:
-    """
-    Query the RAG system with a natural language question
+def preprocess_query(query: str) -> str:
+    """Preprocess query to improve matching"""
+    query = query.lower()
     
-    Args:
-        query: The natural language query
-        k: Number of results to return
-        threshold: Similarity threshold (0-1) for filtering results
+    # Expand common variations and context
+    replacements = {
+        "hours": ["schedule", "times", "open", "closing", "close", "opens", "closes"],
+        "pool": ["swimming", "swim", "aquatic", "pools"],
+        "today": ["now", "current", "currently"],
+        "tomorrow": ["next day"],
+        "weekend": ["saturday", "sunday", "weekends"],
+        "morning": ["am", "a.m.", "early"],
+        "evening": ["pm", "p.m.", "night", "late"]
+    }
+    
+    # Expand query with common variations
+    expanded_terms = []
+    words = query.split()
+    
+    for i, word in enumerate(words):
+        expanded_terms.append(word)
         
-    Returns:
-        List of relevant chunks with metadata and similarity scores
-    """
+        # Add common variations
+        for key, variations in replacements.items():
+            if word in variations:
+                expanded_terms.append(key)
+                
+        # Handle time-related phrases
+        if word in ["time", "when"]:
+            expanded_terms.extend(["hours", "schedule"])
+            
+    return " ".join(expanded_terms)
+
+def query_rag(query: str, k: int = 3, threshold: float = 0.5):
+    """Query the RAG system with preprocessing"""
     try:
-        # Load index and metadata
+        # Enhance query preprocessing
+        processed_query = preprocess_query(query)
+        logging.info(f"Original query: '{query}'")
+        logging.info(f"Processed query: '{processed_query}'")
+        
         index, chunk_metadata = load_rag_data()
         if not index or not chunk_metadata:
-            raise ValueError("Failed to load RAG data")
-            
-        # Get query embedding
-        query_embedding = get_embedding(query)
-        query_embedding = query_embedding.reshape(1, -1)
+            return []
         
-        # Search index
-        distances, indices = index.search(query_embedding, k)
+        # Get query embedding
+        query_embedding = get_embedding(processed_query)
+        
+        # Use k+2 to get more candidates then filter
+        distances, indices = index.search(query_embedding.reshape(1, -1), k+2)
         
         # Process results
         results = []
-        for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
+        for dist, idx in zip(distances[0], indices[0]):
             if idx < 0 or idx >= len(chunk_metadata):
                 continue
                 
-            # Convert distance to similarity score (0-1)
-            similarity = 1 - (dist / 2)  # Assuming L2 distance
+            similarity = 1 - (dist / 2)
             
-            if similarity < threshold:
-                continue
-                
-            result = {
-                **chunk_metadata[idx],
-                "similarity": float(similarity)
-            }
-            results.append(result)
-            
-        return results
+            # Use 0.5 threshold - based on debug results
+            if similarity >= 0.5:
+                chunk = chunk_metadata[idx]
+                results.append({
+                    **chunk,
+                    "similarity": float(similarity)
+                })
+        
+        # Sort by similarity and return top k
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+        return results[:k]
         
     except Exception as e:
-        logging.error(f"Error querying RAG: {e}")
+        logging.error(f"RAG query error: {e}", exc_info=True)
         return []
+
+def debug_rag_status():
+    """Print detailed RAG system status for debugging"""
+    try:
+        index, chunk_metadata = load_rag_data()
+        
+        if not index or not chunk_metadata:
+            logging.error("Failed to load RAG data")
+            return {
+                "status": "error",
+                "message": "Failed to load RAG data"
+            }
+            
+        status = {
+            "status": "ok",
+            "index_size": index.ntotal if index else 0,
+            "chunks_count": len(chunk_metadata) if chunk_metadata else 0,
+            "chunks": []
+        }
+        
+        # Add sample chunks
+        if chunk_metadata:
+            for chunk in chunk_metadata[:3]:  # Show first 3 chunks
+                status["chunks"].append({
+                    "source": chunk.get("source", "unknown"),
+                    "preview": chunk.get("text", "")[:150],
+                    "similarity_threshold": 0.5  # Current threshold
+                })
+        
+        # Log without emojis
+        logging.info("RAG System Status:")
+        logging.info(f"  Index size: {status['index_size']} vectors")
+        logging.info(f"  Chunks count: {status['chunks_count']}")
+        
+        return status
+        
+    except Exception as e:
+        logging.error(f"Error checking RAG status: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+def debug_query(query: str):
+    """Debug a specific RAG query with detailed logging"""
+    try:
+        logging.info(f"DEBUG QUERY: '{query}'")
+        
+        index, chunk_metadata = load_rag_data()
+        if not index or not chunk_metadata:
+            logging.error("Failed to load RAG data")
+            return
+            
+        query_embedding = get_embedding(query)
+        
+        # Test different thresholds
+        for threshold in [0.3, 0.5, 0.7]:
+            logging.info(f"Testing threshold: {threshold}")
+            
+            distances, indices = index.search(query_embedding.reshape(1, -1), k=5)
+            
+            # Show all potential matches
+            for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
+                if idx < 0 or idx >= len(chunk_metadata):
+                    continue
+                    
+                similarity = 1 - (dist / 2)
+                chunk = chunk_metadata[idx]
+                
+                # Format the match info without nested parentheses in f-strings
+                match_marker = "PASS" if similarity >= threshold else "FAIL"
+                match_num = i + 1
+                
+                logging.info(f"Match {match_num}:")
+                logging.info(f"  Similarity: {similarity:.3f} [{match_marker}]")
+                logging.info(f"  Source: {chunk.get('source', 'unknown')}")
+                preview = chunk.get('text', '')[:150]
+                logging.info(f"  Text: {preview}...")
+                
+    except Exception as e:
+        logging.error(f"Debug query error: {e}", exc_info=True)

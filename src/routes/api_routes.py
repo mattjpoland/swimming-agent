@@ -18,6 +18,7 @@ from src.web.gateways.webLoginGateway import login_with_credentials  # Import lo
 from src.api.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
 from src.drawing.barcodeGenerator import generate_barcode_image
 from src.utils.rag_indexing import rebuild_index_from_db  # Make sure this import path matches your project
+from src.utils.rag_querying import debug_rag_status, debug_query
 
 api_bp = Blueprint('api', __name__)
 
@@ -200,4 +201,39 @@ def api_rebuild_index():
     else:
         logging.error(f"/api/rebuild-index failed: {msg}")
         return jsonify({"status": "error", "message": msg}), 500
+
+@api_bp.route('/rag-status', methods=['GET'])
+def get_rag_status():
+    """Get detailed status of the RAG system"""
+    try:
+        debug_rag_status()
+        return jsonify({
+            "status": "success",
+            "message": "RAG status logged. Check application logs for details."
+        })
+    except Exception as e:
+        logging.error(f"Failed to get RAG status: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@api_bp.route('/debug-query', methods=['POST'])
+def debug_query_route():
+    """Debug a RAG query"""
+    try:
+        data = request.get_json()
+        query = data.get('query')
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+            
+        debug_query(query)
+        return jsonify({
+            "status": "success",
+            "message": "Query debug info logged. Check application logs."
+        })
+        
+    except Exception as e:
+        logging.error(f"Debug query error: {e}")
+        return jsonify({"error": str(e)}), 500
 

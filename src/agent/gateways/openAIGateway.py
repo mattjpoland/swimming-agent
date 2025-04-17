@@ -16,7 +16,6 @@ class OpenAIGateway:
     ):
         """Raw completion call to OpenAI"""
         try:
-            # Only include tools and tool_choice if tools are provided
             kwargs = {
                 "model": "gpt-4.1-mini",
                 "messages": messages

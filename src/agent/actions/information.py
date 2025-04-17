@@ -1,16 +1,32 @@
 from src.agent.base import AgentAction
+from src.agent.gateways.openAIGateway import OpenAIGateway
 from src.utils.rag_querying import query_rag
 import logging
 
 class InformationAction(AgentAction):
+    def __init__(self):
+        super().__init__()
+        self.openai_gateway = OpenAIGateway()
+
     @property
     def name(self):
         return "get_pool_information"
-    
+
     @property
     def description(self):
         return "Retrieve information about pool facilities, policies, or schedules using RAG"
     
+    @property
+    def prompt_instructions(self):
+        return """
+When answering questions about pool hours or schedules:
+- Use the current date context provided in the system prompt
+- Reference specific days of the week when relevant
+- Clearly indicate if the information is date-dependent
+- Format pool hours in 12-hour time (e.g., 7:00 AM - 8:00 PM)
+- Note any special conditions or exceptions
+"""
+
     @property
     def parameters(self):
         return {
@@ -23,52 +39,51 @@ class InformationAction(AgentAction):
             },
             "required": ["question"]
         }
-    
-    @property
-    def prompt_instructions(self):
-        return (
-            "Use this function to answer questions about pool information, policies, "
-            "facility details, or general schedules. Examples: pool hours, facility rules, "
-            "swim lesson information, pool dimensions, etc."
-        )
 
     def execute(self, arguments, context, user_input, **kwargs):
         try:
-            # Query the RAG system
-            results = query_rag(arguments["question"])
-            
+            question = arguments.get("question")
+            if not question:
+                raise ValueError("Question is required")
+
+            results = query_rag(question)
             if not results:
                 return {
-                    "message": "I'm sorry, I couldn't find specific information about that. Please contact the facility directly for the most accurate information.",
+                    "message": "No information found",
                     "status": "no_results"
                 }
-            
-            # Combine the relevant chunks into context
+
+            # Combine context from top matches
             context_text = "\n".join([chunk["text"] for chunk in results])
             
-            # Use OpenAI to generate a natural response using the retrieved context
+            # Get raw factual information
             messages = [
-                {"role": "system", "content": (
-                    "You are a helpful assistant for a swimming facility. "
-                    "Use the provided context to answer questions accurately and concisely. "
-                    "If the context doesn't fully answer the question, be honest about what you don't know."
-                )},
-                {"role": "user", "content": f"Using this context:\n\n{context_text}\n\nAnswer this question: {arguments['question']}"}
+                {"role": "system", "content": """
+Extract only the relevant pool information from the context:
+- Include specific hours and conditions
+- Keep it factual without conversational elements
+- Include date-specific details if relevant
+- Structure data in a clear, parseable format
+"""},
+                {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {question}"}
             ]
-            
+
             response = self.openai_gateway.get_completion(messages)
-            answer = response.choices[0].message.content
             
             return {
-                "message": answer,
+                "raw_info": response.choices[0].message.content,
                 "status": "success",
-                "source_count": len(results)
+                "sources": [r["source"] for r in results],
+                "confidence": max(r["similarity"] for r in results),
+                "metadata": {
+                    "question_type": "pool_hours" if "hours" in question.lower() else "general",
+                    "sources_used": list(set(r["source"] for r in results))
+                }
             }
-            
+                
         except Exception as e:
-            logging.error(f"Error in InformationAction: {e}")
+            logging.error(f"Error in InformationAction: {e}", exc_info=True)
             return {
-                "message": "I apologize, but I encountered an error while retrieving that information.",
                 "status": "error",
                 "error": str(e)
             }

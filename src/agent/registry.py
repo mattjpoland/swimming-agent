@@ -8,8 +8,11 @@ from src.agent.actions.weatherForecast import WeatherForecastAction
 from src.agent.actions.information import InformationAction
 from src.agent.utils.date_resolver import get_current_dates
 from src.api.logic.weatherService import get_weather_for_zip, get_weather_forecast_for_date
+from src.agent.gateways.openAIGateway import OpenAIGateway
 from datetime import datetime, timedelta
+from typing import Any, List, Dict
 import pytz
+import logging
 
 
 class AgentRegistry:
@@ -135,6 +138,51 @@ class AgentRegistry:
 
         # Then return the updated prompt
         return prompt
+
+    def determine_action(self, user_input: str) -> Any:
+        """Determine which action to use based on user input"""
+        tools = self.get_tools_for_openai()
+        
+        # Ask OpenAI to determine the appropriate action
+        messages = [
+            {"role": "system", "content": f"""
+You are an action classifier for a swimming facility assistant. 
+Analyze the user's input and determine which function to call:
+
+Available functions:
+{self._format_action_descriptions()}
+
+Select only ONE function name that best matches the user's intent.
+Respond with ONLY the function name, nothing else.
+"""},
+            {"role": "user", "content": user_input}
+        ]
+        
+        try:
+            openai_gateway = OpenAIGateway()
+            response = openai_gateway.get_completion(messages)
+            action_name = response.choices[0].message.content.strip().lower()
+            
+            # Try to get the action by name
+            for action in self.get_all_actions():
+                if action.name.lower() == action_name:
+                    return action
+            
+            # Default to information action if no match
+            return self.get_action("get_pool_information")
+            
+        except Exception as e:
+            # Log error and default to information action
+            logging.error(f"Error determining action: {e}")
+            return self.get_action("get_pool_information")
+    
+    def _format_action_descriptions(self) -> str:
+        """Format all registered actions and their descriptions for the classifier"""
+        descriptions = []
+        for action in self.get_all_actions():
+            descriptions.append(f"- {action.name}: {action.description}")
+        return "\n".join(descriptions)
+
 
 # Create a singleton instance
 registry = AgentRegistry()
