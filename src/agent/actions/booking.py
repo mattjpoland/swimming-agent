@@ -155,20 +155,13 @@ class BookLaneAction(AgentAction):
                     
                 success_message += "\nYou can view this booking in your account dashboard."
                 
-                return jsonify({
-                    "message": success_message,
-                    "booking_details": response,
-                    "status": "success"
-                })
+                return jsonify({"message": success_message, "booking_details": response, "status": "success"}), 200
             else:
                 # Get error details
                 error_message = response.get("message", "Unknown error occurred during booking.")
                 
-                return jsonify({
-                    "message": f"I'm sorry, but I couldn't book this lane. {error_message}",
-                    "status": "error"
-                }), status_code
+                return jsonify({"message": f"I'm sorry, but I couldn't book this lane. {error_message}", "status": "error"}), status_code
                 
         except Exception as e:
             logging.exception("Error in booking lane")
-            return self.handle_error(e, "I'm sorry, but I encountered an error while trying to book your lane. Please try again later.")
+            return jsonify({"message": "I'm sorry, but I encountered an error while trying to book your lane. Please try again later.", "status": "error"}), 500

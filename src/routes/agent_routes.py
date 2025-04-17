@@ -119,26 +119,37 @@ def handle_agent_request():
             # Check if this is a non-text response (image, stream, etc.)
             is_special_response = False
             content_type = "application/json"
-            
+
             # FIRST check for direct Response objects (like the image from _generate_visualization)
             from flask import Response
-            if isinstance(action_response, Response):
-                if action_response.mimetype and action_response.mimetype.startswith(('image/', 'text/html', 'application/pdf')):
-                    logging.info(f"Detected direct special response with mimetype: {action_response.mimetype}")
-                    return action_response
-            
-            # Then check for responses inside tuples (with status codes)
-            elif isinstance(action_response, tuple) and len(action_response) == 2:
-                resp, status_code = action_response
-                # Check if it's a Response object or has a special content type
-                if hasattr(resp, 'headers') and 'Content-Type' in resp.headers:
-                    content_type = resp.headers['Content-Type']
-                    is_special_response = content_type.startswith(('image/', 'text/html', 'application/pdf'))
-                elif isinstance(resp, dict) and resp.get("content_type") not in ["application/json", "text/plain", None]:
-                    is_special_response = True
+            if isinstance(action_response, Response) and action_response.mimetype == "image/png":
+                return action_response
 
-            # For media responses in tuples, return directly
-            if is_special_response:
+            # Handle tuple responses (e.g., (response, status_code))
+            if isinstance(action_response, tuple) and len(action_response) == 2:
+                response, status_code = action_response
+                if isinstance(response, dict):
+                    # If the response is a JSON object, process it for the LLM
+                    tool_result = response.get("message", json.dumps(response))
+                    messages.append({
+                        "role": "tool",
+                        "content": tool_result
+                    })
+                    final_response = client.chat.completions.create(
+                        model="gpt-4.1-mini",
+                        messages=messages
+                    )
+                    return jsonify({
+                        "message": final_response.choices[0].message.content.strip(),
+                        "status": "success",
+                        "content_type": "application/json"
+                    }), 200
+                elif isinstance(response, Response) and response.mimetype == "image/png":
+                    # If the response is a Flask Response object with image/png, return it directly
+                    return response, status_code
+
+            # Directly return Flask Response objects with image/png
+            if isinstance(action_response, Response) and action_response.mimetype == "image/png":
                 return action_response
 
             # For text/JSON responses, send the tool result back to the model for rephrasing

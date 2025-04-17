@@ -150,15 +150,11 @@ class AppointmentsAction(AgentAction):
                     date_range = self._get_friendly_date_range(start_dt, end_dt)
                     message = f"No appointments found for {date_range}."
             
-            return jsonify({
-                "message": message,
-                "appointment_details": appointment_details,
-                "status": "success"
-            })
+            return jsonify({"message": message, "appointment_details": appointment_details, "status": "success"}), 200
                 
         except Exception as e:
             logging.exception(f"Error in check_appointments action: {str(e)}")
-            return self.handle_error(e, "I'm sorry, but I encountered an error while checking your appointments. Please try again later.")
+            return jsonify({"message": "I'm sorry, but I encountered an error while checking your appointments. Please try again later.", "status": "error"}), 500
     
     def _get_friendly_date_range(self, start_dt, end_dt):
         """Return a user-friendly description of the date range."""

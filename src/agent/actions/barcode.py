@@ -111,12 +111,9 @@ class BarcodeAction(AgentAction):
             barcode_format.write(barcode_image)
             barcode_image.seek(0)
             
-            # Return the barcode image with explanatory headers
-            response_obj = send_file(barcode_image, mimetype="image/png")
-            response_obj.headers["X-Barcode-ID"] = barcode_id
-            response_obj.headers["X-Response-Type"] = "barcode"
-            return response_obj
+            # Return the barcode image as a Flask Response
+            return send_file(barcode_image, mimetype="image/png")
             
         except Exception as e:
             logging.exception(f"Error generating barcode: {str(e)}")
-            return self.handle_error(e, "I encountered an error while generating your barcode. Please try again later.")
+            return jsonify({"message": "I encountered an error while generating your barcode. Please try again later.", "status": "error"}), 500

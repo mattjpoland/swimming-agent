@@ -1,4 +1,5 @@
 from src.api.logic.weatherService import get_weather_forecast_for_date  # Import the weather forecast service function
+from flask import jsonify  # Import Flask jsonify for standardized responses
 
 class WeatherForecastAction:
     @property
@@ -54,13 +55,7 @@ class WeatherForecastAction:
                     f"humidity at {entry['humidity']}%, and wind speed of {entry['wind_speed']} mph.\n"
                 )
 
-            return {
-                "message": forecast_message.strip(),
-                "status": "success"
-            }, 200
+            return jsonify({"message": forecast_message.strip(), "status": "success"}), 200
         except Exception as e:
-            return {
-                "message": f"Failed to fetch the weather forecast: {str(e)}",
-                "status": "error"
-            }, 500
+            return jsonify({"message": f"Failed to fetch the weather forecast: {str(e)}", "status": "error"}), 500
 

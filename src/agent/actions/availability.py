@@ -68,12 +68,12 @@ class AvailabilityAction(AgentAction):
             
             # Handle different response formats
             if response_format == "text":
-                return self._generate_text_response(pool_name, date, context)
+                return jsonify(self._generate_text_response(pool_name, date, context))
             else:
                 return self._generate_visualization(pool_name, date, context)
                 
         except Exception as e:
-            return self.handle_error(e, "I couldn't check availability at this time. Please try again later.")
+            return jsonify({"message": "I couldn't check availability at this time. Please try again later.", "status": "error"}), 500
     
     def _generate_text_response(self, pool_name, date, context):
         """Generate text-based availability response."""
@@ -105,11 +105,11 @@ class AvailabilityAction(AgentAction):
                 if lanes:  # Only show time slots with available lanes
                     availability_message += f"{time_slot}: Lanes {', '.join(map(str, lanes))}\n"
             
-            return jsonify({"message": availability_message, "status": "success"})
+            return {"message": availability_message, "status": "success"}
         else:
             # Validate pool_name
             if "ITEMS" not in context or pool_name not in context["ITEMS"]:
-                return jsonify({"error": f"Invalid pool name: {pool_name}"}), 400
+                return {"error": f"Invalid pool name: {pool_name}"}, 400
 
             # Get item_id and check availability
             item_id = context["ITEMS"][pool_name]
@@ -121,7 +121,7 @@ class AvailabilityAction(AgentAction):
                 if lanes:  # Only show time slots with available lanes
                     availability_message += f"{time_slot}: Lanes {', '.join(map(str, lanes))}\n"
 
-            return jsonify({"message": availability_message, "status": "success"})
+            return {"message": availability_message, "status": "success"}
     
     def _generate_visualization(self, pool_name, date, context):
         """Generate visual availability response."""
@@ -142,8 +142,8 @@ class AvailabilityAction(AgentAction):
                 indoor_availability = get_availability(indoor_item_id, date, context)
                 outdoor_availability = get_availability(outdoor_item_id, date, context)
 
-                indoor_appt = get_appointment_data(date, context)
-                outdoor_appt = get_appointment_data(date, context)
+                indoor_appt = get_appointment_data(date, date, context)
+                outdoor_appt = get_appointment_data(date, date, context)
 
                 indoor_img = generate_visualization(indoor_availability, indoor_pool_name, date, indoor_appt, context)
                 outdoor_img = generate_visualization(outdoor_availability, outdoor_pool_name, date, outdoor_appt, context)
@@ -164,7 +164,7 @@ class AvailabilityAction(AgentAction):
                 # Get item_id and check availability
                 item_id = context["ITEMS"][pool_name]
                 availability = get_availability(item_id, date, context)
-                appt = get_appointment_data(date, context)
+                appt = get_appointment_data(date, date, context)
 
                 img_io = generate_visualization(availability, pool_name, date, appt, context)
                 
@@ -177,4 +177,4 @@ class AvailabilityAction(AgentAction):
         except Exception as e:
             logging.error(f"Error generating visualization: {str(e)}")
             # Fall back to text response if visualization fails
-            return self._generate_text_response(pool_name, date, context)
+            return jsonify(self._generate_text_response(pool_name, date, context))

@@ -1,4 +1,4 @@
-from flask import jsonify, g
+from flask import jsonify, g, Response
 from src.agent.base import AgentAction
 from src.agent.utils.date_resolver import validate_and_resolve_date
 import logging
@@ -74,31 +74,43 @@ class CancelAppointmentAction(AgentAction):
             
             # Check if the user has confirmed the cancellation
             if not confirm:
-                return jsonify({
-                    "message": "For safety reasons, I need you to confirm that you want to cancel this appointment. Please confirm if you want to proceed with cancellation.",
-                    "status": "needs_confirmation"
-                }), 200
+                return Response(
+                    jsonify({
+                        "message": "For safety reasons, I need you to confirm that you want to cancel this appointment. Please confirm if you want to proceed with cancellation.",
+                        "status": "needs_confirmation"
+                    }),
+                    status=200,
+                    mimetype="application/json"
+                )
             
             # Import the function here to avoid circular imports
             from src.api.logic.cancellationService import cancel_appointment_action
             from src.api.logic.appointmentService import get_appointments_schedule_action
             
             # First, check if there's actually an appointment for this date
-            appointment_response, appointment_status = get_appointments_schedule_action(date, context)
+            appointment_response, appointment_status = get_appointments_schedule_action(date, date, context)
             
             if appointment_status != 200:
-                return jsonify({
-                    "message": f"I couldn't check if you have an appointment on {date}. Please try again later.",
-                    "status": "error"
-                }), appointment_status
+                return Response(
+                    jsonify({
+                        "message": f"I couldn't check if you have an appointment on {date}. Please try again later.",
+                        "status": "error"
+                    }),
+                    status=appointment_status,
+                    mimetype="application/json"
+                )
             
             appointments = appointment_response.get("appointments", [])
             
             if not appointments:
-                return jsonify({
-                    "message": f"You don't have any appointments scheduled for {date} that can be cancelled.",
-                    "status": "error"
-                }), 400
+                return Response(
+                    jsonify({
+                        "message": f"You don't have any appointments scheduled for {date} that can be cancelled.",
+                        "status": "error"
+                    }),
+                    status=400,
+                    mimetype="application/json"
+                )
             
             # Format appointment details for the confirmation message
             appointment_details = self._format_appointment_details(appointments[0], date)
@@ -107,22 +119,33 @@ class CancelAppointmentAction(AgentAction):
             response, status_code = cancel_appointment_action(date, context)
             
             if status_code != 200:
-                return jsonify({
-                    "message": f"I couldn't cancel your appointment. {response.get('message', 'Please try again later.')}",
-                    "status": "error"
-                }), status_code
+                return Response(
+                    jsonify({
+                        "message": f"I couldn't cancel your appointment. {response.get('message', 'Please try again later.')}",
+                        "status": "error"
+                    }),
+                    status=status_code,
+                    mimetype="application/json"
+                )
             
             # Create a success message
             success_message = f"✅ Success! I've cancelled your appointment for {date}.\n\nDetails of the cancelled appointment:\n{appointment_details}"
-            
+
             return jsonify({
                 "message": success_message,
                 "status": "success"
-            })
+            }), 200
                 
         except Exception as e:
             logging.exception(f"Error in cancel_appointment action: {str(e)}")
-            return self.handle_error(e, "I'm sorry, but I encountered an error while trying to cancel your appointment. Please try again later.")
+            return Response(
+                jsonify({
+                    "message": "I'm sorry, but I encountered an error while trying to cancel your appointment. Please try again later.",
+                    "status": "error"
+                }),
+                status=500,
+                mimetype="application/json"
+            )
     
     def _format_appointment_details(self, appointment, date_str):
         """Format an appointment into a readable string."""

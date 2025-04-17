@@ -65,7 +65,7 @@ def get_swim_lane_availability():
 def get_user_appointments():
     """API Endpoint to return scheduled swim lane appointments for a given date."""
     date_str = request.args.get("date")
-    response, status_code = get_appointments_schedule_action(date_str, g.context)
+    response, status_code = get_appointments_schedule_action(date_str, date_str, g.context)
     return jsonify(response), status_code
 
 @api_bp.route("/book", methods=["POST"])

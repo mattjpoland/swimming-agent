@@ -1,4 +1,5 @@
 from src.api.logic.weatherService import get_weather_for_zip  # Import the weather service function
+from flask import jsonify  # Import Flask jsonify for standardized responses
 
 class WeatherAction:
     @property
@@ -35,13 +36,13 @@ class WeatherAction:
             zip_code = "48823"
             country_code = "us"
             weather = get_weather_for_zip(zip_code, country_code)
-            return {
+            return jsonify({
                 "message": f"The current weather in {weather['location']} is {weather['description']} with a temperature of {weather['temperature']}°F, humidity at {weather['humidity']}%, and wind speed of {weather['wind_speed']} mph.",
                 "status": "success"
-            }, 200
+            }), 200
         except Exception as e:
-            return {
+            return jsonify({
                 "message": f"Failed to fetch the current weather: {str(e)}",
                 "status": "error"
-            }, 500
+            }), 500
 
