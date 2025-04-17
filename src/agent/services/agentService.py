@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 from src.agent.gateways.openAIGateway import OpenAIGateway
 from src.agent.registry import registry
-from src.utils.rag_querying import query_rag
+from src.domain.services.ragQueryingService import query_rag
 
 @dataclass
 class InformationResponse:
@@ -20,6 +20,7 @@ class AgentService:
     def process_agent_request(
         self,
         user_input: str,
+        context: Dict[str, Any] = None,
         response_format: str = "auto",
         is_siri: bool = False,
         conversation_history: List[Dict] = None
@@ -29,6 +30,10 @@ class AgentService:
         
         # Get tools from registry
         tools = registry.get_tools_for_openai()
+
+        # Store context in flask g for action execution if it's not already there
+        if context and not hasattr(g, 'context'):
+            g.context = context
 
         # Get initial completion
         try:

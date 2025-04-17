@@ -66,9 +66,9 @@ class AppointmentsAction(AgentAction):
         """Execute the appointments check action."""
         try:
             # Import here to avoid circular imports
-            from src.api.logic.appointmentService import get_appointments_schedule_action
-            from src.api.gateways.appointmentGateway import get_appointments_schedule
-            from src.api.gateways.loginGateway import login_via_context
+            from src.domain.services.appointmentService import get_appointments_schedule_action
+            from src.domain.gateways.appointmentGateway import get_appointments_schedule
+            from src.domain.gateways.loginGateway import login_via_context
             
             # Get today's date in Eastern Time
             eastern = pytz.timezone('US/Eastern')

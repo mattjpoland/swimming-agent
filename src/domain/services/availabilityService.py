@@ -1,8 +1,8 @@
 import src.contextManager
 import logging
-from src.api.gateways.availabilityGateway import check_swim_lane_availability  # Import swim lane function
+from src.domain.gateways.availabilityGateway import check_swim_lane_availability  # Import swim lane function
 from dateutil import parser  # Import this at the top
-from src.api.gateways.loginGateway import login_via_context
+from src.domain.gateways.loginGateway import login_via_context
 import pytz
 
 

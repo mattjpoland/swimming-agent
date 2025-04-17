@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 import logging
-from src.routes.api_routes import get_swim_lane_availability, book_lane, cancel_lane, get_user_appointments
+from src.api.routes.api_routes import get_swim_lane_availability, book_lane, cancel_lane, get_user_appointments
 
 legacy_bp = Blueprint('legacy', __name__)
 

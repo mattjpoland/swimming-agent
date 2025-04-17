@@ -1,6 +1,6 @@
 from src.agent.base import AgentAction
 from src.agent.gateways.openAIGateway import OpenAIGateway
-from src.utils.rag_querying import query_rag
+from src.domain.services.ragQueryingService import query_rag
 import logging
 
 class InformationAction(AgentAction):

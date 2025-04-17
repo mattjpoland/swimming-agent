@@ -1,5 +1,5 @@
-from src.api.gateways.membershipGateway import get_member_information
-from src.api.gateways.loginGateway import login_via_context
+from src.domain.gateways.membershipGateway import get_member_information
+from src.domain.gateways.loginGateway import login_via_context
 import logging
 
 def get_barcode_id_action(context):

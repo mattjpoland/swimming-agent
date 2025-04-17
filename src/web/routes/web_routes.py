@@ -1,12 +1,19 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, jsonify
 import logging
-from src.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data
+import os
+from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data
 from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
 from src.decorators import require_admin
 
-web_bp = Blueprint('web', __name__)
+# Define the template folder relative to this file
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
+
+web_bp = Blueprint('web', __name__, 
+                   template_folder=template_dir,
+                   static_folder=static_dir)
 
 @web_bp.route("/login", methods=["GET", "POST"])
 def login():

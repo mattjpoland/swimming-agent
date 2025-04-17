@@ -1,10 +1,10 @@
 from flask import Flask, redirect, url_for
-from src.routes.api_routes import api_bp
-from src.routes.web_routes import web_bp
-from src.routes.legacy_routes import legacy_bp
-from src.routes.agent_routes import agent_bp  # Import the new agent_routes
-from src.sql.ragSourceGateway import ensure_rag_sources_table, get_all_rag_sources, add_rag_source, rag_source_exists
-from src.utils.rag_indexing import verify_index  # Import verify_index
+from src.api.routes.api_routes import api_bp
+from src.api.routes.legacy_routes import legacy_bp
+from src.web.routes.web_routes import web_bp
+from src.agent.routes.agent_routes import agent_bp  # Import the new agent_routes
+from src.domain.sql.ragSourceGateway import ensure_rag_sources_table, get_all_rag_sources, add_rag_source, rag_source_exists
+from src.domain.services.ragIndexingService import verify_index  # Import verify_index
 import logging
 import os
 

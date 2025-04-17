@@ -1,6 +1,6 @@
-from src.api.gateways.loginGateway import login_via_context
-from src.api.gateways.appointmentGateway import get_appointments_schedule
-from src.api.gateways.availabilityGateway import check_swim_lane_availability
+from src.domain.gateways.loginGateway import login_via_context
+from src.domain.gateways.appointmentGateway import get_appointments_schedule
+from src.domain.gateways.availabilityGateway import check_swim_lane_availability
 import src.contextManager
 import datetime
 import pytz

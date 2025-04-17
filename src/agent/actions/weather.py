@@ -1,4 +1,4 @@
-from src.api.logic.weatherService import get_weather_for_zip  # Import the weather service function
+from src.domain.services.weatherService import get_weather_for_zip  # Import the weather service function
 from flask import jsonify  # Import Flask jsonify for standardized responses
 
 class WeatherAction:

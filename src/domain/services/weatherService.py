@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.api.gateways.weatherGateway import fetch_weather, fetch_weather_forecast
+from src.domain.gateways.weatherGateway import fetch_weather, fetch_weather_forecast
 
 def get_weather_for_zip(zip_code, country_code):
     """

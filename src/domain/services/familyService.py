@@ -1,5 +1,5 @@
 from src.web.gateways.webFamilyGateway import get_family_members
-from src.api.gateways.loginGateway import login_via_context
+from src.domain.gateways.loginGateway import login_via_context
 import logging
 
 def get_family_members_action(context):

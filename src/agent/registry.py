@@ -7,7 +7,7 @@ from src.agent.actions.weather import WeatherAction
 from src.agent.actions.weatherForecast import WeatherForecastAction
 from src.agent.actions.information import InformationAction
 from src.agent.utils.date_resolver import get_current_dates
-from src.api.logic.weatherService import get_weather_for_zip, get_weather_forecast_for_date
+from src.domain.services.weatherService import get_weather_for_zip, get_weather_forecast_for_date
 from src.agent.gateways.openAIGateway import OpenAIGateway
 from datetime import datetime, timedelta
 from typing import Any, List, Dict

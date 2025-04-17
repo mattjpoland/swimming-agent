@@ -2,7 +2,7 @@ from functools import wraps
 from flask import request, jsonify, g, session
 import logging
 from src.contextManager import load_context_for_authenticated_user
-from src.sql.authGateway import get_auth
+from src.domain.sql.authGateway import get_auth
 
 def require_api_key(f):
     @wraps(f)

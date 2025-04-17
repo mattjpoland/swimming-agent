@@ -2,9 +2,9 @@ from flask import jsonify, g, send_file
 from src.agent.base import AgentAction
 from src.agent.utils.date_resolver import validate_and_resolve_date
 from src.agent.utils.pool_resolver import normalize_pool_name
-from src.api.logic.availabilityService import get_availability
-from src.api.logic.appointmentService import get_appointment_data
-from src.drawing.availabilityVisualGenerator import generate_visualization, combine_visualizations
+from src.domain.services.availabilityService import get_availability
+from src.domain.services.appointmentService import get_appointment_data
+from src.domain.drawing.availabilityVisualGenerator import generate_visualization, combine_visualizations
 import logging
 
 class AvailabilityAction(AgentAction):

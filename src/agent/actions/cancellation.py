@@ -84,8 +84,8 @@ class CancelAppointmentAction(AgentAction):
                 )
             
             # Import the function here to avoid circular imports
-            from src.api.logic.cancellationService import cancel_appointment_action
-            from src.api.logic.appointmentService import get_appointments_schedule_action
+            from src.domain.services.cancellationService import cancel_appointment_action
+            from src.domain.services.appointmentService import get_appointments_schedule_action
             
             # First, check if there's actually an appointment for this date
             appointment_response, appointment_status = get_appointments_schedule_action(date, date, context)

@@ -1,5 +1,5 @@
-from src.api.gateways.loginGateway import login_via_context
-from src.api.gateways.appointmentGateway import cancel_appointment, get_appointments_schedule
+from src.domain.gateways.loginGateway import login_via_context
+from src.domain.gateways.appointmentGateway import cancel_appointment, get_appointments_schedule
 import datetime
 import pytz
 import logging

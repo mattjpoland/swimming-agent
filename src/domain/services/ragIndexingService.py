@@ -11,7 +11,7 @@ from PyPDF2 import PdfReader
 import tempfile
 from bs4 import BeautifulSoup  # Add this import
 from pathlib import Path
-from src.sql.ragSourceGateway import get_all_rag_sources
+from src.domain.sql.ragSourceGateway import get_all_rag_sources
 import time
 
 openai.verify_ssl_certs = False  # Disable SSL verification for OpenAI API")

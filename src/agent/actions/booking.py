@@ -127,7 +127,7 @@ class BookLaneAction(AgentAction):
             logging.info(f"Agent booking request: date={date}, time={time_slot}, duration={duration}, location={location}, lane={lane}")
             
             # Import the function here to avoid circular imports
-            from src.api.logic.bookingService import book_swim_lane_action
+            from src.domain.services.bookingService import book_swim_lane_action
             
             # Call the booking service with the correct parameter names
             response, status_code = book_swim_lane_action(

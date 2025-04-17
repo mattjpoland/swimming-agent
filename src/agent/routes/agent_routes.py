@@ -1,11 +1,13 @@
-from flask import Blueprint, request, jsonify, g
-from .services.agent_route_service import AgentRouteService
+from flask import Blueprint, request, jsonify, g, Response
+from .agent_route_service import AgentRouteService
+from src.decorators import require_api_key
 import logging
 
 agent_bp = Blueprint('agent', __name__)
 route_service = AgentRouteService()
 
 @agent_bp.route('/chat', methods=['POST'])
+@require_api_key
 def chat():
     try:
         data = request.get_json()
@@ -34,7 +36,12 @@ def chat():
             conversation_history=conversation_history
         )
         
-        return jsonify(result), status_code
+        # Check if the result is a Flask Response object
+        if isinstance(result, Response):
+            return result
+        else:
+            # Otherwise, jsonify the dictionary result
+            return jsonify(result), status_code
     
     except Exception as e:
         logging.error(f"Error in agent route: {e}", exc_info=True)

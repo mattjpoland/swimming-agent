@@ -1,6 +1,6 @@
 from flask import jsonify, send_file
 from src.agent.base import AgentAction
-from src.api.logic.membershipService import get_barcode_id_action
+from src.domain.services.membershipService import get_barcode_id_action
 import logging
 import io
 
@@ -49,7 +49,7 @@ class BarcodeAction(AgentAction):
             from barcode.writer import ImageWriter
             import io
             from flask import send_file, jsonify
-            from src.api.logic.membershipService import get_barcode_id_action
+            from src.domain.services.membershipService import get_barcode_id_action
             
             # Log barcode library version for debugging
             import pkg_resources

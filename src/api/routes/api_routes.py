@@ -5,20 +5,20 @@ import io
 import barcode
 from barcode.writer import ImageWriter
 import json
-from src.api.logic.availabilityService import get_availability
-from src.api.logic.appointmentService import get_appointments_schedule_action, get_appointment_data
-from src.api.logic.bookingService import book_swim_lane_action
-from src.api.logic.cancellationService import cancel_appointment_action
-from src.api.logic.membershipService import get_barcode_id_action
-from src.api.logic.weatherService import get_weather_for_zip, get_weather_forecast_for_date
-from src.drawing.availabilityVisualGenerator import generate_visualization, combine_visualizations
+from src.domain.services.availabilityService import get_availability
+from src.domain.services.appointmentService import get_appointments_schedule_action, get_appointment_data
+from src.domain.services.bookingService import book_swim_lane_action
+from src.domain.services.cancellationService import cancel_appointment_action
+from src.domain.services.membershipService import get_barcode_id_action
+from src.domain.services.weatherService import get_weather_for_zip, get_weather_forecast_for_date
+from src.domain.drawing.availabilityVisualGenerator import generate_visualization, combine_visualizations
 from src.decorators import require_api_key
-from src.sql.authGateway import get_auth  # Assuming this retrieves user data
+from src.domain.sql.authGateway import get_auth  # Assuming this retrieves user data
 from src.web.gateways.webLoginGateway import login_with_credentials  # Import login gateway
-from src.api.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
-from src.drawing.barcodeGenerator import generate_barcode_image
-from src.utils.rag_indexing import rebuild_index_from_db  # Make sure this import path matches your project
-from src.utils.rag_querying import debug_rag_status, debug_query
+from src.domain.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
+from src.domain.drawing.barcodeGenerator import generate_barcode_image
+from src.domain.services.ragIndexingService import rebuild_index_from_db  # Make sure this import path matches your project
+from src.domain.services.ragQueryingService import debug_rag_status, debug_query
 
 api_bp = Blueprint('api', __name__)
 
