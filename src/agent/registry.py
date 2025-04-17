@@ -2,9 +2,10 @@ from src.agent.actions.availability import AvailabilityAction
 from src.agent.actions.barcode import BarcodeAction
 from src.agent.actions.booking import BookLaneAction
 from src.agent.actions.appointments import AppointmentsAction
-from src.agent.actions.cancellation import CancelAppointmentAction  # Add import
-from src.agent.actions.weather import WeatherAction  # Add import
-from src.agent.actions.weatherForecast import WeatherForecastAction  # Add import
+from src.agent.actions.cancellation import CancelAppointmentAction
+from src.agent.actions.weather import WeatherAction
+from src.agent.actions.weatherForecast import WeatherForecastAction
+from src.agent.actions.information import InformationAction
 from src.agent.utils.date_resolver import get_current_dates
 from src.api.logic.weatherService import get_weather_for_zip, get_weather_forecast_for_date
 from datetime import datetime, timedelta
@@ -25,7 +26,8 @@ class AgentRegistry:
             AppointmentsAction(),
             CancelAppointmentAction(),
             WeatherAction(),
-            WeatherForecastAction()
+            WeatherForecastAction(),
+            InformationAction()  # Added the new information action
         ]
         
         for action in actions:

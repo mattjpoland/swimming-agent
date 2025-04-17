@@ -17,7 +17,7 @@ from src.sql.authGateway import get_auth  # Assuming this retrieves user data
 from src.web.gateways.webLoginGateway import login_with_credentials  # Import login gateway
 from src.api.gateways.loginGateway import login_via_context, login_via_credentials  # Import the updated login function
 from src.drawing.barcodeGenerator import generate_barcode_image
-from src.utils.indexing import rebuild_index_from_db  # Make sure this import path matches your project
+from src.utils.rag_indexing import rebuild_index_from_db  # Make sure this import path matches your project
 
 api_bp = Blueprint('api', __name__)
 
