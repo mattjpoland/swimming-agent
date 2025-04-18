@@ -43,11 +43,23 @@ def get_weather_forecast_for_date(zip_code, country_code, target_date):
         dict: Formatted weather forecast data for the target date.
     """
     try:
-        # Fetch raw forecast data from the gateway
-        raw_forecast_data = fetch_weather_forecast(zip_code, country_code)
-
         # Parse the target date
         target_date_obj = datetime.strptime(target_date, "%Y-%m-%d").date()
+        
+        # Check if the target date is within the forecast window (typically 5 days for free API)
+        today = datetime.now().date()
+        days_ahead = (target_date_obj - today).days
+        
+        # OpenWeatherMap free API only provides forecasts for about 5 days ahead
+        if days_ahead > 5:
+            return {
+                "date": target_date,
+                "message": f"Weather forecast not available for {target_date}. Forecasts are only available up to 5 days ahead.",
+                "forecasts": []
+            }
+        
+        # Fetch raw forecast data from the gateway
+        raw_forecast_data = fetch_weather_forecast(zip_code, country_code)
 
         # Filter the forecast data for the target date
         forecast_list = raw_forecast_data.get("list", [])
@@ -64,7 +76,12 @@ def get_weather_forecast_for_date(zip_code, country_code, target_date):
         ]
 
         if not daily_forecast:
-            raise ValueError(f"No forecast data available for {target_date}.")
+            # Return a valid response with an informational message instead of raising an error
+            return {
+                "date": target_date,
+                "message": f"No forecast data available for {target_date}.",
+                "forecasts": []
+            }
 
         return {
             "date": target_date,

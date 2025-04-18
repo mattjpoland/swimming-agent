@@ -146,7 +146,7 @@ def get_appointments_schedule_action(start_date=None, end_date=None, context=Non
             "appointments": []
         }, 200
 
-def get_appointment_data(start_date, end_date=None, context=None):
+def get_appointment_data(start_date, end_date, context):
     """
     Fetch scheduled swim lane appointment data for a given date.
     If end_date is not provided, it will be set to start_date (single day query).

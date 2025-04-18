@@ -7,6 +7,7 @@ from src.domain.sql.ragSourceGateway import ensure_rag_sources_table, get_all_ra
 from src.domain.services.ragIndexingService import verify_index  # Import verify_index
 import logging
 import os
+import sys
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -23,12 +24,28 @@ app.register_blueprint(agent_bp, url_prefix="/agent")  # Register the new agent 
 app.register_blueprint(web_bp, url_prefix="/web")
 app.register_blueprint(legacy_bp)
 
+# Configure logging with encoding handling for Windows
+console_handler = logging.StreamHandler()
+# For Windows console compatibility, replace emoji characters
+if sys.platform == 'win32':
+    class EmojiFilter(logging.Filter):
+        def filter(self, record):
+            if isinstance(record.msg, str):
+                # Replace common emojis with text equivalents
+                record.msg = record.msg.replace('🔄', '[REFRESH]')
+                record.msg = record.msg.replace('✅', '[SUCCESS]')
+                record.msg = record.msg.replace('⚠️', '[WARNING]')
+                record.msg = record.msg.replace('❌', '[ERROR]')
+            return True
+    
+    console_handler.addFilter(EmojiFilter())
+
 logging.basicConfig(
     level=logging.DEBUG,  # Change to DEBUG level
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('swimming_agent.log')  # Add file logging
+        console_handler,
+        logging.FileHandler('swimming_agent.log', encoding='utf-8')  # Add file logging with UTF-8 encoding
     ]
 )
 

@@ -42,11 +42,11 @@ def get_swim_lane_availability():
         indoor_availability = get_availability(indoor_item_id, date_str, g.context)
         outdoor_availability = get_availability(outdoor_item_id, date_str, g.context)
 
-        indoor_appt = get_appointment_data(date_str, g.context)
-        outdoor_appt = get_appointment_data(date_str, g.context)
+        appt = get_appointment_data(date_str, date_str, g.context)
+        
 
-        indoor_img = generate_visualization(indoor_availability, indoor_pool_name, date_str, indoor_appt, g.context)
-        outdoor_img = generate_visualization(outdoor_availability, outdoor_pool_name, date_str, outdoor_appt, g.context)
+        indoor_img = generate_visualization(indoor_availability, indoor_pool_name, date_str, appt, g.context)
+        outdoor_img = generate_visualization(outdoor_availability, outdoor_pool_name, date_str, appt, g.context)
 
         combined_img_io = combine_visualizations(indoor_img, outdoor_img)
         return send_file(combined_img_io, mimetype="image/png")
