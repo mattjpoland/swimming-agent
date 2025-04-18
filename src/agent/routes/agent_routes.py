@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify, g, Response
-from .agent_route_service import AgentRouteService
+from src.agent.services.agentService import AgentService
 from src.decorators import require_api_key
 import logging
 
 agent_bp = Blueprint('agent', __name__)
-route_service = AgentRouteService()
+agent_service = AgentService()
 
 @agent_bp.route('/chat', methods=['POST'])
 @require_api_key
@@ -27,8 +27,8 @@ def chat():
         # Log the incoming request
         logging.info(f"Processing agent request: '{user_input[:50]}{'...' if len(user_input) > 50 else ''}'")
         
-        # Process the request through the service layer
-        result, status_code = route_service.process_chat(
+        # Process the request through the service layer directly
+        result, status_code = agent_service.process_chat(
             user_input=user_input,
             context=context,
             response_format=response_format,

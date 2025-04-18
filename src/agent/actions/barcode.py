@@ -27,6 +27,12 @@ class BarcodeAction(AgentAction):
                 "If the user asks for their membership barcode or anything related to "
                 "accessing the facility with their membership, use the get_membership_barcode function. "        )
     
+    @property
+    def response_format_instructions(self):
+        return (
+            ""
+        )
+    
     def get_tool_definition(self):
         """
         Get the tool definition for OpenAI API.

@@ -30,6 +30,17 @@ class WeatherForecastAction:
             "When a user asks for the weather forecast, use the get_weather_forecast function. "
             "They need to specify the date in YYYY-MM-DD format. "
         )
+        
+    @property
+    def response_format_instructions(self):
+        return (
+            "Format your response from a swimmer's perspective - focusing on how the forecast conditions will feel "
+            "to someone planning to use an outdoor pool. Consider:\n"
+            "1. How the predicted temperatures and wind will feel on wet skin when getting out of the water\n"
+            "2. The best times during the day for comfortable swimming\n"
+            "Make your response practical and specifically relevant for swimmers planning pool visits.\n"
+            "Try to keep it to no more than 3 sentences."
+        )
 
     def get_tool_definition(self):
         return {

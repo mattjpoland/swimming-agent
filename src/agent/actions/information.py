@@ -28,6 +28,18 @@ When answering questions about pool hours or schedules:
 """
 
     @property
+    def response_format_instructions(self):
+        return (
+            "Format your response as a helpful, conversational answer about the pool facilities:\n"
+            "1. Start with a direct answer to the user's question\n"
+            "2. Format hours in 12-hour time (e.g., 7:00 AM - 8:00 PM)\n"
+            "3. Highlight important policies or restrictions if relevant\n"
+            "4. When sharing pool hours or schedules, organize them in a clear, scannable format\n"
+            "5. If the information varies by day, clearly indicate which days apply to which hours\n"
+            "6. If the requested information isn't available in the context, acknowledge the limitation politely"
+        )
+
+    @property
     def parameters(self):
         return {
             "type": "object",

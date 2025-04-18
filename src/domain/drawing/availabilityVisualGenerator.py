@@ -1,6 +1,10 @@
 import matplotlib
 matplotlib.use('Agg')  # Force non-GUI backend before importing pyplot
 
+# Suppress font-related debug messages
+import logging
+logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
+
 import matplotlib.pyplot as plt
 import src.contextManager 
 import io
@@ -8,7 +12,6 @@ import datetime
 from io import BytesIO
 import matplotlib.image as mpimg
 import numpy as np
-import logging
 
 def generate_visualization(availability, pool_name, date_str, appt, context):
     """Generate and save the swim lane availability visualization with a clean reset."""

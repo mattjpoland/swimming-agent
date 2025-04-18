@@ -54,6 +54,19 @@ class BookLaneAction(AgentAction):
                 "Remember that users can only book a specific pool (either 'Indoor Pool' or 'Outdoor Pool'), not 'Both Pools'. "
         )
     
+    @property
+    def response_format_instructions(self):
+        return (
+            "Format your booking response as follows:\n"
+            "1. For successful bookings, lead with a clear confirmation message\n"
+            "2. Include all booking details clearly formatted: date, time, lane number, pool, and duration\n"
+            "3. For unsuccessful bookings, explain what went wrong and suggest alternatives if possible\n"
+            "4. If user input is missing information, ask specifically for the missing details\n"
+            "5. Format dates in a conversational way (e.g., 'tomorrow', 'Monday', etc. when appropriate)\n"
+            "6. Format times in 12-hour format with AM/PM\n"
+            "7. Keep your response concise and easy to read at a glance"
+        )
+    
     def get_tool_definition(self):
         """
         Get the tool definition for OpenAI API.

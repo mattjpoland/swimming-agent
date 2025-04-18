@@ -42,6 +42,18 @@ class CancelAppointmentAction(AgentAction):
                 "Be proactive - when a user clearly wants to cancel for a specific day, directly use the cancel_appointment function rather than asking for more information. "
         )
     
+    @property
+    def response_format_instructions(self):
+        return (
+            "Format your cancellation response following these guidelines:\n"
+            "1. For successful cancellations, clearly confirm the cancellation with a positive tone\n"
+            "2. Include the exact date, time, and lane details of the cancelled appointment\n"
+            "3. For errors or failed cancellations, clearly explain what went wrong\n"
+            "4. If confirmation is needed, ask directly for the user to confirm\n"
+            "5. Use concise, clear language suitable for quick decision-making\n"
+            "6. When dates are mentioned, format them in a natural, conversational way (e.g., 'tomorrow', 'Monday', etc.)"
+        )
+    
     def get_tool_definition(self):
         """
         Get the tool definition for OpenAI API.

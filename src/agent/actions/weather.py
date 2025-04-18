@@ -20,6 +20,17 @@ class WeatherAction:
             "You can provide the current weather for the facility's location. "
             "When a user asks about the weather, use the get_weather function. "
         )
+        
+    @property
+    def response_format_instructions(self):
+        return (
+            "Format your response from a swimmer's perspective - focusing on how the weather will feel to someone "
+            "in a swimsuit about to use an outdoor pool. Consider:\n"
+            "1. How the predicted temperatures and wind will feel on wet skin when getting out of the water\n"
+            "2. The best times during the day for comfortable swimming\n"
+            "Make your response practical and specifically relevant for swimmers planning pool visits.\n"
+            "Try to keep it to no more than 3 sentences."
+        )
 
     def get_tool_definition(self):
         return {

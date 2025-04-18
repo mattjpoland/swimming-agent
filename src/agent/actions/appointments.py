@@ -48,6 +48,18 @@ class AppointmentsAction(AgentAction):
                 "If they don't specify a date or range, check for today's appointments. "
         )
     
+    @property
+    def response_format_instructions(self):
+        return (
+            "The following is the accurate appointment data. Format your response following these rules:\n"
+            "1. Your response MUST only include these appointments, DO NOT generate or invent any other appointments\n"
+            "2. Format appointments in a concise bullet point list\n"
+            "3. Use the day of week (e.g., 'Monday' or 'Tuesday') instead of the full date (no month/date needed)\n"
+            "4. Include the time, lane information, and duration\n"
+            "5. Do not say 'at Michigan Athletic Club' or 'in the Michigan Athletic Club'\n"
+            "6. Make the response brief and suitable for quick text-to-speech reading"
+        )
+    
     def get_tool_definition(self):
         """
         Get the tool definition for OpenAI API.

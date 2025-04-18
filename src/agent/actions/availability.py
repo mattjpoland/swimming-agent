@@ -37,6 +37,20 @@ class AvailabilityAction(AgentAction):
                 "When calculating dates from day names (like 'Sunday' or 'Monday'), always refer to the date information provided above. "
         )
     
+    @property
+    def response_format_instructions(self):
+        return (
+            "Format your availability response following these guidelines:\n"
+            "1. Begin with a clear summary of the overall availability\n"
+            "2. Group availability by time slots for easy scanning\n"
+            "3. When multiple lanes are available at the same time, use a concise format: '6:00 PM: Lanes 2, 3, 5'\n"
+            "4. Highlight peak times with good availability and mention times with limited availability\n"
+            "5. For both pools, clearly separate the Indoor and Outdoor pool sections\n"
+            "6. Format dates in a conversational way (e.g., 'today', 'tomorrow', 'Monday', etc.)\n"
+            "7. If there's no availability for a specific time or pool, state that clearly\n"
+            "8. Keep the response concise and scannable"
+        )
+    
     def get_tool_definition(self):
         """
         Get the tool definition for OpenAI API.

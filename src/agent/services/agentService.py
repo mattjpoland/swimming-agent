@@ -17,6 +17,50 @@ class AgentService:
     def __init__(self):
         self.openai_gateway = OpenAIGateway()
 
+    def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
+                    response_format: str = "auto", is_siri: bool = False,
+                    conversation_history: List[Dict] = None) -> Tuple[Union[Dict, Response], int]:
+        """
+        Process a chat request through the complete agent pipeline:
+        REQUEST > SERVER > AGENT_ROUTE > AGENT_SERVICE > OPEN_AI_GATEWAY > AI > 
+        TOOL_INSTRUCTION > REGISTRY > ACTIONS > TOOL_RESPONSE > AI > FINAL_RESPONSE > HTTP RESPONSE
+        """
+        try:
+            # Use the process_agent_request method to handle the complete flow
+            response = self.process_agent_request(
+                user_input=user_input,
+                context=context or {},
+                response_format=response_format,
+                is_siri=is_siri,
+                conversation_history=conversation_history or []
+            )
+            
+            # Handle different response types
+            if isinstance(response, tuple):
+                # Response already has a status code
+                result, status_code = response
+            elif isinstance(response, Response):
+                # Flask Response object - return as is
+                return response, 200
+            else:
+                # Regular dictionary response
+                result = response
+                status_code = 200
+            
+            # Log action used if available in dictionary response
+            if isinstance(result, dict) and '_debug' in result:
+                logging.info(f"Used action: {result['_debug'].get('action', 'unknown')}")
+            
+            return result, status_code
+            
+        except Exception as e:
+            logging.error(f"Error in agent service: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": "Failed to process request",
+                "content_type": "application/json"
+            }, 500
+
     def process_agent_request(
         self,
         user_input: str,
@@ -182,17 +226,15 @@ class AgentService:
             }
         ])
 
-        # Get final response
-        if tool_call.function.name == "check_appointments":
+        # Get the function name and find corresponding action
+        function_name = tool_call.function.name
+        action = registry.get_action(function_name)
+        
+        # Add response format instructions if available on the action
+        if action and hasattr(action, 'response_format_instructions'):
             messages.append({
                 "role": "system",
-                "content": "The following is the accurate appointment data. Format your response following these rules:\n" +
-                           "1. Your response MUST only include these appointments, DO NOT generate or invent any other appointments\n" +
-                           "2. Format appointments in a concise bullet point list\n" +
-                           "3. Use the day of week (e.g., 'Monday' or 'Tuesday') instead of the full date (no month/date needed)\n" +
-                           "4. Include the time, lane information, and duration\n" + 
-                           "5. Do not say 'at Michigan Athletic Club' or 'in the Michigan Athletic Club'\n" +
-                           "6. Make the response brief and suitable for quick text-to-speech reading"
+                "content": action.response_format_instructions
             })
 
         try:
