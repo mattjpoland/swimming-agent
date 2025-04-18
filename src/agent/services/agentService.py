@@ -3,9 +3,17 @@ import json
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass
+
 from src.agent.gateways.openAIGateway import OpenAIGateway
 from src.agent.registry import registry
 from src.domain.services.ragQueryingService import query_rag
+from src.agent.services.promptService import PromptService
+
+# Import new response objects
+from src.agent.responses.base import ActionResponse
+from src.agent.responses.text import TextResponse, ErrorResponse, DirectResponse
+from src.agent.responses.special import ImageResponse, FileResponse
+from src.agent.responses.tool import ToolSelectionResponse, ToolExecutionResponse
 
 @dataclass
 class InformationResponse:
@@ -16,197 +24,214 @@ class InformationResponse:
 class AgentService:
     def __init__(self):
         self.openai_gateway = OpenAIGateway()
+        self.prompt_service = PromptService()
 
     def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
-                    response_format: str = "auto", is_siri: bool = False,
+                    response_format: str = "auto",
                     conversation_history: List[Dict] = None) -> Tuple[Union[Dict, Response], int]:
         """
-        Process a chat request through the complete agent pipeline:
-        REQUEST > SERVER > AGENT_ROUTE > AGENT_SERVICE > OPEN_AI_GATEWAY > AI > 
-        TOOL_INSTRUCTION > REGISTRY > ACTIONS > TOOL_RESPONSE > AI > FINAL_RESPONSE > HTTP RESPONSE
+        Process a chat request through the complete agent pipeline in two main stages:
+        
+        STAGE 1 - TOOL SELECTION:
+        REQUEST > SERVER > AGENT_SERVICE > AI_CALL_1 > TOOL_SELECTION > REGISTRY > ACTION_EXECUTION
+        
+        STAGE 2 - RESPONSE GENERATION:
+        ACTION_RESULT > AI_CALL_2 > FINAL_RESPONSE > HTTP RESPONSE
         """
         try:
-            # Use the process_agent_request method to handle the complete flow
-            response = self.process_agent_request(
-                user_input=user_input,
-                context=context or {},
-                response_format=response_format,
-                is_siri=is_siri,
-                conversation_history=conversation_history or []
-            )
+            # Normalize parameters
+            context = context or {}
+            conversation_history = conversation_history or []
             
-            # Handle different response types
-            if isinstance(response, tuple):
-                # Response already has a status code
-                result, status_code = response
-            elif isinstance(response, Response):
-                # Flask Response object - return as is
-                return response, 200
-            else:
-                # Regular dictionary response
-                result = response
-                status_code = 200
+            # Store context in flask g for action execution if it's not already there
+            if context and not hasattr(g, 'context'):
+                g.context = context
             
-            # Log action used if available in dictionary response
-            if isinstance(result, dict) and '_debug' in result:
-                logging.info(f"Used action: {result['_debug'].get('action', 'unknown')}")
+            # STAGE 1: Tool selection and execution
+            stage1_response = self._perform_tool_selection_stage(user_input, conversation_history, response_format)
             
-            return result, status_code
+            # If it's a direct response (not requiring the second AI call) or an error, return it immediately
+            if not stage1_response.requires_second_ai_call or stage1_response.response_type == "error":
+                return stage1_response.to_http_response()
+                
+            # STAGE 2: Response generation based on tool result
+            final_response = self._perform_response_generation_stage(stage1_response)
+            
+            return final_response.to_http_response()
             
         except Exception as e:
             logging.error(f"Error in agent service: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": "Failed to process request",
-                "content_type": "application/json"
-            }, 500
+            return ErrorResponse("Failed to process request", str(e)).to_http_response()
 
-    def process_agent_request(
-        self,
-        user_input: str,
-        context: Dict[str, Any] = None,
-        response_format: str = "auto",
-        is_siri: bool = False,
-        conversation_history: List[Dict] = None
-    ) -> Tuple[Dict, int]:
-        # Build messages array with history
-        messages = self._build_messages(user_input, is_siri, conversation_history or [])
+    def _perform_tool_selection_stage(self, user_input: str, conversation_history: List[Dict], 
+                                     response_format: str = "auto") -> ActionResponse:
+        """
+        Performs Stage 1 - Tool selection and execution
         
-        # Get tools from registry
-        tools = registry.get_tools_for_openai()
-
-        # Store context in flask g for action execution if it's not already there
-        if context and not hasattr(g, 'context'):
-            g.context = context
-
-        # Get initial completion
+        Returns an ActionResponse subclass instance appropriate to the result
+        """
+        # Prepare prompt for tool selection
+        messages = self._prepare_tool_selection_prompt(user_input, conversation_history)
+        
+        # Get available tools
+        tools = self._get_available_tools()
+        
+        # Make AI call for tool selection
         try:
-            response = self.openai_gateway.get_completion(messages, tools)
+            response = self._make_tool_selection_call(messages, tools)
         except Exception as e:
-            return {
-                "message": "I'm sorry, I encountered a problem while processing your request.", 
-                "status": "error",
-                "error": str(e),
-                "content_type": "application/json"
-            }, 500
-
-        # Process the response
-        return self._process_completion_response(
-            response=response,
-            messages=messages,
-            user_input=user_input,
-            response_format=response_format,
-            is_siri=is_siri
-        )
-
-    def _build_messages(
-        self,
-        user_input: str,
-        is_siri: bool,
-        conversation_history: List[Dict]
-    ) -> List[Dict]:
-        system_prompt = registry.get_system_prompt()
-        if is_siri:
-            system_prompt += " Since your response will be read aloud by Siri, keep answers brief, clear, and suitable for voice."
-        
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        # Add conversation history
-        for message in conversation_history:
-            role = message.get("role", "user")
-            content = message.get("content", "")
-            if role in ["user", "assistant"] and content:
-                messages.append({"role": role, "content": content})
-        
-        # Add current user message
-        messages.append({"role": "user", "content": user_input})
-        
-        return messages
-
-    def _process_completion_response(
-        self,
-        response: Any,
-        messages: List[Dict],
-        user_input: str,
-        response_format: str,
-        is_siri: bool
-    ) -> Tuple[Union[Dict, Response], int]:
+            logging.error(f"Stage 1 failed: Error in tool selection AI call: {e}")
+            return ErrorResponse(
+                "I'm sorry, I encountered a problem while processing your request.", 
+                str(e)
+            )
+            
+        # Process AI response (execute tool or return direct text)
         message = response.choices[0].message
         tool_calls = message.tool_calls
 
+        # If no tool calls, this is a direct text response
         if not tool_calls:
-            # Handle direct text response
-            return self._process_text_response(message.content)
+            logging.info("No tool calls detected, returning direct text response")
+            return DirectResponse(message.content)
 
-        # Process tool call
+        # Handle tool call
         tool_call = tool_calls[0]
         function_name = tool_call.function.name
         
-        logging.info(f"Function call: {function_name} with arguments: {tool_call.function.arguments}")
+        logging.info(f"Tool call detected: {function_name} with arguments: {tool_call.function.arguments}")
         
+        # Get the action from registry
         action = registry.get_action(function_name)
         if not action:
-            return {
-                "message": f"I don't know how to {function_name} yet.",
-                "status": "error",
-                "content_type": "application/json"
-            }, 400
-
-        # Execute action and process result
+            return ErrorResponse(
+                f"I don't know how to {function_name} yet.",
+                status_code=400
+            )
+        
+        # Create tool selection response
+        tool_selection = ToolSelectionResponse(tool_call, messages, user_input)
+        
+        # Execute the action
+        try:
+            action_result = self._execute_action(action, tool_call, user_input, response_format)
+        except Exception as e:
+            logging.error(f"Error executing action {function_name}: {e}", exc_info=True)
+            return ErrorResponse(
+                f"I encountered an error while trying to {function_name}.",
+                str(e)
+            )
+        
+        # Check for special response types
+        if isinstance(action_result, Response) and action_result.mimetype == "image/png":
+            # Pass the Response object directly to ImageResponse without extracting data
+            return ImageResponse(action_result)
+        
+        # Check for tuple with Response
+        if isinstance(action_result, tuple) and len(action_result) == 2:
+            response_obj, status_code = action_result
+            # Handle tuple with image response
+            if isinstance(response_obj, Response) and response_obj.mimetype == "image/png":
+                return ImageResponse(response_obj, status_code=status_code)
+                
+        # For all other cases, return tool execution response
+        return ToolExecutionResponse(tool_call, action, action_result, messages)
+    
+    def _prepare_tool_selection_prompt(self, user_input: str, conversation_history: List[Dict]) -> List[Dict]:
+        """Prepares the prompt for tool selection"""
+        return self.prompt_service.generate_initial_tool_selection_prompt(user_input, conversation_history)
+    
+    def _get_available_tools(self) -> List[Dict]:
+        """Gets available tools from the registry"""
+        return registry.get_tools_for_openai()
+    
+    def _make_tool_selection_call(self, messages: List[Dict], tools: List[Dict]) -> Any:
+        """Makes the AI call for tool selection"""
+        response = self.openai_gateway.get_completion(messages, tools)
+        logging.info("Stage 1 completed: Tool selection AI call successful")
+        return response
+    
+    def _execute_action(self, action: Any, tool_call: Any, user_input: str, 
+                       response_format: str = "auto") -> Any:
+        """Executes the selected action with the provided parameters"""
         try:
             arguments = json.loads(tool_call.function.arguments)
         except json.JSONDecodeError:
-            return {
-                "message": "I couldn't understand how to process your request.",
-                "status": "error",
-                "content_type": "application/json"
-            }, 500
+            logging.error("Failed to parse tool arguments as JSON")
+            raise ValueError("Failed to parse tool arguments as JSON")
 
-        # Get context from Flask g if available, otherwise use empty dict
+        # Get context from Flask g if available
         context = getattr(g, 'context', {})
 
-        action_response = action.execute(
+        # Execute the action
+        logging.info(f"Executing action: {tool_call.function.name}")
+        return action.execute(
             arguments=arguments,
             context=context,
             user_input=user_input,
-            response_format=response_format,
-            is_siri=is_siri
+            response_format=response_format
         )
-
-        # Handle Siri-specific availability response
-        if is_siri and function_name == "check_lane_availability":
-            if isinstance(action_response, tuple) and len(action_response) == 2:
-                resp, status = action_response
-                if isinstance(resp, Response) and resp.is_streamed:
-                    return {
-                        "message": "I've checked the lane availability. There are various times available. For a detailed schedule, please check on your device.",
-                        "status": "success",
-                        "content_type": "application/json"
-                    }, 200
-
-        # Handle special responses (images, etc.)
-        if isinstance(action_response, Response) and action_response.mimetype == "image/png":
-            return action_response, 200
-
-        # Handle tuple responses with Response objects
-        if isinstance(action_response, tuple) and len(action_response) == 2:
-            response, status_code = action_response
-            if isinstance(response, Response) and response.mimetype == "image/png":
-                return response, status_code
-
-        # Process tool result through LLM for final response
-        return self._process_tool_result(tool_call, action_response, messages)
-
-    def _process_tool_result(
-        self,
-        tool_call: Any,
-        action_response: Any,
-        messages: List[Dict]
-    ) -> Tuple[Dict, int]:
-        tool_result = self._extract_tool_result(action_response)
-
-        # Add tool interaction to messages
-        messages.extend([
+    
+    def _perform_response_generation_stage(self, tool_execution_response: ToolExecutionResponse) -> ActionResponse:
+        """
+        Performs Stage 2 - Final response generation
+        
+        Args:
+            tool_execution_response: The result of the tool execution from stage 1
+            
+        Returns:
+            ActionResponse: Final response to send to the user
+        """
+        # Extract tool result as string
+        tool_result = self._get_result_as_string(tool_execution_response.result)
+        
+        # Update conversation with tool interaction
+        updated_messages = self._add_tool_interaction_to_messages(
+            tool_execution_response.messages, 
+            tool_execution_response.tool_call, 
+            tool_result
+        )
+        
+        # Prepare final response prompt
+        final_response_messages = self._prepare_final_response_prompt(
+            updated_messages, 
+            tool_execution_response.action
+        )
+        
+        # Make final AI call
+        try:
+            logging.info("Making second AI call for final response generation")
+            final_ai_response = self.openai_gateway.get_completion(final_response_messages)
+            logging.info("Stage 2 completed: Final response AI call successful")
+            
+            # Parse the content for conversation end marker if present
+            content = final_ai_response.choices[0].message.content
+            is_conversation_over = False
+            
+            # Check for JSON with is_conversation_over flag
+            if content.strip().startswith('{') and content.strip().endswith('}'):
+                try:
+                    response_json = json.loads(content)
+                    is_conversation_over = response_json.get('is_conversation_over', False)
+                    content = response_json.get('message', content)
+                except:
+                    pass
+            
+            # Create text response
+            response = TextResponse(content)
+            if is_conversation_over:
+                response.mark_conversation_over()
+                
+            return response
+            
+        except Exception as e:
+            logging.error(f"Stage 2 failed: Error in final response AI call: {e}")
+            return ErrorResponse("Error processing the response", str(e))
+        
+    def _add_tool_interaction_to_messages(self, messages: List[Dict], tool_call: Any, tool_result: str) -> List[Dict]:
+        """Adds the tool interaction to the conversation history"""
+        messages_copy = messages.copy()
+        messages_copy.extend([
             {
                 "role": "assistant",
                 "content": None,
@@ -225,34 +250,20 @@ class AgentService:
                 "content": str(tool_result)
             }
         ])
-
-        # Get the function name and find corresponding action
-        function_name = tool_call.function.name
-        action = registry.get_action(function_name)
-        
-        # Add response format instructions if available on the action
-        if action and hasattr(action, 'response_format_instructions'):
-            messages.append({
-                "role": "system",
-                "content": action.response_format_instructions
-            })
-
-        try:
-            final_response = self.openai_gateway.get_completion(messages)
-            return self._process_text_response(final_response.choices[0].message.content)
-        except Exception as e:
-            logging.error(f"Error in final response processing: {e}")
-            return {
-                "message": "Error processing the response",
-                "status": "error",
-                "content_type": "application/json"
-            }, 500
-
-    def _extract_tool_result(self, action_response: Any) -> str:
-        """Extract the result string from various response types"""
-        if isinstance(action_response, Response):
+        return messages_copy
+    
+    def _prepare_final_response_prompt(self, messages: List[Dict], action: Any) -> List[Dict]:
+        """Prepares the prompt for the final response generation"""
+        return self.prompt_service.generate_final_response_prompt(messages, action)
+    
+    def _get_result_as_string(self, result: Any) -> str:
+        """
+        Convert any result type to a string representation.
+        This replaces the old _extract_tool_result method.
+        """
+        if isinstance(result, Response):
             try:
-                response_data = action_response.get_data(as_text=True)
+                response_data = result.get_data(as_text=True)
                 if response_data.strip().startswith('{'):
                     try:
                         json_data = json.loads(response_data)
@@ -264,36 +275,15 @@ class AgentService:
                 logging.error(f"Error extracting data from Response: {e}")
                 return "Error retrieving data from response"
         
-        if isinstance(action_response, tuple) and len(action_response) == 2:
-            response_obj = action_response[0]
+        if isinstance(result, tuple) and len(result) == 2:
+            response_obj = result[0]
             if isinstance(response_obj, dict):
                 return response_obj.get("message", json.dumps(response_obj))
             if isinstance(response_obj, Response):
-                return self._extract_tool_result(response_obj)
+                return self._get_result_as_string(response_obj)
             return str(response_obj)
         
-        return str(action_response)
-
-    def _process_text_response(self, content: str) -> Tuple[Dict, int]:
-        """Process a text response into our standard format"""
-        is_conversation_over = False
-        response_message = content
-
-        # Check for JSON with is_conversation_over flag
-        if content.strip().startswith('{') and content.strip().endswith('}'):
-            try:
-                response_json = json.loads(content)
-                is_conversation_over = response_json.get('is_conversation_over', False)
-                response_message = response_json.get('message', content)
-            except:
-                pass
-
-        return {
-            "message": response_message,
-            "status": "success",
-            "content_type": "application/json",
-            "is_conversation_over": is_conversation_over
-        }, 200
+        return str(result)
 
     def get_information_response(self, question: str, context: dict) -> InformationResponse:
         """
@@ -313,10 +303,13 @@ class AgentService:
             # Combine relevant chunks
             context_text = "\n".join([chunk["text"] for chunk in results])
             
+            # Use base prompt from PromptService with RAG-specific instructions
+            base_prompt = self.prompt_service.get_base_system_prompt().split("\n\n")[0]  # Get just the first paragraph
+            
             # Prepare prompt for LLM
             messages = [
                 {"role": "system", "content": (
-                    "You are a helpful assistant for a swimming facility. "
+                    f"{base_prompt}\n\n"
                     "Use the provided context to answer questions accurately and concisely. "
                     "If the context doesn't fully answer the question, be honest about what you don't know."
                 )},

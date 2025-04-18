@@ -18,7 +18,6 @@ def chat():
         
         # Extract optional parameters
         response_format = data.get('response_format', 'auto')
-        is_siri = data.get('is_siri', False)
         conversation_history = data.get('conversation_history', [])
         
         # Get context from Flask g if available
@@ -32,7 +31,6 @@ def chat():
             user_input=user_input,
             context=context,
             response_format=response_format,
-            is_siri=is_siri,
             conversation_history=conversation_history
         )
         
