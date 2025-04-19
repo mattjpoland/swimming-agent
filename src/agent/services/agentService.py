@@ -208,19 +208,39 @@ class AgentService:
             content = final_ai_response.choices[0].message.content
             is_conversation_over = False
             
+            # Log the raw response content
+            logging.debug(f"Stage 2 AI raw response: {content}")
+            
             # Check for JSON with is_conversation_over flag
             if content.strip().startswith('{') and content.strip().endswith('}'):
                 try:
                     response_json = json.loads(content)
-                    is_conversation_over = response_json.get('is_conversation_over', False)
-                    content = response_json.get('message', content)
-                except:
-                    pass
+                    logging.debug(f"Successfully parsed JSON from stage 2 response: {response_json}")
+                    
+                    if 'is_conversation_over' in response_json:
+                        is_conversation_over = bool(response_json.get('is_conversation_over'))
+                        logging.info(f"Stage 2: Set conversation_over flag to: {is_conversation_over}")
+                    else:
+                        logging.warning("Stage 2: JSON missing 'is_conversation_over' field")
+                        
+                    if 'message' in response_json:
+                        content = response_json.get('message')
+                        logging.debug(f"Stage 2: Extracted message from JSON: {content}")
+                    else:
+                        logging.warning("Stage 2: JSON missing 'message' field")
+                except json.JSONDecodeError as e:
+                    logging.warning(f"Stage 2: Failed to parse response as JSON: {e}")
+                    logging.warning(f"Stage 2: Problem content: {content}")
+            else:
+                logging.debug("Stage 2: Response is not in JSON format")
             
             # Create text response
             response = TextResponse(content)
             if is_conversation_over:
                 response.mark_conversation_over()
+                logging.info(f"Stage 2: Marked conversation as over. Final flag value: {response.is_conversation_over}")
+            else:
+                logging.info(f"Stage 2: Conversation continuing. Flag value: {response.is_conversation_over}")
                 
             return response
             

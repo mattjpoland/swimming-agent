@@ -32,7 +32,17 @@ class PromptService:
         system_prompt = self._get_base_identity_prompt()
         system_prompt += self._get_tool_selection_prompt()
         system_prompt += self._get_action_selection_prompts()
-        
+        system_prompt += (
+            "VERY IMPORTANT - CONVERSATION MANAGEMENT INSTRUCTIONS:\n"
+            "If a tool is not selected, format your response as a JSON object with these fields:\n"
+            "{\n"
+            "  \"is_conversation_over\": boolean,\n"
+            "  \"message\": \"Your natural language response here\"\n"
+            "}\n\n"
+            "Follow these specific rules to determine the value of \"is_conversation_over\":\n"
+            "1. Set to true only when user indicates they're finished (thanks, bye, that's all).\n"
+            "2. For all other responses, set to false.\n"
+        )
         messages = [{"role": "system", "content": system_prompt}]
         
         # Add conversation history

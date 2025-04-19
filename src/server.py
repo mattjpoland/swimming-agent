@@ -40,6 +40,7 @@ if sys.platform == 'win32':
     
     console_handler.addFilter(EmojiFilter())
 
+# Set DEBUG level explicitly and ensure propagate=True
 logging.basicConfig(
     level=logging.DEBUG,  # Change to DEBUG level
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -48,6 +49,9 @@ logging.basicConfig(
         logging.FileHandler('swimming_agent.log', encoding='utf-8')  # Add file logging with UTF-8 encoding
     ]
 )
+
+# Make sure root logger is set to DEBUG too
+logging.getLogger().setLevel(logging.DEBUG)
 
 # Add detailed index verification after logging setup
 index_status = verify_index()
