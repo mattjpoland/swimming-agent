@@ -27,7 +27,7 @@ def chat():
         logging.info(f"Processing agent request: '{user_input[:50]}{'...' if len(user_input) > 50 else ''}'")
         
         # Process the request through the service layer directly
-        result, status_code = agent_service.process_chat(
+        result, status_code, updated_history = agent_service.process_chat(
             user_input=user_input,
             context=context,
             response_format=response_format,
@@ -38,6 +38,10 @@ def chat():
         if isinstance(result, Response):
             return result
         else:
+            # Add conversation_history to the response
+            if isinstance(result, dict):
+                result['conversation_history'] = updated_history
+            
             # Otherwise, jsonify the dictionary result
             return jsonify(result), status_code
     

@@ -28,7 +28,7 @@ class AgentService:
 
     def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
                     response_format: str = "auto",
-                    conversation_history: List[Dict] = None) -> Tuple[Union[Dict, Response], int]:
+                    conversation_history: List[Dict] = None) -> Tuple[Union[Dict, Response], int, List[Dict]]:
         """
         Process a chat request through the complete agent pipeline in two main stages:
         
@@ -37,6 +37,12 @@ class AgentService:
         
         STAGE 2 - RESPONSE GENERATION:
         ACTION_RESULT > AI_CALL_2 > FINAL_RESPONSE > HTTP RESPONSE
+        
+        Returns:
+            Tuple containing:
+            - The response data (Dict or Response object)
+            - Status code (int)
+            - Updated conversation history (List[Dict])
         """
         try:
             # Normalize parameters
@@ -50,18 +56,76 @@ class AgentService:
             # STAGE 1: Tool selection and execution
             stage1_response = self._perform_tool_selection_stage(user_input, conversation_history, response_format)
             
+            # Keep track of the updated conversation history
+            updated_history = conversation_history.copy()
+            
+            # Add user message to history
+            updated_history.append({
+                "role": "user", 
+                "content": user_input
+            })
+            
             # If it's a direct response (not requiring the second AI call) or an error, return it immediately
             if not stage1_response.requires_second_ai_call or stage1_response.response_type == "error":
-                return stage1_response.to_http_response()
+                response_data, status_code = stage1_response.to_http_response()
+                
+                # Add assistant's response to history
+                if hasattr(stage1_response, 'content'):
+                    updated_history.append({
+                        "role": "assistant",
+                        "content": stage1_response.content
+                    })
+                
+                return response_data, status_code, updated_history
                 
             # STAGE 2: Response generation based on tool result
             final_response = self._perform_response_generation_stage(stage1_response)
             
-            return final_response.to_http_response()
+            # Get the response data and status code
+            response_data, status_code = final_response.to_http_response()
+            
+            # Add assistant's response to history
+            if hasattr(final_response, 'content'):
+                updated_history.append({
+                    "role": "assistant",
+                    "content": final_response.content
+                })
+                
+            # If there was a tool interaction, add it to history
+            if hasattr(stage1_response, 'tool_call') and hasattr(stage1_response, 'action'):
+                # Get tool name and args
+                tool_name = stage1_response.tool_call.function.name
+                tool_args = stage1_response.tool_call.function.arguments
+                
+                # Add tool calls to history in OpenAI format
+                updated_history.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{
+                        "id": stage1_response.tool_call.id,
+                        "type": "function",
+                        "function": {
+                            "name": tool_name,
+                            "arguments": tool_args
+                        }
+                    }]
+                })
+                
+                # Add tool response
+                if hasattr(stage1_response, 'result'):
+                    updated_history.append({
+                        "role": "tool",
+                        "tool_call_id": stage1_response.tool_call.id,
+                        "content": str(self._get_result_as_string(stage1_response.result))
+                    })
+            
+            return response_data, status_code, updated_history
             
         except Exception as e:
             logging.error(f"Error in agent service: {e}", exc_info=True)
-            return ErrorResponse("Failed to process request", str(e)).to_http_response()
+            error_response = ErrorResponse("Failed to process request", str(e))
+            response_data, status_code = error_response.to_http_response()
+            return response_data, status_code, conversation_history
 
     def _perform_tool_selection_stage(self, user_input: str, conversation_history: List[Dict], 
                                      response_format: str = "auto") -> ActionResponse:
