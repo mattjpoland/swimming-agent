@@ -1,5 +1,6 @@
 from src.domain.services.weatherService import get_weather_forecast_for_date  # Import the weather forecast service function
 from flask import jsonify  # Import Flask jsonify for standardized responses
+from datetime import datetime, timedelta  # Import datetime and timedelta for date calculations
 
 class WeatherForecastAction:
     @property
@@ -12,23 +13,28 @@ class WeatherForecastAction:
 
     @property
     def parameters(self):
+        today = datetime.now()
+        tomorrow = (today + timedelta(days=1)).strftime("%Y-%m-%d")
         return {
             "type": "object",
             "properties": {
                 "date": {
                     "type": "string",
-                    "description": "The date for the weather forecast in YYYY-MM-DD format."
+                    "description": "The date for the weather forecast in YYYY-MM-DD format.",
+                    "default": tomorrow
                 }
             },
-            "required": ["date"]
+            "required": []
         }
 
     @property
     def prompt_instructions(self):
         return (
             "You can provide the weather forecast for a specific date. "
-            "When a user asks for the weather forecast, use the get_weather_forecast function. "
-            "They need to specify the date in YYYY-MM-DD format. "
+            "When a user asks about weather for any future time period or date - including simple queries like 'Tomorrow?' - use the get_weather_forecast function. "
+            "For the date parameter, convert relative time references (tomorrow, next Monday, etc.) to YYYY-MM-DD format based on the current date in Eastern Time. "
+            "If the user simply asks 'Tomorrow?' without specifying an exact date format, you should still call get_weather_forecast and let the function handle the date calculation. "
+            "When the user follows up a weather query with a time reference, always interpret this as a request for a forecast rather than current conditions."
         )
         
     @property

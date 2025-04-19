@@ -8,7 +8,7 @@ class WeatherAction:
 
     @property
     def description(self):
-        return "Fetch the current weather for the facility's location."
+        return "Fetch the current weather for the facility's location (today only, not forecasts)."
 
     @property
     def parameters(self):
@@ -17,8 +17,10 @@ class WeatherAction:
     @property
     def prompt_instructions(self):
         return (
-            "You can provide the current weather for the facility's location. "
-            "When a user asks about the weather, use the get_weather function. "
+            "You can provide ONLY the current weather for the facility's location. "
+            "When a user asks specifically about the current or today's weather only, use the get_weather function. "
+            "If they ask about tomorrow, the weekend, next week, or any future date, or use any time reference in a follow-up question like 'Tomorrow?', "
+            "ALWAYS use get_weather_forecast instead, even for simple queries."
         )
         
     @property
