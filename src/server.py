@@ -9,6 +9,16 @@ import logging
 import os
 import sys
 
+# Set up debugpy to ignore SystemExit exceptions when in debug mode
+if 'debugpy' in sys.modules:
+    try:
+        import debugpy
+        # Configure debugpy to not break on SystemExit exceptions
+        debugpy.configure({"excepthook": {"SystemExit": "ignore"}})
+        logging.info("Configured debugpy to ignore SystemExit exceptions")
+    except Exception as e:
+        logging.debug(f"Could not configure debugpy: {str(e)}")
+
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
@@ -78,4 +88,29 @@ def index():
 
 if __name__ == "__main__":
     debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
+    
+    # Add VS Code debug specific handling
+    try:
+        # Check if running in VS Code debugger
+        if debug_mode and 'debugpy' in sys.modules:
+            # When running with debugpy in VS Code, add extra configuration to suppress SystemExit breaks
+            import signal
+            original_handler = signal.getsignal(signal.SIGINT)
+            
+            def custom_handler(sig, frame):
+                # Just call the original handler
+                if original_handler:
+                    return original_handler(sig, frame)
+            
+            # Replace SIGINT handler
+            signal.signal(signal.SIGINT, custom_handler)
+            logging.info("VS Code debug mode detected - SystemExit handling configured")
+            
+            # Set use_debugger and use_reloader flags explicitly
+            app.run(host="0.0.0.0", port=5000, debug=True, use_debugger=True, use_reloader=True)
+        else:
+            # Normal run
+            app.run(host="0.0.0.0", port=5000, debug=debug_mode)
+    except Exception as e:
+        logging.error(f"Error starting the application: {str(e)}")
+        app.run(host="0.0.0.0", port=5000, debug=debug_mode)

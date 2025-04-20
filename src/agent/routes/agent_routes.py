@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify, g, Response
 from src.agent.services.agentService import AgentService
 from src.decorators import require_api_key
 import logging
+import os
+import json
 
 agent_bp = Blueprint('agent', __name__)
 agent_service = AgentService()
@@ -12,6 +14,10 @@ def chat():
     try:
         data = request.get_json()
         user_input = data.get('user_input')
+        
+        # Log raw request body if REQUEST_LOGGING is enabled
+        if os.getenv('REQUEST_LOGGING', 'false').lower() == 'true' or g.context.get('REQUEST_LOGGING', False):
+            logging.info(f"RAW REQUEST: {json.dumps(data)}")
         
         if not user_input:
             return jsonify({"error": "No user input provided"}), 400
@@ -34,16 +40,35 @@ def chat():
             conversation_history=conversation_history
         )
         
+        # Prepare and log response safely
+        if os.getenv('REQUEST_LOGGING', 'false').lower() == 'true' or g.context.get('REQUEST_LOGGING', False):
+            # Handle different response types for logging
+            if isinstance(result, Response):
+                # Safely log Response objects without trying to access content
+                logging.info(f"RAW RESPONSE: [Flask Response Object] Content-Type: {result.content_type}, Status: {status_code}")
+            elif isinstance(result, dict):
+                # For dictionaries, we can safely log the JSON
+                response_dict = result.copy()
+                if 'conversation_history' in response_dict:
+                    response_dict['conversation_history'] = f"[{len(response_dict.get('conversation_history', []))} items]"
+                logging.info(f"RAW RESPONSE: {json.dumps(response_dict)}")
+            else:
+                # For other types just convert to string
+                logging.info(f"RAW RESPONSE: {str(result)}")
+        
         # Check if the result is a Flask Response object
         if isinstance(result, Response):
-            return result
+            response = result
         else:
             # Add conversation_history to the response
             if isinstance(result, dict):
                 result['conversation_history'] = updated_history
             
             # Otherwise, jsonify the dictionary result
-            return jsonify(result), status_code
+            response = jsonify(result)
+        
+        # Return the response
+        return response, status_code
     
     except Exception as e:
         logging.error(f"Error in agent route: {e}", exc_info=True)
