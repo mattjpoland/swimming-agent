@@ -24,7 +24,9 @@ def chat():
         
         # Extract optional parameters
         response_format = data.get('response_format', 'auto')
-        conversation_history = data.get('conversation_history', [])
+        
+        # Standardize conversation history format
+        conversation_history = standardize_conversation_history(data.get('conversation_history', []))
         
         # Get context from Flask g if available
         context = getattr(g, 'context', {})
@@ -77,3 +79,58 @@ def chat():
             "message": "An error occurred while processing your request",
             "content_type": "application/json"
         }), 500
+
+def standardize_conversation_history(conversation_history):
+    """
+    Standardizes conversation history to always be an array of message objects.
+    Handles different input formats from various clients.
+    
+    Args:
+        conversation_history: The conversation history from the request, could be:
+            - None
+            - Empty string
+            - JSON string (from iOS Shortcuts)
+            - Array of message objects
+            - Single message object
+            
+    Returns:
+        List: A standardized array of message objects
+    """
+    # Handle None or empty values
+    if not conversation_history:
+        return []
+        
+    # Handle string input (common from iOS Shortcuts)
+    if isinstance(conversation_history, str):
+        # Empty string
+        if not conversation_history.strip():
+            return []
+            
+        # Try to parse as JSON
+        try:
+            parsed = json.loads(conversation_history)
+            # Single message object
+            if isinstance(parsed, dict) and ('content' in parsed or 'role' in parsed):
+                return [parsed]
+            # Array of messages
+            elif isinstance(parsed, list):
+                return parsed
+            # Unknown format
+            else:
+                logging.warning(f"Unrecognized JSON format for conversation history: {conversation_history}")
+                return []
+        except json.JSONDecodeError:
+            logging.warning(f"Failed to parse conversation history as JSON: {conversation_history}")
+            return []
+    
+    # Handle dict input (single message)
+    if isinstance(conversation_history, dict) and ('content' in conversation_history or 'role' in conversation_history):
+        return [conversation_history]
+        
+    # Handle list input (already correct format)
+    if isinstance(conversation_history, list):
+        return conversation_history
+        
+    # Fallback for unexpected types
+    logging.warning(f"Unexpected conversation_history type: {type(conversation_history)}")
+    return []
