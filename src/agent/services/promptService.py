@@ -21,7 +21,7 @@ class PromptService:
     # PUBLIC AI-1 METHODS (TOOL SELECTION)
     # =========================================================================
     
-    def generate_initial_tool_selection_prompt(self, user_input: str, conversation_history: List[Dict] = None) -> List[Dict]:
+    def generate_initial_tool_selection_prompt(self, user_input: str, conversation_history=None) -> List[Dict]:
         """
         Builds the messages array for AI-1 (tool selection) with system prompt and conversation history.
         This is the main entry point for AI-1 prompt generation.
@@ -45,11 +45,37 @@ class PromptService:
         )
         messages = [{"role": "system", "content": system_prompt}]
         
+        # Handle conversation_history that might be None, empty string, or a JSON string
+        if conversation_history is None or conversation_history == "":
+            conversation_history = []
+        elif isinstance(conversation_history, str):
+            # Try to parse it as JSON
+            try:
+                import json
+                parsed = json.loads(conversation_history)
+                if isinstance(parsed, dict):
+                    # Single message object
+                    conversation_history = [parsed]
+                elif isinstance(parsed, list):
+                    # Already an array
+                    conversation_history = parsed
+                else:
+                    # Unexpected format, reset to empty
+                    conversation_history = []
+            except json.JSONDecodeError:
+                # If it can't be decoded as JSON, reset to empty
+                conversation_history = []
+        
         # Add conversation history
         if conversation_history:
             for message in conversation_history:
-                role = message.get("role", "user")
-                content = message.get("content", "")
+                if not isinstance(message, dict):
+                    continue  # Skip non-dict messages
+                    
+                # Safely extract role and content
+                role = message.get("role", "user") if hasattr(message, "get") else "user"
+                content = message.get("content", "") if hasattr(message, "get") else str(message)
+                
                 if role in ["user", "assistant"] and content:
                     messages.append({"role": role, "content": content})
         
