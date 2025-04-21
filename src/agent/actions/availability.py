@@ -22,9 +22,10 @@ class AvailabilityAction(AgentAction):
             "type": "object",
             "properties": {
                 "pool_name": {"type": "string", "description": "The name of the pool (e.g., 'Indoor Pool', 'Outdoor Pool', 'Both Pools'). If not specified, defaults to 'Both Pools'."},
-                "date": {"type": "string", "description": "The date to check availability (YYYY-MM-DD)."}
+                "date": {"type": "string", "description": "The date to check availability (YYYY-MM-DD)."},
+                "format": {"type": "string", "enum": ["visual", "text"], "description": "Response format, either 'visual' (default) for a visualization or 'text' for a text description. Use 'text' for specific queries about times or lanes."}
             },
-            "required": ["date"]  # Only date is required, pool_name is optional
+            "required": ["date"]  # Only date is required, pool_name and format are optional
         }
     
     @property
@@ -35,6 +36,12 @@ class AvailabilityAction(AgentAction):
                 "If the user doesn't specify which pool, assume they want to check 'Both Pools'. "
                 "For date parameters, use the YYYY-MM-DD format. "
                 "When calculating dates from day names (like 'Sunday' or 'Monday'), always refer to the date information provided above. "
+                "By default, use the 'visual' format for general availability queries. "
+                "Use the 'text' format instead when: "
+                "1. The user asks about specific time slots or specific lanes "
+                "2. The user is trying to find alternative times for a booked lane "
+                "3. The user is trying to find alternative lanes for a booked time "
+                "4. The user explicitly asks for availability information without visualization "
         )
     
     @property
@@ -68,11 +75,10 @@ class AvailabilityAction(AgentAction):
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the availability check action."""
         try:
-            response_format = kwargs.get("response_format", "auto")
-            
             # Extract and normalize parameters
             pool_name = arguments.get("pool_name", "")  # Default to empty string if missing
             date = arguments.get("date")
+            format_type = arguments.get("format", "visual")  # Default to visual if not specified
             
             # Validate and resolve the date
             date = validate_and_resolve_date(date, user_input)
@@ -81,12 +87,13 @@ class AvailabilityAction(AgentAction):
             pool_name = normalize_pool_name(pool_name)
             
             # Handle different response formats
-            if response_format == "text":
+            if format_type == "text":
                 return jsonify(self._generate_text_response(pool_name, date, context))
             else:
                 return self._generate_visualization(pool_name, date, context)
                 
         except Exception as e:
+            logging.error(f"Error checking availability: {str(e)}")
             return jsonify({"message": "I couldn't check availability at this time. Please try again later.", "status": "error"}), 500
     
     def _generate_text_response(self, pool_name, date, context):
