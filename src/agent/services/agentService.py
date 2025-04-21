@@ -1,6 +1,7 @@
 from flask import g, Response
 import json
 import logging
+import uuid
 from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 
@@ -8,6 +9,7 @@ from src.agent.gateways.openAIGateway import OpenAIGateway
 from src.agent.registry import registry
 from src.domain.services.ragQueryingService import query_rag
 from src.agent.services.promptService import PromptService
+from src.agent.services.memoryService import MemoryService, ConversationMemory
 
 # Import new response objects
 from src.agent.responses.base import ActionResponse
@@ -25,11 +27,13 @@ class AgentService:
     def __init__(self):
         self.openai_gateway = OpenAIGateway()
         self.prompt_service = PromptService()
+        self.memory_service = MemoryService()
         self.max_tool_calls = 10  # Maximum number of tool calls in a single request
 
     def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
                     response_format: str = "auto",
-                    conversation_history: List[Dict] = None) -> Tuple[Union[Dict, Response], int, List[Dict]]:
+                    conversation_history: List[Dict] = None,
+                    session_id: str = None) -> Tuple[Union[Dict, Response], int, List[Dict]]:
         """
         Process a chat request through the hybrid agent pipeline with tool chaining.
         
@@ -47,21 +51,40 @@ class AgentService:
         try:
             # Normalize parameters
             context = context or {}
-            conversation_history = conversation_history or []
+            
+            # Generate a session ID if not provided
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            # Get conversation history from memory service or use provided history
+            if conversation_history:
+                # If history is provided, update memory with it
+                self.memory_service.update_conversation_memory(session_id, conversation_history)
+                memory = self.memory_service.get_conversation_memory(session_id)
+                updated_history = memory.messages.copy()
+            else:
+                # Otherwise, retrieve from memory
+                memory = self.memory_service.get_conversation_memory(session_id)
+                updated_history = memory.messages.copy()
             
             # Store context in flask g for action execution if it's not already there
             if context and not hasattr(g, 'context'):
                 g.context = context
             
-            # Initialize updated history with user message
-            updated_history = conversation_history.copy()
+            # Store session_id in context
+            context['session_id'] = session_id
+            
+            # Add user message to history
             updated_history.append({
                 "role": "user", 
                 "content": user_input
             })
             
+            # Update conversation memory with new user message
+            self.memory_service.update_conversation_memory(session_id, updated_history)
+            
             # Run the tool chaining process
-            result = self._process_with_tool_chaining(user_input, updated_history, response_format)
+            result = self._process_with_tool_chaining(user_input, updated_history, response_format, session_id)
             
             # The result contains both the final response and updated conversation history
             response_data, status_code = result.response.to_http_response()
@@ -72,15 +95,29 @@ class AgentService:
                     "role": "assistant",
                     "content": result.response.content
                 })
+                
+                # Update conversation memory with the complete conversation
+                self.memory_service.update_conversation_memory(session_id, updated_history)
+                
+                # Store tool call history as episodic memory
+                if result.tool_calls_history:
+                    self.memory_service.store_episodic_memory(
+                        session_id=session_id,
+                        event_type="tool_calls",
+                        content={
+                            "original_input": user_input,
+                            "tool_calls": [item.__dict__ for item in result.tool_calls_history]
+                        }
+                    )
             
-            return response_data, status_code, result.conversation_history
+            return response_data, status_code, updated_history
             
         except Exception as e:
             logging.error(f"Error in agent service: {e}", exc_info=True)
             error_response = ErrorResponse("Failed to process request", str(e))
             response_data, status_code = error_response.to_http_response()
-            return response_data, status_code, conversation_history
-
+            return response_data, status_code, conversation_history or []
+            
     @dataclass
     class ToolChainResult:
         """Container for the result of tool chaining process"""
@@ -89,7 +126,8 @@ class AgentService:
         tool_calls_history: List[ToolCallHistoryItem]
 
     def _process_with_tool_chaining(self, user_input: str, conversation_history: List[Dict], 
-                                   response_format: str = "auto") -> ToolChainResult:
+                                   response_format: str = "auto",
+                                   session_id: str = None) -> ToolChainResult:
         """
         Core tool chaining implementation that handles multiple sequential tool calls.
         
@@ -275,24 +313,12 @@ class AgentService:
         if tool_calls_history and "error" in tool_calls_history[-1].tool_result.lower():
             logging.info("Last tool call had an error - stopping tool chain")
             return False, ""
-        
+       
         # Make a dedicated AI call to determine if more tools are needed
-        # Design a prompt that encourages multi-step planning without tool-specific logic
         messages = [
             {
                 "role": "system", 
-                "content": (
-                    "You are an agent coordinator that helps break down complex user requests into a sequence of tool calls. "
-                    "Your job is to determine if the user's original request has been completely fulfilled by the tools called so far. "
-                    "\n\nINSTRUCTIONS:"
-                    "\n1. Analyze the original user request and the tools that have been called"
-                    "\n2. Determine if the request is fully satisfied or requires additional tools"
-                    "\n3. If more tools are needed, identify the next logical step in the sequence"
-                    "\n4. Consider relationships between data (e.g., dates from one tool may need to be used in another tool)"
-                    "\n\nRESPOND WITH EXACTLY ONE OF THESE OPTIONS:"
-                    "\n- If the request is complete: 'COMPLETE: <brief explanation>'"
-                    "\n- If more tool calls are needed: 'MORE_TOOLS_NEEDED: <specific next step and any context needed>'"
-                )
+                "content": self.prompt_service.generate_tool_evaluation_prompt()
             },
             {
                 "role": "user", 
@@ -306,8 +332,8 @@ class AgentService:
         ]
         
         try:
-            # Using no special parameters for the LLM call - keeping it generic
-            decision_response = self.openai_gateway.get_completion(messages)
+            # Using a lower temperature for more consistent decision-making
+            decision_response = self.openai_gateway.get_completion(messages, temperature=0.1)
             decision_text = decision_response.choices[0].message.content.strip()
             
             logging.debug(f"Tool chain evaluation response: {decision_text}")

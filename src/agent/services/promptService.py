@@ -12,6 +12,7 @@ class PromptService:
     The class follows this organizational structure:
     - Public AI-1 methods (tool selection)
     - Public AI-2 methods (response formatting)
+    - Public Tool Chaining methods
     - Private AI-1 helper methods 
     - Private AI-2 helper methods
     - Shared helper methods
@@ -141,7 +142,49 @@ class PromptService:
         
         return messages
     
-
+    # =========================================================================
+    # PUBLIC TOOL CHAINING METHODS
+    # =========================================================================
+    
+    def generate_tool_evaluation_prompt(self) -> str:
+        """
+        Generates prompt instructions specifically for evaluating if more 
+        tool calls are needed during tool chaining.
+        
+        [Tool Chaining Prompt called by AgentService]
+        """
+        # Start with domain-specific identity
+        prompt = (
+            "You are a swimming agent coordinator that helps break down user requests into a sequence "
+            "of tool calls. Your job is to determine if the user's swimming-related request has been completely "
+            "fulfilled by the tools called so far."
+            
+            "\n\nINSTRUCTIONS:"
+            "\n1. Analyze the original user request and the tools that have been called"
+            "\n2. Determine if the request is fully satisfied or requires additional tools"
+            "\n3. If more tools are needed, identify the next logical step in the sequence"
+            "\n4. Consider relationships between data (e.g., dates from one tool may need to be used in another tool)"
+            "\n5. Be efficient - if a tool has already provided relevant information to answer the user's question, mark it as complete"
+            
+            "\n\nIMPORTANT DOMAIN UNDERSTANDING:"
+            "\n- This is a swimming facility, so when users ask about 'appointments', they are always referring to swim lane appointments"
+            "\n- An appointment response from the check_appointments tool already provides all needed swimming appointment information"
+            "\n- Availability information from check_lane_availability is complete and doesn't need verification"
+            "\n- Weather information from get_weather or get_weather_forecast is complete for the day requested"
+            
+            "\n\nCOMMON COMPLETE SCENARIOS:"
+            "\n- When the user asked for appointments and got information about appointments (these are always swim lane appointments)"
+            "\n- When the user asked about availability and received availability information"
+            "\n- When the user asked about weather and received weather information"
+            "\n- When the user's entire question has been directly addressed by the last tool call's result"
+            
+            "\n\nRESPOND WITH EXACTLY ONE OF THESE OPTIONS:"
+            "\n- If the request is complete: 'COMPLETE: <brief explanation>'"
+            "\n- If more tools are needed: 'MORE_TOOLS_NEEDED: <specific next step and any context needed>'"
+        )
+        
+        return prompt
+    
     # =========================================================================
     # PRIVATE AI-1 HELPER METHODS (TOOL SELECTION)
     # =========================================================================

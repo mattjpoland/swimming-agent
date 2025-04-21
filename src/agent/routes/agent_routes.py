@@ -4,6 +4,7 @@ from src.decorators import require_api_key
 import logging
 import os
 import json
+import uuid
 
 agent_bp = Blueprint('agent', __name__)
 agent_service = AgentService()
@@ -25,21 +26,31 @@ def chat():
         # Extract optional parameters
         response_format = data.get('response_format', 'auto')
         
-        # Standardize conversation history format
-        conversation_history = standardize_conversation_history(data.get('conversation_history', []))
+        # Get session_id or generate a new one
+        session_id = data.get('session_id')
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            logging.info(f"Generated new session ID: {session_id}")
+        
+        # Standardize conversation history format if provided
+        # This is for backward compatibility
+        conversation_history = None
+        if 'conversation_history' in data:
+            conversation_history = standardize_conversation_history(data.get('conversation_history', []))
         
         # Get context from Flask g if available
         context = getattr(g, 'context', {})
         
         # Log the incoming request
-        logging.info(f"Processing agent request: '{user_input[:50]}{'...' if len(user_input) > 50 else ''}'")
+        logging.info(f"Processing agent request: '{user_input[:50]}{'...' if len(user_input) > 50 else ''}' with session ID: {session_id}")
         
-        # Process the request through the service layer directly
+        # Process the request through the service layer
         result, status_code, updated_history = agent_service.process_chat(
             user_input=user_input,
             context=context,
             response_format=response_format,
-            conversation_history=conversation_history
+            conversation_history=conversation_history,
+            session_id=session_id
         )
         
         # Prepare and log response safely
@@ -62,9 +73,10 @@ def chat():
         if isinstance(result, Response):
             response = result
         else:
-            # Add conversation_history to the response
+            # Add conversation_history and session_id to the response
             if isinstance(result, dict):
                 result['conversation_history'] = updated_history
+                result['session_id'] = session_id
             
             # Otherwise, jsonify the dictionary result
             response = jsonify(result)
@@ -80,6 +92,7 @@ def chat():
             "content_type": "application/json"
         }), 500
 
+# This function stays the same for backward compatibility
 def standardize_conversation_history(conversation_history):
     """
     Standardizes conversation history to always be an array of message objects.
