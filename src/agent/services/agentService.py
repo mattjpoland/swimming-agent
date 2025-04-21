@@ -25,7 +25,7 @@ class AgentService:
     def __init__(self):
         self.openai_gateway = OpenAIGateway()
         self.prompt_service = PromptService()
-        self.max_tool_calls = 5  # Maximum number of tool calls in a single request
+        self.max_tool_calls = 10  # Maximum number of tool calls in a single request
 
     def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
                     response_format: str = "auto",
