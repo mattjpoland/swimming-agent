@@ -2,7 +2,19 @@
 Tool-related response classes for the agent system.
 """
 from typing import Dict, Any, Tuple, Optional, List
+from dataclasses import dataclass
 from src.agent.responses.base import ActionResponse
+
+
+@dataclass
+class ToolCallHistoryItem:
+    """
+    Data class representing a single tool call in a tool chaining sequence.
+    Used to track the history of tool calls during multi-step reasoning.
+    """
+    tool_name: str
+    tool_args: Dict[str, Any]
+    tool_result: str
 
 
 class ToolSelectionResponse(ActionResponse):

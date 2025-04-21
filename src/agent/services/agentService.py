@@ -13,7 +13,7 @@ from src.agent.services.promptService import PromptService
 from src.agent.responses.base import ActionResponse
 from src.agent.responses.text import TextResponse, ErrorResponse, DirectResponse
 from src.agent.responses.special import ImageResponse, FileResponse
-from src.agent.responses.tool import ToolSelectionResponse, ToolExecutionResponse
+from src.agent.responses.tool import ToolSelectionResponse, ToolExecutionResponse, ToolCallHistoryItem
 
 @dataclass
 class InformationResponse:
@@ -25,18 +25,18 @@ class AgentService:
     def __init__(self):
         self.openai_gateway = OpenAIGateway()
         self.prompt_service = PromptService()
+        self.max_tool_calls = 5  # Maximum number of tool calls in a single request
 
     def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
                     response_format: str = "auto",
                     conversation_history: List[Dict] = None) -> Tuple[Union[Dict, Response], int, List[Dict]]:
         """
-        Process a chat request through the complete agent pipeline in two main stages:
+        Process a chat request through the hybrid agent pipeline with tool chaining.
         
-        STAGE 1 - TOOL SELECTION:
-        REQUEST > SERVER > AGENT_SERVICE > AI_CALL_1 > TOOL_SELECTION > REGISTRY > ACTION_EXECUTION
-        
-        STAGE 2 - RESPONSE GENERATION:
-        ACTION_RESULT > AI_CALL_2 > FINAL_RESPONSE > HTTP RESPONSE
+        This combines the strengths of:
+        1. JSON Mode for structured function calling
+        2. Tool Chaining for multi-step reasoning
+        3. Dedicated Formatting LLM for high-quality responses
         
         Returns:
             Tuple containing:
@@ -53,73 +53,27 @@ class AgentService:
             if context and not hasattr(g, 'context'):
                 g.context = context
             
-            # STAGE 1: Tool selection and execution
-            stage1_response = self._perform_tool_selection_stage(user_input, conversation_history, response_format)
-            
-            # Keep track of the updated conversation history
+            # Initialize updated history with user message
             updated_history = conversation_history.copy()
-            
-            # Add user message to history
             updated_history.append({
                 "role": "user", 
                 "content": user_input
             })
             
-            # If it's a direct response (not requiring the second AI call) or an error, return it immediately
-            if not stage1_response.requires_second_ai_call or stage1_response.response_type == "error":
-                response_data, status_code = stage1_response.to_http_response()
-                
-                # Add assistant's response to history
-                if hasattr(stage1_response, 'content'):
-                    updated_history.append({
-                        "role": "assistant",
-                        "content": stage1_response.content
-                    })
-                
-                return response_data, status_code, updated_history
-                
-            # STAGE 2: Response generation based on tool result
-            final_response = self._perform_response_generation_stage(stage1_response)
+            # Run the tool chaining process
+            result = self._process_with_tool_chaining(user_input, updated_history, response_format)
             
-            # Get the response data and status code
-            response_data, status_code = final_response.to_http_response()
+            # The result contains both the final response and updated conversation history
+            response_data, status_code = result.response.to_http_response()
             
-            # Add assistant's response to history
-            if hasattr(final_response, 'content'):
+            # Add final assistant response to history
+            if hasattr(result.response, 'content'):
                 updated_history.append({
                     "role": "assistant",
-                    "content": final_response.content
+                    "content": result.response.content
                 })
-                
-            # If there was a tool interaction, add it to history
-            if hasattr(stage1_response, 'tool_call') and hasattr(stage1_response, 'action'):
-                # Get tool name and args
-                tool_name = stage1_response.tool_call.function.name
-                tool_args = stage1_response.tool_call.function.arguments
-                
-                # Add tool calls to history in OpenAI format
-                updated_history.append({
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [{
-                        "id": stage1_response.tool_call.id,
-                        "type": "function",
-                        "function": {
-                            "name": tool_name,
-                            "arguments": tool_args
-                        }
-                    }]
-                })
-                
-                # Add tool response
-                if hasattr(stage1_response, 'result'):
-                    updated_history.append({
-                        "role": "tool",
-                        "tool_call_id": stage1_response.tool_call.id,
-                        "content": str(self._get_result_as_string(stage1_response.result))
-                    })
             
-            return response_data, status_code, updated_history
+            return response_data, status_code, result.conversation_history
             
         except Exception as e:
             logging.error(f"Error in agent service: {e}", exc_info=True)
@@ -127,15 +81,113 @@ class AgentService:
             response_data, status_code = error_response.to_http_response()
             return response_data, status_code, conversation_history
 
-    def _perform_tool_selection_stage(self, user_input: str, conversation_history: List[Dict], 
-                                     response_format: str = "auto") -> ActionResponse:
+    @dataclass
+    class ToolChainResult:
+        """Container for the result of tool chaining process"""
+        response: ActionResponse
+        conversation_history: List[Dict]
+        tool_calls_history: List[ToolCallHistoryItem]
+
+    def _process_with_tool_chaining(self, user_input: str, conversation_history: List[Dict], 
+                                   response_format: str = "auto") -> ToolChainResult:
         """
-        Performs Stage 1 - Tool selection and execution
+        Core tool chaining implementation that handles multiple sequential tool calls.
         
-        Returns an ActionResponse subclass instance appropriate to the result
+        Args:
+            user_input: The original user input
+            conversation_history: The conversation history including the latest user input
+            response_format: The desired response format
+            
+        Returns:
+            ToolChainResult: Container with final response and updated conversation
         """
-        # Prepare prompt for tool selection
-        messages = self._prepare_tool_selection_prompt(user_input, conversation_history)
+        # Initialize tracking variables
+        tool_calls_history = []
+        iterations = 0
+        current_input = user_input
+        current_history = conversation_history.copy()
+        
+        # Tool chaining loop
+        while iterations < self.max_tool_calls:
+            iterations += 1
+            logging.info(f"Tool chaining iteration {iterations}/{self.max_tool_calls}")
+            
+            # Make a single tool selection call and execution
+            selection_response = self._perform_tool_selection_stage(
+                user_input=current_input,
+                conversation_history=current_history,
+                response_format=response_format,
+                tool_calls_history=tool_calls_history
+            )
+            
+            # Case 1: If it's a direct response or error, return immediately
+            if not selection_response.requires_second_ai_call or selection_response.response_type == "error":
+                logging.info(f"Tool chain ended with direct response after {iterations} iterations")
+                return self.ToolChainResult(
+                    response=selection_response,
+                    conversation_history=current_history, 
+                    tool_calls_history=tool_calls_history
+                )
+            
+            # Case 2: It's a tool call response - extract details
+            tool_call = selection_response.tool_call
+            action = selection_response.action
+            tool_result = selection_response.result
+            
+            # Add to tool calls history
+            tool_calls_history.append(ToolCallHistoryItem(
+                tool_name=tool_call.function.name,
+                tool_args=json.loads(tool_call.function.arguments),
+                tool_result=self._get_result_as_string(tool_result)
+            ))
+            
+            # Update conversation history with this tool call
+            current_history = self._add_tool_interaction_to_messages(
+                current_history, 
+                tool_call, 
+                self._get_result_as_string(tool_result)
+            )
+            
+            # Evaluate if we need more tool calls
+            needs_more_tools, next_input = self._evaluate_need_for_more_tools(
+                tool_calls_history=tool_calls_history,
+                original_input=user_input,
+                conversation_history=current_history
+            )
+            
+            if not needs_more_tools:
+                logging.info(f"Tool chain complete after {iterations} iterations - proceeding to response generation")
+                break
+                
+            # Update for next iteration
+            current_input = next_input
+        
+        # After tool chain completes, generate final response
+        final_response = self._perform_response_generation_stage(
+            action=selection_response.action,
+            messages=current_history,
+            tool_calls_history=tool_calls_history,
+            original_input=user_input
+        )
+        
+        return self.ToolChainResult(
+            response=final_response,
+            conversation_history=current_history,
+            tool_calls_history=tool_calls_history
+        )
+    
+    def _perform_tool_selection_stage(self, user_input: str, conversation_history: List[Dict], 
+                                     response_format: str = "auto", 
+                                     tool_calls_history: List[ToolCallHistoryItem] = None) -> ActionResponse:
+        """
+        Enhanced tool selection stage that includes tool chaining context
+        """
+        # Prepare prompt for tool selection with tool call history
+        messages = self._prepare_tool_selection_prompt(
+            user_input=user_input, 
+            conversation_history=conversation_history,
+            tool_calls_history=tool_calls_history or []
+        )
         
         # Get available tools
         tools = self._get_available_tools()
@@ -144,7 +196,7 @@ class AgentService:
         try:
             response = self._make_tool_selection_call(messages, tools)
         except Exception as e:
-            logging.error(f"Stage 1 failed: Error in tool selection AI call: {e}")
+            logging.error(f"Tool selection failed: {e}")
             return ErrorResponse(
                 "I'm sorry, I encountered a problem while processing your request.", 
                 str(e)
@@ -188,22 +240,114 @@ class AgentService:
         
         # Check for special response types
         if isinstance(action_result, Response) and action_result.mimetype == "image/png":
-            # Pass the Response object directly to ImageResponse without extracting data
             return ImageResponse(action_result)
         
         # Check for tuple with Response
         if isinstance(action_result, tuple) and len(action_result) == 2:
             response_obj, status_code = action_result
-            # Handle tuple with image response
             if isinstance(response_obj, Response) and response_obj.mimetype == "image/png":
                 return ImageResponse(response_obj, status_code=status_code)
                 
         # For all other cases, return tool execution response
         return ToolExecutionResponse(tool_call, action, action_result, messages)
-    
-    def _prepare_tool_selection_prompt(self, user_input: str, conversation_history: List[Dict]) -> List[Dict]:
-        """Prepares the prompt for tool selection"""
-        return self.prompt_service.generate_initial_tool_selection_prompt(user_input, conversation_history)
+
+    def _evaluate_need_for_more_tools(self, tool_calls_history: List[ToolCallHistoryItem], 
+                                      original_input: str,
+                                      conversation_history: List[Dict]) -> Tuple[bool, str]:
+        """
+        Determines if more tool calls are needed based on the current state.
+        A tool-agnostic implementation that relies on LLM reasoning.
+        
+        Args:
+            tool_calls_history: History of previous tool calls
+            original_input: The original user input
+            conversation_history: Current conversation history
+            
+        Returns:
+            Tuple[bool, str]: (needs_more_tools, next_input_if_needed)
+        """
+        # If we've reached the maximum number of tool calls, stop
+        if len(tool_calls_history) >= self.max_tool_calls:
+            logging.info(f"Reached maximum tool call limit ({self.max_tool_calls})")
+            return False, ""
+
+        # If the last tool call was unsuccessful, stop to prevent error loops
+        if tool_calls_history and "error" in tool_calls_history[-1].tool_result.lower():
+            logging.info("Last tool call had an error - stopping tool chain")
+            return False, ""
+        
+        # Make a dedicated AI call to determine if more tools are needed
+        # Design a prompt that encourages multi-step planning without tool-specific logic
+        messages = [
+            {
+                "role": "system", 
+                "content": (
+                    "You are an agent coordinator that helps break down complex user requests into a sequence of tool calls. "
+                    "Your job is to determine if the user's original request has been completely fulfilled by the tools called so far. "
+                    "\n\nINSTRUCTIONS:"
+                    "\n1. Analyze the original user request and the tools that have been called"
+                    "\n2. Determine if the request is fully satisfied or requires additional tools"
+                    "\n3. If more tools are needed, identify the next logical step in the sequence"
+                    "\n4. Consider relationships between data (e.g., dates from one tool may need to be used in another tool)"
+                    "\n\nRESPOND WITH EXACTLY ONE OF THESE OPTIONS:"
+                    "\n- If the request is complete: 'COMPLETE: <brief explanation>'"
+                    "\n- If more tool calls are needed: 'MORE_TOOLS_NEEDED: <specific next step and any context needed>'"
+                )
+            },
+            {
+                "role": "user", 
+                "content": f"ORIGINAL USER REQUEST: {original_input}\n\n"
+                           f"TOOL CALL HISTORY ({len(tool_calls_history)}):\n" + 
+                           "\n".join([
+                               f"{i+1}. Tool: {item.tool_name}\n   Args: {json.dumps(item.tool_args)}\n   Result: {item.tool_result[:150]}..." 
+                               for i, item in enumerate(tool_calls_history)
+                           ])
+            }
+        ]
+        
+        try:
+            # Using no special parameters for the LLM call - keeping it generic
+            decision_response = self.openai_gateway.get_completion(messages)
+            decision_text = decision_response.choices[0].message.content.strip()
+            
+            logging.debug(f"Tool chain evaluation response: {decision_text}")
+            
+            if decision_text.startswith("COMPLETE:"):
+                logging.info(f"Tool chain evaluation: Complete - {decision_text[9:].strip()}")
+                return False, ""
+            elif decision_text.startswith("MORE_TOOLS_NEEDED:"):
+                # Extract the reasoning part after MORE_TOOLS_NEEDED
+                next_input = decision_text[17:].strip()
+                logging.info(f"Tool chain evaluation: More tools needed - {next_input}")
+                return True, next_input
+            else:
+                logging.warning(f"Unclear tool chain evaluation result: {decision_text}")
+                # Default to ending the chain if the response is unclear
+                return False, ""
+                
+        except Exception as e:
+            logging.error(f"Error in tool chain evaluation: {e}")
+            return False, ""
+
+    def _prepare_tool_selection_prompt(self, user_input: str, conversation_history: List[Dict], 
+                                      tool_calls_history: List[ToolCallHistoryItem] = None) -> List[Dict]:
+        """Prepares the prompt for tool selection with tool chaining context"""
+        messages = self.prompt_service.generate_initial_tool_selection_prompt(user_input, conversation_history)
+        
+        # Add tool calls history context if available
+        if tool_calls_history:
+            tool_history_message = {
+                "role": "system",
+                "content": "Previous tool calls in this conversation:\n" + "\n".join([
+                    f"{i+1}. {item.tool_name}({json.dumps(item.tool_args)}): {item.tool_result[:150]}..."
+                    for i, item in enumerate(tool_calls_history)
+                ])
+            }
+            
+            # Insert just before the user's message (which should be the last one)
+            messages.insert(-1, tool_history_message)
+            
+        return messages
     
     def _get_available_tools(self) -> List[Dict]:
         """Gets available tools from the registry"""
@@ -211,8 +355,9 @@ class AgentService:
     
     def _make_tool_selection_call(self, messages: List[Dict], tools: List[Dict]) -> Any:
         """Makes the AI call for tool selection"""
-        response = self.openai_gateway.get_completion(messages, tools)
-        logging.info("Stage 1 completed: Tool selection AI call successful")
+        # Using tool_choice instead of function_call to match the OpenAIGateway implementation
+        response = self.openai_gateway.get_completion(messages, tools, tool_choice="auto")
+        logging.info("Tool selection AI call successful")
         return response
     
     def _execute_action(self, action: Any, tool_call: Any, user_input: str, 
@@ -236,80 +381,84 @@ class AgentService:
             response_format=response_format
         )
     
-    def _perform_response_generation_stage(self, tool_execution_response: ToolExecutionResponse) -> ActionResponse:
+    def _perform_response_generation_stage(self, action: Any = None, messages: List[Dict] = None, 
+                                          tool_calls_history: List[ToolCallHistoryItem] = None,
+                                          original_input: str = None, 
+                                          tool_execution_response: ToolExecutionResponse = None) -> ActionResponse:
         """
-        Performs Stage 2 - Final response generation
+        Enhanced response generation stage that works with either a single tool execution
+        or the results of a tool chaining sequence.
         
         Args:
-            tool_execution_response: The result of the tool execution from stage 1
+            action: The last action executed (optional)
+            messages: Updated conversation history messages (optional) 
+            tool_calls_history: History of all tool calls in the sequence (optional)
+            original_input: Original user input (optional)
+            tool_execution_response: Single tool execution response from previous code path (optional)
             
         Returns:
             ActionResponse: Final response to send to the user
         """
-        # Extract tool result as string
-        tool_result = self._get_result_as_string(tool_execution_response.result)
+        # Handle backward compatibility with the old method signature
+        if tool_execution_response:
+            # Extract from the single tool execution response
+            action = tool_execution_response.action
+            messages = tool_execution_response.messages
+            tool_result = self._get_result_as_string(tool_execution_response.result)
+            
+            # Update conversation with single tool interaction
+            messages = self._add_tool_interaction_to_messages(
+                tool_execution_response.messages, 
+                tool_execution_response.tool_call, 
+                tool_result
+            )
         
-        # Update conversation with tool interaction
-        updated_messages = self._add_tool_interaction_to_messages(
-            tool_execution_response.messages, 
-            tool_execution_response.tool_call, 
-            tool_result
-        )
-        
-        # Prepare final response prompt
+        # Prepare final response prompt - now handles both single tool and tool chain
         final_response_messages = self._prepare_final_response_prompt(
-            updated_messages, 
-            tool_execution_response.action
+            messages=messages, 
+            action=action, 
+            tool_calls_history=tool_calls_history,
+            original_input=original_input
         )
         
         # Make final AI call
         try:
-            logging.info("Making second AI call for final response generation")
+            logging.info("Making AI call for final response generation")
             final_ai_response = self.openai_gateway.get_completion(final_response_messages)
-            logging.info("Stage 2 completed: Final response AI call successful")
+            logging.info("Final response generation complete")
             
             # Parse the content for conversation end marker if present
             content = final_ai_response.choices[0].message.content
             is_conversation_over = False
             
             # Log the raw response content
-            logging.debug(f"Stage 2 AI raw response: {content}")
+            logging.debug(f"Final response raw content: {content}")
             
             # Check for JSON with is_conversation_over flag
             if content.strip().startswith('{') and content.strip().endswith('}'):
                 try:
                     response_json = json.loads(content)
-                    logging.debug(f"Successfully parsed JSON from stage 2 response: {response_json}")
+                    logging.debug(f"Successfully parsed JSON from response: {response_json}")
                     
                     if 'is_conversation_over' in response_json:
                         is_conversation_over = bool(response_json.get('is_conversation_over'))
-                        logging.info(f"Stage 2: Set conversation_over flag to: {is_conversation_over}")
-                    else:
-                        logging.warning("Stage 2: JSON missing 'is_conversation_over' field")
-                        
+                        logging.info(f"Set conversation_over flag to: {is_conversation_over}")
+                    
                     if 'message' in response_json:
                         content = response_json.get('message')
-                        logging.debug(f"Stage 2: Extracted message from JSON: {content}")
-                    else:
-                        logging.warning("Stage 2: JSON missing 'message' field")
+                        logging.debug(f"Extracted message from JSON: {content}")
                 except json.JSONDecodeError as e:
-                    logging.warning(f"Stage 2: Failed to parse response as JSON: {e}")
-                    logging.warning(f"Stage 2: Problem content: {content}")
-            else:
-                logging.debug("Stage 2: Response is not in JSON format")
+                    logging.warning(f"Failed to parse response as JSON: {e}")
             
             # Create text response
             response = TextResponse(content)
             if is_conversation_over:
                 response.mark_conversation_over()
-                logging.info(f"Stage 2: Marked conversation as over. Final flag value: {response.is_conversation_over}")
-            else:
-                logging.info(f"Stage 2: Conversation continuing. Flag value: {response.is_conversation_over}")
                 
             return response
             
         except Exception as e:
-            logging.error(f"Stage 2 failed: Error in final response AI call: {e}")
+            logging.error(f"Error in final response generation: {e}")
             return ErrorResponse("Error processing the response", str(e))
         
     def _add_tool_interaction_to_messages(self, messages: List[Dict], tool_call: Any, tool_result: str) -> List[Dict]:
@@ -336,9 +485,31 @@ class AgentService:
         ])
         return messages_copy
     
-    def _prepare_final_response_prompt(self, messages: List[Dict], action: Any) -> List[Dict]:
-        """Prepares the prompt for the final response generation"""
-        return self.prompt_service.generate_final_response_prompt(messages, action)
+    def _prepare_final_response_prompt(self, messages: List[Dict], action: Any = None,
+                                      tool_calls_history: List[ToolCallHistoryItem] = None,
+                                      original_input: str = None) -> List[Dict]:
+        """
+        Enhanced prompt preparation for the final response generation
+        that includes tool chain context when available
+        """
+        # Get base prompt from prompt service
+        final_messages = self.prompt_service.generate_final_response_prompt(messages, action)
+        
+        # Add tool chain context if available
+        if tool_calls_history and len(tool_calls_history) > 1:
+            # Find the last system message to augment
+            for i, msg in enumerate(final_messages):
+                if msg["role"] == "system":
+                    # Add tool chain summary to the system message
+                    tool_chain_summary = "\n\nThis request was processed using multiple tools in sequence:\n" + "\n".join([
+                        f"{i+1}. {item.tool_name}: {item.tool_result[:100]}..." 
+                        for i, item in enumerate(tool_calls_history)
+                    ])
+                    
+                    final_messages[i]["content"] += tool_chain_summary
+                    break
+        
+        return final_messages
     
     def _get_result_as_string(self, result: Any) -> str:
         """
