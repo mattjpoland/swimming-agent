@@ -90,6 +90,7 @@ def standardize_conversation_history(conversation_history):
             - None
             - Empty string
             - JSON string (from iOS Shortcuts)
+            - Newline-delimited JSON strings (from iOS Shortcuts)
             - Array of message objects
             - Single message object
             
@@ -106,7 +107,25 @@ def standardize_conversation_history(conversation_history):
         if not conversation_history.strip():
             return []
             
-        # Try to parse as JSON
+        # Check for newline-delimited JSON objects from iOS Shortcuts
+        if '\n' in conversation_history and conversation_history.strip().startswith('{'):
+            try:
+                result = []
+                # Split by newlines and parse each JSON object
+                for line in conversation_history.strip().split('\n'):
+                    if line.strip():  # Skip empty lines
+                        obj = json.loads(line.strip())
+                        if isinstance(obj, dict) and ('content' in obj or 'role' in obj):
+                            result.append(obj)
+                
+                if result:
+                    logging.info(f"Successfully parsed {len(result)} message(s) from newline-delimited JSON")
+                    return result
+            except json.JSONDecodeError as e:
+                logging.warning(f"Failed to parse newline-delimited JSON: {str(e)}")
+                # Continue to try other parsing methods
+        
+        # Try to parse as single JSON object or array
         try:
             parsed = json.loads(conversation_history)
             # Single message object
