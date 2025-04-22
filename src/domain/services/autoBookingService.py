@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 from src.domain.sql.scheduleGateway import get_all_active_schedules
+from src.domain.sql.authGateway import get_mac_password
 from src.domain.services.bookingService import book_swim_lane_action
 import pytz
 
@@ -31,12 +32,13 @@ def process_auto_booking():
     for schedule in schedules:
         username = schedule["username"]
         today_schedule = schedule.get(today)
-        mac_password = schedule.get("mac_password")
         
         if not today_schedule:
             logging.info(f"No booking scheduled for {username} on {today}")
             continue
-            
+        
+        # Get the MAC password from auth_data table
+        mac_password = get_mac_password(username)
         if not mac_password:
             logging.warning(f"Missing MAC password for user {username}, cannot proceed with booking")
             results.append({

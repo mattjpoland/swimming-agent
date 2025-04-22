@@ -7,7 +7,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
-def add_or_update_schedule(username, schedule, mac_password=None):
+def add_or_update_schedule(username, schedule):
     """
     Add or update a user's swim lane schedule.
     The schedule parameter should be a dictionary with keys for each day of the week.
@@ -18,9 +18,21 @@ def add_or_update_schedule(username, schedule, mac_password=None):
         "wednesday": {"pool": "Outdoor Pool", "lane": "Lane 2", "time": "10:00:00"},
         ...
     }
-    
-    mac_password is the password for the Michigan Athletic Club website.
     """
+    # Safely extract values from the schedule, handling None values
+    def safe_get(day_schedule, key):
+        if day_schedule is None:
+            return None
+        return day_schedule.get(key)
+    
+    monday_data = schedule.get("monday", None)
+    tuesday_data = schedule.get("tuesday", None)
+    wednesday_data = schedule.get("wednesday", None)
+    thursday_data = schedule.get("thursday", None)
+    friday_data = schedule.get("friday", None)
+    saturday_data = schedule.get("saturday", None)
+    sunday_data = schedule.get("sunday", None)
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -31,8 +43,7 @@ def add_or_update_schedule(username, schedule, mac_password=None):
             thursday_pool, thursday_lane, thursday_time,
             friday_pool, friday_lane, friday_time,
             saturday_pool, saturday_lane, saturday_time,
-            sunday_pool, sunday_lane, sunday_time,
-            mac_password
+            sunday_pool, sunday_lane, sunday_time
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (username) DO UPDATE SET
@@ -57,32 +68,30 @@ def add_or_update_schedule(username, schedule, mac_password=None):
             sunday_pool = EXCLUDED.sunday_pool,
             sunday_lane = EXCLUDED.sunday_lane,
             sunday_time = EXCLUDED.sunday_time,
-            mac_password = CASE WHEN EXCLUDED.mac_password IS NOT NULL THEN EXCLUDED.mac_password ELSE swim_lane_schedule.mac_password END,
             updated_at = CURRENT_TIMESTAMP;
     """, (
         username,
-        schedule.get("monday", {}).get("pool"),
-        schedule.get("monday", {}).get("lane"),
-        schedule.get("monday", {}).get("time"),
-        schedule.get("tuesday", {}).get("pool"),
-        schedule.get("tuesday", {}).get("lane"),
-        schedule.get("tuesday", {}).get("time"),
-        schedule.get("wednesday", {}).get("pool"),
-        schedule.get("wednesday", {}).get("lane"),
-        schedule.get("wednesday", {}).get("time"),
-        schedule.get("thursday", {}).get("pool"),
-        schedule.get("thursday", {}).get("lane"),
-        schedule.get("thursday", {}).get("time"),
-        schedule.get("friday", {}).get("pool"),
-        schedule.get("friday", {}).get("lane"),
-        schedule.get("friday", {}).get("time"),
-        schedule.get("saturday", {}).get("pool"),
-        schedule.get("saturday", {}).get("lane"),
-        schedule.get("saturday", {}).get("time"),
-        schedule.get("sunday", {}).get("pool"),
-        schedule.get("sunday", {}).get("lane"),
-        schedule.get("sunday", {}).get("time"),
-        mac_password
+        safe_get(monday_data, "pool"),
+        safe_get(monday_data, "lane"),
+        safe_get(monday_data, "time"),
+        safe_get(tuesday_data, "pool"),
+        safe_get(tuesday_data, "lane"),
+        safe_get(tuesday_data, "time"),
+        safe_get(wednesday_data, "pool"),
+        safe_get(wednesday_data, "lane"),
+        safe_get(wednesday_data, "time"),
+        safe_get(thursday_data, "pool"),
+        safe_get(thursday_data, "lane"),
+        safe_get(thursday_data, "time"),
+        safe_get(friday_data, "pool"),
+        safe_get(friday_data, "lane"),
+        safe_get(friday_data, "time"),
+        safe_get(saturday_data, "pool"),
+        safe_get(saturday_data, "lane"),
+        safe_get(saturday_data, "time"),
+        safe_get(sunday_data, "pool"),
+        safe_get(sunday_data, "lane"),
+        safe_get(sunday_data, "time")
     ))
     conn.commit()
     conn.close()
@@ -98,8 +107,7 @@ def get_schedule(username):
                thursday_pool, thursday_lane, thursday_time,
                friday_pool, friday_lane, friday_time,
                saturday_pool, saturday_lane, saturday_time,
-               sunday_pool, sunday_lane, sunday_time,
-               mac_password
+               sunday_pool, sunday_lane, sunday_time
         FROM swim_lane_schedule
         WHERE username = %s;
     """, (username,))
@@ -113,8 +121,7 @@ def get_schedule(username):
             "thursday": {"pool": result[9], "lane": result[10], "time": result[11]} if result[11] else None,
             "friday": {"pool": result[12], "lane": result[13], "time": result[14]} if result[14] else None,
             "saturday": {"pool": result[15], "lane": result[16], "time": result[17]} if result[17] else None,
-            "sunday": {"pool": result[18], "lane": result[19], "time": result[20]} if result[20] else None,
-            "mac_password": result[21]
+            "sunday": {"pool": result[18], "lane": result[19], "time": result[20]} if result[20] else None
         }
     return None
 
@@ -130,8 +137,7 @@ def get_all_active_schedules():
                thursday_pool, thursday_lane, thursday_time,
                friday_pool, friday_lane, friday_time,
                saturday_pool, saturday_lane, saturday_time,
-               sunday_pool, sunday_lane, sunday_time,
-               mac_password
+               sunday_pool, sunday_lane, sunday_time
         FROM swim_lane_schedule;
     """)
     results = cursor.fetchall()
@@ -148,8 +154,7 @@ def get_all_active_schedules():
             "thursday": {"pool": row[10], "lane": row[11], "time": row[12]} if row[12] else None,
             "friday": {"pool": row[13], "lane": row[14], "time": row[15]} if row[15] else None,
             "saturday": {"pool": row[16], "lane": row[17], "time": row[18]} if row[18] else None,
-            "sunday": {"pool": row[19], "lane": row[20], "time": row[21]} if row[21] else None,
-            "mac_password": row[22]
+            "sunday": {"pool": row[19], "lane": row[20], "time": row[21]} if row[21] else None
         }
         schedules.append(schedule)
     

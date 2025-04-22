@@ -23,3 +23,5 @@ chunks.json.partial
 
 #Ignore local memory
 memory_store.json
+
+run_sql_scripts_adhoc.py

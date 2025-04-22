@@ -1,8 +1,10 @@
 from flask import jsonify, g
 from src.agent.base import AgentAction
 from src.domain.sql.scheduleGateway import add_or_update_schedule, get_schedule
+from src.domain.sql.authGateway import get_mac_password
 import logging
 import json
+from datetime import time, datetime
 
 class ManageScheduleAction(AgentAction):
     @property
@@ -38,10 +40,6 @@ class ManageScheduleAction(AgentAction):
                     "type": "string",
                     "enum": ["view", "add", "remove", "clear"],
                     "description": "The action to perform: view schedule, add a booking, remove a specific day's booking, or clear entire schedule."
-                },
-                "mac_password": {
-                    "type": "string",
-                    "description": "The user's Michigan Athletic Club password for auto-booking. Only needed when setting up schedule for the first time."
                 }
             },
             "required": ["action"]
@@ -57,16 +55,20 @@ class ManageScheduleAction(AgentAction):
                 "- 'add': Add or update a booking for a specific day (requires day, pool, lane, time) "
                 "- 'remove': Remove a booking for a specific day (requires day) "
                 "- 'clear': Clear the entire schedule (no additional parameters needed) "
-                "When a user is setting up their schedule for the first time, ask for their MAC password which is needed for auto-booking. "
                 "For time, use 24-hour format (e.g., '06:00:00' for 6:00 AM). "
-                "Remind users that the system will automatically book lanes according to this schedule."
+                "When showing a schedule, ALWAYS display all scheduled days even if auto-booking is inactive. "
+                "If auto-booking is inactive due to no MAC password, still show the full schedule details "
+                "but note that bookings won't happen automatically until the MAC password is configured. "
+                "Never tell users they don't have a schedule if they actually have days configured."
         )
     
     @property
     def response_format_instructions(self):
         return (
             "Format your response as follows:\n"
-            "1. For 'view' action, present the schedule in a clear, easily readable format by day of week\n"
+            "1. For 'view' action, present the FULL schedule in a clear, easily readable format by day of week\n"
+            "   - Always show each day that has a booking scheduled, even if auto-booking is inactive\n"
+            "   - If auto-booking is inactive, still show the schedule but mention it's not currently auto-booking\n"
             "2. For 'add' action, confirm the day, time, pool, and lane that was scheduled\n"
             "3. For 'remove' action, confirm which day's booking was removed\n"
             "4. For 'clear' action, confirm that the entire schedule was cleared\n"
@@ -99,6 +101,17 @@ class ManageScheduleAction(AgentAction):
         
         return ordinals.get(day, day)
     
+    def _make_json_serializable(self, obj):
+        """Convert non-serializable objects to JSON-serializable format."""
+        if isinstance(obj, dict):
+            return {k: self._make_json_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+        elif isinstance(obj, (datetime, time)):
+            return obj.isoformat()
+        else:
+            return obj
+    
     def execute(self, arguments, context, user_input, **kwargs):
         """Execute the schedule management action."""
         try:
@@ -108,7 +121,6 @@ class ManageScheduleAction(AgentAction):
             pool = arguments.get("pool")
             lane = arguments.get("lane")
             time = arguments.get("time") 
-            mac_password = arguments.get("mac_password")
             
             # Check for username - first try MAC_USERNAME, then try USERNAME, finally check IS_ADMIN
             username = context.get("MAC_USERNAME") or context.get("USERNAME")
@@ -131,20 +143,30 @@ class ManageScheduleAction(AgentAction):
             current_schedule = get_schedule(username) or {}
             
             if action == "view":
-                if not current_schedule:
+                # Check if user has a MAC password set (for informational purposes only)
+                has_password = get_mac_password(username) is not None
+                
+                # Make the schedule JSON-serializable
+                serializable_schedule = self._make_json_serializable(current_schedule)
+                
+                # Check if the schedule has any configured days
+                has_schedule_items = any(day_schedule is not None for day_schedule in current_schedule.values())
+                
+                if not has_schedule_items:
                     return jsonify({
                         "message": "You don't have any automated bookings scheduled yet. Use the add action to set up your schedule.",
                         "schedule": {},
                         "status": "success"
                     }), 200
                 
-                # Filter out mac_password from response for security
-                schedule_to_display = {k: v for k, v in current_schedule.items() if k != "mac_password"}
+                # Return the schedule with appropriate message based on auto-booking status
+                auto_booking_message = " (Auto-booking is active)" if has_password else " (Auto-booking is currently inactive - MAC password not configured)"
                 
                 return jsonify({
-                    "message": "Here's your current automated booking schedule:",
-                    "schedule": schedule_to_display,
-                    "status": "success"
+                    "message": "Here's your current automated booking schedule:" + auto_booking_message,
+                    "schedule": serializable_schedule,
+                    "status": "success",
+                    "auto_booking_enabled": has_password
                 }), 200
                 
             elif action == "add":
@@ -157,13 +179,6 @@ class ManageScheduleAction(AgentAction):
                 
                 # Initialize or update schedule
                 if not current_schedule:
-                    # New schedule requires password
-                    if not mac_password:
-                        return jsonify({
-                            "message": "For first-time setup, please provide your MAC password which is needed for auto-booking.",
-                            "status": "error"
-                        }), 400
-                    
                     schedule = {
                         "monday": None,
                         "tuesday": None,
@@ -174,10 +189,11 @@ class ManageScheduleAction(AgentAction):
                         "sunday": None
                     }
                 else:
-                    schedule = {k: v for k, v in current_schedule.items() if k != "mac_password"}
-                    # Use existing password if not provided
-                    if not mac_password:
-                        mac_password = current_schedule.get("mac_password")
+                    schedule = current_schedule.copy()
+                
+                # Check if they have a password already (for informational purposes only)
+                has_password = get_mac_password(username) is not None
+                auto_booking_message = " Auto-booking is active." if has_password else " Note: Auto-booking is inactive - MAC password not configured."
                 
                 # Update the specific day
                 schedule[day] = {
@@ -187,11 +203,12 @@ class ManageScheduleAction(AgentAction):
                 }
                 
                 # Save to database
-                add_or_update_schedule(username, schedule, mac_password)
+                add_or_update_schedule(username, schedule)
                 
                 return jsonify({
-                    "message": f"Successfully scheduled {pool}, {lane} for {day.capitalize()} at {time}.",
-                    "status": "success"
+                    "message": f"Successfully scheduled {pool}, {lane} for {day.capitalize()} at {time}." + auto_booking_message,
+                    "status": "success",
+                    "auto_booking_enabled": has_password
                 }), 200
                 
             elif action == "remove":
@@ -208,8 +225,8 @@ class ManageScheduleAction(AgentAction):
                         "status": "error"
                     }), 400
                 
-                # Clone the schedule without the password
-                schedule = {k: v for k, v in current_schedule.items() if k != "mac_password"}
+                # Clone the schedule
+                schedule = current_schedule.copy()
                 
                 # Check if there's anything scheduled for this day
                 if not schedule.get(day):
@@ -222,7 +239,7 @@ class ManageScheduleAction(AgentAction):
                 schedule[day] = None
                 
                 # Save back to database
-                add_or_update_schedule(username, schedule, current_schedule.get("mac_password"))
+                add_or_update_schedule(username, schedule)
                 
                 return jsonify({
                     "message": f"Successfully removed the booking for {day.capitalize()}.",
@@ -247,8 +264,8 @@ class ManageScheduleAction(AgentAction):
                     "sunday": None
                 }
                 
-                # Save the empty schedule but keep the password
-                add_or_update_schedule(username, empty_schedule, current_schedule.get("mac_password"))
+                # Save the empty schedule
+                add_or_update_schedule(username, empty_schedule)
                 
                 return jsonify({
                     "message": "Your entire booking schedule has been cleared.",
