@@ -32,8 +32,7 @@ class AgentService:
 
     def process_chat(self, user_input: str, context: Dict[str, Any] = None, 
                     response_format: str = "auto",
-                    conversation_history: List[Dict] = None,
-                    session_id: str = None) -> Tuple[Union[Dict, Response], int, List[Dict]]:
+                    session_id: str = None) -> Tuple[Union[Dict, Response], int]:
         """
         Process a chat request through the hybrid agent pipeline with tool chaining.
         
@@ -46,7 +45,6 @@ class AgentService:
             Tuple containing:
             - The response data (Dict or Response object)
             - Status code (int)
-            - Updated conversation history (List[Dict])
         """
         try:
             # Normalize parameters
@@ -56,16 +54,9 @@ class AgentService:
             if not session_id:
                 session_id = str(uuid.uuid4())
             
-            # Get conversation history from memory service or use provided history
-            if conversation_history:
-                # If history is provided, update memory with it
-                self.memory_service.update_conversation_memory(session_id, conversation_history)
-                memory = self.memory_service.get_conversation_memory(session_id)
-                updated_history = memory.messages.copy()
-            else:
-                # Otherwise, retrieve from memory
-                memory = self.memory_service.get_conversation_memory(session_id)
-                updated_history = memory.messages.copy()
+            # Retrieve conversation memory for this session
+            memory = self.memory_service.get_conversation_memory(session_id)
+            conversation_history = memory.messages.copy()
             
             # Store context in flask g for action execution if it's not already there
             if context and not hasattr(g, 'context'):
@@ -75,29 +66,30 @@ class AgentService:
             context['session_id'] = session_id
             
             # Add user message to history
-            updated_history.append({
+            conversation_history.append({
                 "role": "user", 
                 "content": user_input
             })
             
             # Update conversation memory with new user message
-            self.memory_service.update_conversation_memory(session_id, updated_history)
+            self.memory_service.update_conversation_memory(session_id, conversation_history)
             
             # Run the tool chaining process
-            result = self._process_with_tool_chaining(user_input, updated_history, response_format, session_id)
+            result = self._process_with_tool_chaining(user_input, conversation_history, response_format, session_id)
             
             # The result contains both the final response and updated conversation history
             response_data, status_code = result.response.to_http_response()
             
             # Add final assistant response to history
             if hasattr(result.response, 'content'):
-                updated_history.append({
+                final_history = conversation_history.copy()
+                final_history.append({
                     "role": "assistant",
                     "content": result.response.content
                 })
                 
                 # Update conversation memory with the complete conversation
-                self.memory_service.update_conversation_memory(session_id, updated_history)
+                self.memory_service.update_conversation_memory(session_id, final_history)
                 
                 # Store tool call history as episodic memory
                 if result.tool_calls_history:
@@ -110,13 +102,13 @@ class AgentService:
                         }
                     )
             
-            return response_data, status_code, updated_history
+            return response_data, status_code
             
         except Exception as e:
             logging.error(f"Error in agent service: {e}", exc_info=True)
             error_response = ErrorResponse("Failed to process request", str(e))
             response_data, status_code = error_response.to_http_response()
-            return response_data, status_code, conversation_history or []
+            return response_data, status_code
             
     @dataclass
     class ToolChainResult:

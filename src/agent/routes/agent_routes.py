@@ -32,12 +32,6 @@ def chat():
             session_id = str(uuid.uuid4())
             logging.info(f"Generated new session ID: {session_id}")
         
-        # Standardize conversation history format if provided
-        # This is for backward compatibility
-        conversation_history = None
-        if 'conversation_history' in data:
-            conversation_history = standardize_conversation_history(data.get('conversation_history', []))
-        
         # Get context from Flask g if available
         context = getattr(g, 'context', {})
         
@@ -45,11 +39,10 @@ def chat():
         logging.info(f"Processing agent request: '{user_input[:50]}{'...' if len(user_input) > 50 else ''}' with session ID: {session_id}")
         
         # Process the request through the service layer
-        result, status_code, updated_history = agent_service.process_chat(
+        result, status_code = agent_service.process_chat(
             user_input=user_input,
             context=context,
             response_format=response_format,
-            conversation_history=conversation_history,
             session_id=session_id
         )
         
@@ -62,8 +55,6 @@ def chat():
             elif isinstance(result, dict):
                 # For dictionaries, we can safely log the JSON
                 response_dict = result.copy()
-                if 'conversation_history' in response_dict:
-                    response_dict['conversation_history'] = f"[{len(response_dict.get('conversation_history', []))} items]"
                 logging.info(f"RAW RESPONSE: {json.dumps(response_dict)}")
             else:
                 # For other types just convert to string
@@ -73,9 +64,8 @@ def chat():
         if isinstance(result, Response):
             response = result
         else:
-            # Add conversation_history and session_id to the response
+            # Add session_id to the response
             if isinstance(result, dict):
-                result['conversation_history'] = updated_history
                 result['session_id'] = session_id
             
             # Otherwise, jsonify the dictionary result
@@ -91,78 +81,3 @@ def chat():
             "message": "An error occurred while processing your request",
             "content_type": "application/json"
         }), 500
-
-# This function stays the same for backward compatibility
-def standardize_conversation_history(conversation_history):
-    """
-    Standardizes conversation history to always be an array of message objects.
-    Handles different input formats from various clients.
-    
-    Args:
-        conversation_history: The conversation history from the request, could be:
-            - None
-            - Empty string
-            - JSON string (from iOS Shortcuts)
-            - Newline-delimited JSON strings (from iOS Shortcuts)
-            - Array of message objects
-            - Single message object
-            
-    Returns:
-        List: A standardized array of message objects
-    """
-    # Handle None or empty values
-    if not conversation_history:
-        return []
-        
-    # Handle string input (common from iOS Shortcuts)
-    if isinstance(conversation_history, str):
-        # Empty string
-        if not conversation_history.strip():
-            return []
-            
-        # Check for newline-delimited JSON objects from iOS Shortcuts
-        if '\n' in conversation_history and conversation_history.strip().startswith('{'):
-            try:
-                result = []
-                # Split by newlines and parse each JSON object
-                for line in conversation_history.strip().split('\n'):
-                    if line.strip():  # Skip empty lines
-                        obj = json.loads(line.strip())
-                        if isinstance(obj, dict) and ('content' in obj or 'role' in obj):
-                            result.append(obj)
-                
-                if result:
-                    logging.info(f"Successfully parsed {len(result)} message(s) from newline-delimited JSON")
-                    return result
-            except json.JSONDecodeError as e:
-                logging.warning(f"Failed to parse newline-delimited JSON: {str(e)}")
-                # Continue to try other parsing methods
-        
-        # Try to parse as single JSON object or array
-        try:
-            parsed = json.loads(conversation_history)
-            # Single message object
-            if isinstance(parsed, dict) and ('content' in parsed or 'role' in parsed):
-                return [parsed]
-            # Array of messages
-            elif isinstance(parsed, list):
-                return parsed
-            # Unknown format
-            else:
-                logging.warning(f"Unrecognized JSON format for conversation history: {conversation_history}")
-                return []
-        except json.JSONDecodeError:
-            logging.warning(f"Failed to parse conversation history as JSON: {conversation_history}")
-            return []
-    
-    # Handle dict input (single message)
-    if isinstance(conversation_history, dict) and ('content' in conversation_history or 'role' in conversation_history):
-        return [conversation_history]
-        
-    # Handle list input (already correct format)
-    if isinstance(conversation_history, list):
-        return conversation_history
-        
-    # Fallback for unexpected types
-    logging.warning(f"Unexpected conversation_history type: {type(conversation_history)}")
-    return []

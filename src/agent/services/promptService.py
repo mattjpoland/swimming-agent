@@ -28,6 +28,10 @@ class PromptService:
         This is the main entry point for AI-1 prompt generation.
         
         [AI 1 Prompts called by AgentService]
+        
+        Args:
+            user_input: The user's current input
+            conversation_history: Conversation history (provided by memory service)
         """
         # Build system prompt directly
         system_prompt = self._get_base_identity_prompt()
@@ -46,42 +50,32 @@ class PromptService:
         )
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Handle conversation_history that might be None, empty string, or a JSON string
-        if conversation_history is None or conversation_history == "":
-            conversation_history = []
-        elif isinstance(conversation_history, str):
-            # Try to parse it as JSON
-            try:
-                import json
-                parsed = json.loads(conversation_history)
-                if isinstance(parsed, dict):
-                    # Single message object
-                    conversation_history = [parsed]
-                elif isinstance(parsed, list):
-                    # Already an array
-                    conversation_history = parsed
-                else:
-                    # Unexpected format, reset to empty
-                    conversation_history = []
-            except json.JSONDecodeError:
-                # If it can't be decoded as JSON, reset to empty
-                conversation_history = []
-        
-        # Add conversation history
+        # Add conversation history if provided
         if conversation_history:
             for message in conversation_history:
                 if not isinstance(message, dict):
                     continue  # Skip non-dict messages
                     
-                # Safely extract role and content
+                # Extract role and content safely
                 role = message.get("role", "user") if hasattr(message, "get") else "user"
                 content = message.get("content", "") if hasattr(message, "get") else str(message)
                 
-                if role in ["user", "assistant"] and content:
-                    messages.append({"role": role, "content": content})
-        
-        # Add current user message
-        messages.append({"role": "user", "content": user_input})
+                # Handle tool calls
+                tool_calls = message.get("tool_calls", None)
+                tool_call_id = message.get("tool_call_id", None)
+                
+                if role in ["user", "assistant", "tool"] and (content or tool_calls):
+                    if tool_calls:
+                        # Format tool call message
+                        msg = {"role": role, "content": content, "tool_calls": tool_calls}
+                        messages.append(msg)
+                    elif tool_call_id:
+                        # Format tool response message
+                        msg = {"role": role, "content": content, "tool_call_id": tool_call_id}
+                        messages.append(msg)
+                    else:
+                        # Format normal message
+                        messages.append({"role": role, "content": content})
         
         return messages
     
