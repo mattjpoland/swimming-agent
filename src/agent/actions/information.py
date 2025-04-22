@@ -7,6 +7,7 @@ class InformationAction(AgentAction):
     def __init__(self):
         super().__init__()
         self.openai_gateway = OpenAIGateway()
+        self.admin_action_attempted = None
 
     @property
     def name(self):
@@ -51,9 +52,23 @@ When answering questions about pool hours or schedules:
             },
             "required": ["question"]
         }
-
+        
+    def set_admin_action_attempted(self, action_name):
+        """Flag that a non-admin user attempted to access an admin-only action"""
+        self.admin_action_attempted = action_name
+        
     def execute(self, arguments, context, user_input, **kwargs):
         try:
+            # Check if this is handling an admin access attempt
+            if self.admin_action_attempted == "manage_schedule":
+                # Reset the flag after handling
+                self.admin_action_attempted = None
+                
+                return {
+                    "message": "I see you're asking about automated lane booking schedules. This feature is currently available only to administrators. If you need to set up recurring lane bookings, please contact the facility administrator for assistance.",
+                    "status": "admin_only_feature"
+                }
+                
             question = arguments.get("question")
             if not question:
                 raise ValueError("Question is required")

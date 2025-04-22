@@ -247,8 +247,13 @@ class AgentService:
         
         logging.info(f"Tool call detected: {function_name} with arguments: {tool_call.function.arguments}")
         
-        # Get the action from registry
-        action = registry.get_action(function_name)
+        # Get context from Flask g if available
+        context = getattr(g, 'context', {})
+        # Check if user is admin
+        is_admin = bool(context.get('IS_ADMIN', False))
+        
+        # Get the action from registry with proper admin status
+        action = registry.get_action(function_name, is_admin)
         if not action:
             return ErrorResponse(
                 f"I don't know how to {function_name} yet.",
@@ -383,8 +388,14 @@ class AgentService:
         return messages
     
     def _get_available_tools(self) -> List[Dict]:
-        """Gets available tools from the registry"""
-        return registry.get_tools_for_openai()
+        """Gets available tools from the registry based on admin status"""
+        # Get context from Flask g if available
+        context = getattr(g, 'context', {})
+        # Check if user is admin
+        is_admin = bool(context.get('IS_ADMIN', False))
+        
+        # Get tools appropriate for the user's admin status
+        return registry.get_tools_for_openai(is_admin=is_admin)
     
     def _make_tool_selection_call(self, messages: List[Dict], tools: List[Dict]) -> Any:
         """Makes the AI call for tool selection"""
@@ -537,9 +548,9 @@ class AgentService:
                     context_instructions += "\n- Focus ONLY on the most recent user request and relevant tool results"
                     context_instructions += "\n- For time-based queries, only mention the MOST RECENT time reference (today/tomorrow/Thursday)"
                     context_instructions += "\n- When a user has changed their preferred day/time, COMPLETELY IGNORE information about previous days/times"
-                    context_instructions += "\n- If discussing appointment availability, focus on the slots for the MOST RECENTLY requested day only"
-                    context_instructions += "\n- For weather information, only include data for the specifically requested day"
-                    context_instructions += "\n- Structure your response to answer the user's current request directly without referring to past exchanges"
+                    context_instructions += "\n- ONLY provide information about the newly requested day/time"
+                    context_instructions += "\n- Do NOT compare with previously mentioned times unless explicitly asked"
+                    context_instructions += "\n- Format your response to focus exclusively on the new time period requested"
                     
                     # Add brief tool history summary focused on most relevant results
                     if len(tool_calls_history) > 1:

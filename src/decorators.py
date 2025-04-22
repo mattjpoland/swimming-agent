@@ -24,7 +24,12 @@ def require_api_key(f):
             logging.warning(f"Access denied for disabled account: {g.context.get('USERNAME')}")
             return jsonify({"error": "Account not enabled"}), 403
 
-        logging.info(f"Authenticated user: {g.context.get('USERNAME')}")
+        # Log user authentication with admin status
+        is_admin = g.context.get("IS_ADMIN", False)
+        username = g.context.get("USERNAME")
+        admin_status = "admin" if is_admin else "regular user"
+        logging.info(f"Authenticated user: {username} (Status: {admin_status})")
+        
         return f(*args, **kwargs)
     return decorated_function
 

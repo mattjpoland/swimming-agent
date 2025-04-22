@@ -237,3 +237,20 @@ def debug_query_route():
         logging.error(f"Debug query error: {e}")
         return jsonify({"error": str(e)}), 500
 
+@api_bp.route("/schedule/auto-book", methods=["POST"])
+@require_api_key
+def auto_book_lanes():
+    """API Endpoint for auto-booking scheduled swim lanes for the current day."""
+    from src.domain.services.autoBookingService import process_auto_booking
+    
+    try:
+        results = process_auto_booking()
+        return jsonify({
+            "status": "success", 
+            "message": f"Auto-booking process completed with {len(results)} results",
+            "results": results
+        }), 200
+    except Exception as e:
+        logging.exception(f"Auto-booking process failed: {str(e)}")
+        return jsonify({"status": "error", "message": f"Auto-booking process failed: {str(e)}"}), 500
+
