@@ -364,10 +364,17 @@ class AgentService:
                     messages[i]['content'] = context
                     break
             
-            # Add a summary in the system message to provide context
+            # Add a summary in the system message to provide context with improved context relevance instructions
             for i, msg in enumerate(messages):
                 if msg['role'] == 'system':
-                    summary = "\n\nREMEMBER: This is a multi-step task. You've already gathered information from:"
+                    summary = "\n\nCONTEXT MANAGEMENT INSTRUCTIONS:"
+                    summary += "\n- This is a multi-step task with previous context."
+                    summary += "\n- For time-based queries (today/tomorrow/specific days), only focus on the MOST RECENT time reference."
+                    summary += "\n- When user changes focus (e.g. from 'today' to 'Thursday'), treat it as a replacement, not accumulation."
+                    summary += "\n- If user asks a completely new question, previous tool results may be irrelevant."
+                    summary += "\n- Only include information from previous steps that directly relates to the current request."
+                    
+                    summary += "\n\nPrevious information gathered:"
                     for item in tool_calls_history:
                         summary += f"\n- {item.tool_name}: {item.tool_result[:100]}..."
                     messages[i]['content'] += summary
