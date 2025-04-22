@@ -160,6 +160,14 @@ class PromptService:
             "\n4. Consider relationships between data (e.g., dates from one tool may need to be used in another tool)"
             "\n5. Be efficient - if a tool has already provided relevant information to answer the user's question, mark it as complete"
             
+            "\n\nCONTEXT RELEVANCE INSTRUCTIONS:"
+            "\n- For time-based queries (today/tomorrow/Thursday), focus ONLY on the most recent time reference"
+            "\n- When user switches from one day to another (e.g., 'Not today, how about tomorrow?'), completely discard information about the previous day"
+            "\n- If user modifies their request to a different time or location, treat it as a replacement of the previous request"
+            "\n- Only maintain context that directly contributes to fulfilling the current, most recent user request"
+            "\n- Do not accumulate information across different days or time slots unless explicitly requested"
+            "\n- If user starts a completely new topic, all previous tool call information should be considered irrelevant"
+            
             "\n\nIMPORTANT DOMAIN UNDERSTANDING:"
             "\n- This is a swimming facility, so when users ask about 'appointments', they are always referring to swim lane appointments"
             "\n- An appointment response from the check_appointments tool already provides all needed swimming appointment information"
@@ -171,6 +179,7 @@ class PromptService:
             "\n- When the user asked about availability and received availability information"
             "\n- When the user asked about weather and received weather information"
             "\n- When the user's entire question has been directly addressed by the last tool call's result"
+            "\n- When the user has switched topics and received a complete answer for the new topic"
             
             "\n\nRESPOND WITH EXACTLY ONE OF THESE OPTIONS:"
             "\n- If the request is complete: 'COMPLETE: <brief explanation>'"

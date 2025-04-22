@@ -33,7 +33,6 @@ class WeatherForecastAction:
             "You can provide the weather forecast for a specific date. "
             "When a user asks about weather for any future time period or date - including simple queries like 'Tomorrow?' - use the get_weather_forecast function. "
             "For the date parameter, convert relative time references (tomorrow, next Monday, etc.) to YYYY-MM-DD format based on the current date in Eastern Time. "
-            "If the user simply asks 'Tomorrow?' without specifying an exact date format, you should still call get_weather_forecast and let the function handle the date calculation. "
             "When the user follows up a weather query with a time reference, always interpret this as a request for a forecast rather than current conditions."
         )
         
