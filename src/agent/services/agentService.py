@@ -350,21 +350,29 @@ class AgentService:
     def _prepare_tool_selection_prompt(self, user_input: str, conversation_history: List[Dict], 
                                       tool_calls_history: List[ToolCallHistoryItem] = None) -> List[Dict]:
         """Prepares the prompt for tool selection with tool chaining context"""
+        # Get base conversation history from prompt service
         messages = self.prompt_service.generate_initial_tool_selection_prompt(user_input, conversation_history)
         
-        # Add tool calls history context if available
-        if tool_calls_history:
-            tool_history_message = {
-                "role": "system",
-                "content": "Previous tool calls in this conversation:\n" + "\n".join([
-                    f"{i+1}. {item.tool_name}({json.dumps(item.tool_args)}): {item.tool_result[:150]}..."
-                    for i, item in enumerate(tool_calls_history)
-                ])
-            }
+        # Instead of adding tool history as a system message, we'll use a different approach
+        # for multi-step reasoning that's compatible with the OpenAI API's conversation format
+        if tool_calls_history and len(tool_calls_history) > 0:
+            # Find the last user message and append context to it
+            for i in range(len(messages) - 1, -1, -1):
+                if messages[i]['role'] == 'user':
+                    # Add context to the user's message for the next tool selection
+                    context = "\n\nBased on previous tool calls, I need additional information: " + user_input
+                    messages[i]['content'] = context
+                    break
             
-            # Insert just before the user's message (which should be the last one)
-            messages.insert(-1, tool_history_message)
-            
+            # Add a summary in the system message to provide context
+            for i, msg in enumerate(messages):
+                if msg['role'] == 'system':
+                    summary = "\n\nREMEMBER: This is a multi-step task. You've already gathered information from:"
+                    for item in tool_calls_history:
+                        summary += f"\n- {item.tool_name}: {item.tool_result[:100]}..."
+                    messages[i]['content'] += summary
+                    break
+        
         return messages
     
     def _get_available_tools(self) -> List[Dict]:
