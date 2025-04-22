@@ -76,7 +76,6 @@ def login_via_context(context):
     if response.status_code == 200:
         try:
             data = response.json()
-            logging.info(f"🔍 Response Data: {data}")
             token = data.get("data", {}).get("token")
             expiration = data.get("data", {}).get("tokenExpiration")  # Assuming response contains an expiration field
 
