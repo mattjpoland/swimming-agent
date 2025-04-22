@@ -32,7 +32,6 @@ def get_appointments_schedule(token, start_date, end_date, context):
     response = requests.post(SCHEDULING_URL, headers=headers, json=payload)
 
     if response.status_code == 200:
-        logging.info("✅ Successfully retrieved scheduled appointments!")
         return response.json(), response.status_code
     else:
         logging.info(f"❌ Failed to fetch appointments: {response.text}")
@@ -113,7 +112,6 @@ def cancel_appointment(token, appointment_id, context):
     response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
-        logging.info(f"✅ Successfully cancelled appointment with ID {appointment_id}!")
         return response.json(), response.status_code
     else:
         logging.info(f"❌ Failed to cancel appointment with ID {appointment_id}: {response.text}")

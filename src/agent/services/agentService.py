@@ -383,7 +383,6 @@ class AgentService:
         """Makes the AI call for tool selection"""
         # Using tool_choice instead of function_call to match the OpenAIGateway implementation
         response = self.openai_gateway.get_completion(messages, tools, tool_choice="auto")
-        logging.info("Tool selection AI call successful")
         return response
     
     def _execute_action(self, action: Any, tool_call: Any, user_input: str, 

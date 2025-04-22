@@ -110,7 +110,6 @@ class DirectResponse(TextResponse):
         if content and content.strip().startswith('{') and content.strip().endswith('}'):
             try:
                 parsed_json = json.loads(content)
-                logging.debug(f"Successfully parsed JSON from direct response: {parsed_json}")
                 
                 if isinstance(parsed_json, dict):
                     if 'message' in parsed_json:

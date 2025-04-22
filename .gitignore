@@ -20,3 +20,6 @@ token_cache.json
 # Ignore RAG data files
 chunks.json
 chunks.json.partial
+
+#Ignore local memory
+memory_store.json
