@@ -56,24 +56,24 @@ class ManageScheduleAction(AgentAction):
                 "- 'remove': Remove a booking for a specific day (requires day) "
                 "- 'clear': Clear the entire schedule (no additional parameters needed) "
                 "For time, use 24-hour format (e.g., '06:00:00' for 6:00 AM). "
-                "When showing a schedule, ALWAYS display all scheduled days even if auto-booking is inactive. "
-                "If auto-booking is inactive due to no MAC password, still show the full schedule details "
-                "but note that bookings won't happen automatically until the MAC password is configured. "
-                "Never tell users they don't have a schedule if they actually have days configured."
+                "The auto-booking system will automatically book lanes according to the user's schedule "
+                "if they have their MAC password configured in the system."
         )
     
     @property
     def response_format_instructions(self):
         return (
             "Format your response as follows:\n"
-            "1. For 'view' action, present the FULL schedule in a clear, easily readable format by day of week\n"
-            "   - Always show each day that has a booking scheduled, even if auto-booking is inactive\n"
-            "   - If auto-booking is inactive, still show the schedule but mention it's not currently auto-booking\n"
+            "1. For 'view' action, you MUST ALWAYS present the user's COMPLETE SCHEDULE in your response:\n"
+            "   - ALWAYS INCLUDE ALL scheduled days, times, pools and lanes in your response\n"
+            "   - If auto-booking is inactive, still show the FULL SCHEDULE but clearly note it's not currently auto-booking\n"
+            "   - If the schedule is in the response data, but not in your message, this is an ERROR - fix it by including the schedule\n"
+            "   - NEVER tell a user they 'don't have a schedule' if the API returns schedule data\n"
             "2. For 'add' action, confirm the day, time, pool, and lane that was scheduled\n"
             "3. For 'remove' action, confirm which day's booking was removed\n"
             "4. For 'clear' action, confirm that the entire schedule was cleared\n"
             "5. If there was an error, explain clearly what went wrong and how to fix it\n"
-            "6. Always include a brief explanation of how the auto-booking system works"
+            "6. Include a brief explanation of how the auto-booking system works"
         )
     
     def _days_to_ordinal(self, day):
@@ -159,11 +159,29 @@ class ManageScheduleAction(AgentAction):
                         "status": "success"
                     }), 200
                 
+                # Format the schedule details into a human-readable string
+                schedule_details = []
+                days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                for day in days:
+                    day_data = current_schedule.get(day)
+                    if day_data:
+                        pool = day_data.get("pool", "Unknown pool")
+                        lane = day_data.get("lane", "Unknown lane")
+                        time_value = day_data.get("time", "Unknown time")
+                        schedule_details.append(f"- {day.capitalize()}: {pool}, {lane} at {time_value}")
+                
+                schedule_text = "\n".join(schedule_details)
+                
                 # Return the schedule with appropriate message based on auto-booking status
-                auto_booking_message = " (Auto-booking is active)" if has_password else " (Auto-booking is currently inactive - MAC password not configured)"
+                auto_booking_status = "active" if has_password else "inactive (MAC password not configured)"
+                
+                message = (f"Here's your current automated booking schedule (Auto-booking is {auto_booking_status}):\n\n"
+                          f"{schedule_text}\n\n"
+                          f"The system will automatically book these lanes according to this schedule "
+                          f"{'when it runs each day' if has_password else 'once you configure your MAC password'}.")
                 
                 return jsonify({
-                    "message": "Here's your current automated booking schedule:" + auto_booking_message,
+                    "message": message,
                     "schedule": serializable_schedule,
                     "status": "success",
                     "auto_booking_enabled": has_password
