@@ -136,6 +136,70 @@ class PromptService:
         
         return messages
     
+    def generate_final_response_prompt_with_context(self, messages: List[Dict], action: Any = None,
+                                                   tool_calls_history: List = None,
+                                                   original_input: str = None) -> List[Dict]:
+        """
+        Enhanced prompt preparation for the final response generation
+        that includes tool chain context when available and improved context relevance
+        
+        Args:
+            messages: The conversation messages
+            action: The last action executed (optional)
+            tool_calls_history: History of all tool calls in the sequence (optional)
+            original_input: Original user input (optional)
+            
+        Returns:
+            List[Dict]: Enhanced messages with tool chain context
+        """
+        # Get base prompt
+        final_messages = self.generate_final_response_prompt(messages, action)
+        
+        # Add tool chain context if available with improved context management
+        if tool_calls_history and len(tool_calls_history) > 0:
+            # Find the last system message to augment
+            for i, msg in enumerate(final_messages):
+                if msg["role"] == "system":
+                    # Add context management instructions specific to the tool chain
+                    context_instructions = "\n\nCONTEXT RELEVANCE INSTRUCTIONS FOR FINAL RESPONSE:"
+                    context_instructions += "\n- Focus ONLY on the most recent user request and relevant tool results"
+                    context_instructions += "\n- For time-based queries, only mention the MOST RECENT time reference (today/tomorrow/Thursday)"
+                    context_instructions += "\n- When a user has changed their preferred day/time, COMPLETELY IGNORE information about previous days/times"
+                    context_instructions += "\n- ONLY provide information about the newly requested day/time"
+                    context_instructions += "\n- Do NOT compare with previously mentioned times unless explicitly asked"
+                    context_instructions += "\n- Format your response to focus exclusively on the new time period requested"
+                    
+                    # Add brief tool history summary focused on most relevant results
+                    if len(tool_calls_history) > 1:
+                        context_instructions += "\n\nThis request required multiple steps to fulfill:"
+                        
+                        # Find the most relevant tool call (usually the last one)
+                        last_tool = tool_calls_history[-1]
+                        most_relevant = f"\nMOST RELEVANT RESULT: {last_tool.tool_name}: {last_tool.tool_result[:150]}..."
+                        context_instructions += most_relevant
+                    else:
+                        # Single tool call
+                        context_instructions += f"\n\nRequest fulfilled with: {tool_calls_history[0].tool_name}"
+                    
+                    final_messages[i]["content"] += context_instructions
+                    break
+        
+        # If this is a follow-up to a time-based query, add special handling instructions
+        if original_input and any(word in original_input.lower() for word in ["how about", "what about", "instead", "tomorrow", "thursday", "friday", "monday", "tuesday", "wednesday", "saturday", "sunday"]):
+            for i, msg in enumerate(final_messages):
+                if msg["role"] == "system":
+                    time_query_instructions = "\n\nTIME-BASED QUERY HANDLING:"
+                    time_query_instructions += "\n- This appears to be a follow-up time query or day change"
+                    time_query_instructions += "\n- IMPORTANT: Treat this as a COMPLETE REPLACEMENT of any previous day/time mentioned"
+                    time_query_instructions += "\n- ONLY provide information about the newly requested day/time"
+                    time_query_instructions += "\n- Do NOT compare with previously mentioned times unless explicitly asked"
+                    time_query_instructions += "\n- Format your response to focus exclusively on the new time period requested"
+                    
+                    final_messages[i]["content"] += time_query_instructions
+                    break
+        
+        return final_messages
+    
     # =========================================================================
     # PUBLIC TOOL CHAINING METHODS
     # =========================================================================
