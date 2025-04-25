@@ -60,7 +60,7 @@ def get_appointments_schedule_action(start_date=None, end_date=None, context=Non
             time = "Unknown Time"
             appointment_time = None
 
-        message = f"You have an appointment for {lane} at {time} on {start_date}."
+        message = f"You have an appointment for {lane} at {time} on {start_date} for {duration} minutes."
 
         if appointment_time:
             # Check availability before and after the appointment
