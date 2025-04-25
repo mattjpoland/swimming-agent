@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import pytz
 from typing import Dict, List, Any, Optional
 from src.agent.registry import registry
+import logging
 
 class PromptService:
     """
@@ -76,6 +77,66 @@ class PromptService:
                     else:
                         # Format normal message
                         messages.append({"role": role, "content": content})
+        
+        return messages
+
+    def generate_tool_selection_prompt_with_context(self, user_input: str, conversation_history: List[Dict], 
+                                                   tool_calls_history: List = None) -> List[Dict]:
+        """
+        Enhanced version of generate_initial_tool_selection_prompt that incorporates tool call history
+        and context management instructions for multi-step reasoning.
+        
+        Args:
+            user_input: The user's current input
+            conversation_history: Conversation history
+            tool_calls_history: History of previous tool calls (optional)
+            
+        Returns:
+            List[Dict]: Enhanced messages with tool chain context
+        """
+        # Get base conversation history
+        messages = self.generate_initial_tool_selection_prompt(user_input, conversation_history)
+        
+        # Check if we have either tool call history or multiple conversation turns
+        has_tool_history = tool_calls_history and len(tool_calls_history) > 0
+        has_conversation_history = len(conversation_history) > 1  # More than just the current user message
+        
+        # Apply context management if we have either type of history
+        if has_tool_history or has_conversation_history:
+            # Find the system message to augment
+            for i, msg in enumerate(messages):
+                if msg['role'] == 'system':
+                    # Add context management instructions
+                    summary = "\n\nCONTEXT MANAGEMENT INSTRUCTIONS:"
+                    summary += "\n- This is a conversation with history and potential context."
+                    summary += "\n- For time-based queries (today/tomorrow/specific days), only focus on the MOST RECENT time reference."
+                    summary += "\n- When user changes focus (e.g. from 'today' to 'Thursday'), treat it as a replacement, not accumulation."
+                    summary += "\n- The latest messages are the most relevant.  Really try to evaluate if it's responding with a missing parameter from a previous call or if it's attempting to direct to a new tool being called."
+                    
+                    # Add information from tool history if available
+                    if has_tool_history:
+                        summary += "\n\nPrevious information gathered:"
+                        for item in tool_calls_history:
+                            summary += f"\n- {item.tool_name}: {item.tool_result[:100]}..."
+                    
+                    # If we have conversation history but no tool history
+                    elif has_conversation_history:
+                        summary += "\n\nConversation context:"
+                        summary += "\n- The user has continued the conversation with a new message"
+                        summary += "\n- Consider whether this new message relates to or changes the previous topic"
+                        summary += "\n- The latest messages are the most relevant.  Really try to evaluate if it's responding with a missing parameter from a previous call or if it's attempting to direct to a new tool being called."
+                    
+                    messages[i]['content'] += summary
+                    break
+            
+            # If we have tool history, append context to the user message
+            if has_tool_history:
+                for i in range(len(messages) - 1, -1, -1):
+                    if messages[i]['role'] == 'user':
+                        # Add context to the user's message for the next tool selection
+                        context = "\n\nBased on previous tool calls and conversation history: " + user_input
+                        messages[i]['content'] = context
+                        break
         
         return messages
     

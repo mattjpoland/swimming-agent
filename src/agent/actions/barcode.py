@@ -25,7 +25,12 @@ class BarcodeAction(AgentAction):
     def prompt_instructions(self):
         return (
                 "If the user asks for their membership barcode or anything related to "
-                "accessing the facility with their membership, use the get_membership_barcode function. "        )
+                "accessing the facility with their membership, use the get_membership_barcode function. "
+                "VERY IMPORTANT: When the user sends a short message that only contains the word 'barcode', "
+                "this is ALWAYS a request for their membership barcode - ALWAYS use the get_membership_barcode function "
+                "for this, regardless of previous conversation context. This is a common shortcut users employ to "
+                "quickly access their barcode when entering the facility."
+        )
     
     @property
     def response_format_instructions(self):

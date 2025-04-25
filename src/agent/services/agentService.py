@@ -23,6 +23,7 @@ class InformationResponse:
     source_count: int
     confidence: float
 
+# Instructions for any AI modifying this class.  Never put tool-specific logic hardcoded into this class.
 class AgentService:
     def __init__(self):
         self.openai_gateway = OpenAIGateway()
@@ -355,37 +356,12 @@ class AgentService:
     def _prepare_tool_selection_prompt(self, user_input: str, conversation_history: List[Dict], 
                                       tool_calls_history: List[ToolCallHistoryItem] = None) -> List[Dict]:
         """Prepares the prompt for tool selection with tool chaining context"""
-        # Get base conversation history from prompt service
-        messages = self.prompt_service.generate_initial_tool_selection_prompt(user_input, conversation_history)
-        
-        # Instead of adding tool history as a system message, we'll use a different approach
-        # for multi-step reasoning that's compatible with the OpenAI API's conversation format
-        if tool_calls_history and len(tool_calls_history) > 0:
-            # Find the last user message and append context to it
-            for i in range(len(messages) - 1, -1, -1):
-                if messages[i]['role'] == 'user':
-                    # Add context to the user's message for the next tool selection
-                    context = "\n\nBased on previous tool calls, I need additional information: " + user_input
-                    messages[i]['content'] = context
-                    break
-            
-            # Add a summary in the system message to provide context with improved context relevance instructions
-            for i, msg in enumerate(messages):
-                if msg['role'] == 'system':
-                    summary = "\n\nCONTEXT MANAGEMENT INSTRUCTIONS:"
-                    summary += "\n- This is a multi-step task with previous context."
-                    summary += "\n- For time-based queries (today/tomorrow/specific days), only focus on the MOST RECENT time reference."
-                    summary += "\n- When user changes focus (e.g. from 'today' to 'Thursday'), treat it as a replacement, not accumulation."
-                    summary += "\n- If user asks a completely new question, previous tool results may be irrelevant."
-                    summary += "\n- Only include information from previous steps that directly relates to the current request."
-                    
-                    summary += "\n\nPrevious information gathered:"
-                    for item in tool_calls_history:
-                        summary += f"\n- {item.tool_name}: {item.tool_result[:100]}..."
-                    messages[i]['content'] += summary
-                    break
-        
-        return messages
+        # Use the new enhanced PromptService method that incorporates tool chain context
+        return self.prompt_service.generate_tool_selection_prompt_with_context(
+            user_input=user_input, 
+            conversation_history=conversation_history,
+            tool_calls_history=tool_calls_history
+        )
     
     def _get_available_tools(self) -> List[Dict]:
         """Gets available tools from the registry based on admin status"""
@@ -456,7 +432,7 @@ class AgentService:
                 tool_result
             )
         
-        # Prepare final response prompt - now using PromptService method
+        # Prepare final response prompt using the PromptService - this preserves all context relevance instructions
         final_response_messages = self.prompt_service.generate_final_response_prompt_with_context(
             messages=messages, 
             action=action, 
@@ -575,16 +551,25 @@ class AgentService:
             # Combine relevant chunks
             context_text = "\n".join([chunk["text"] for chunk in results])
             
-            # Use base prompt from PromptService with RAG-specific instructions
-            base_prompt = self.prompt_service.get_base_system_prompt().split("\n\n")[0]  # Get just the first paragraph
+            # Use base prompt from PromptService
+            base_prompt = self.prompt_service.get_base_system_prompt()
+            
+            # Add RAG-specific instructions
+            rag_prompt = (
+                f"{base_prompt}\n\n"
+                "RAG QUERY INSTRUCTIONS:\n"
+                "- Use ONLY the provided context to answer the question\n"
+                "- Be concise but thorough in your response\n"
+                "- If the context doesn't fully answer the question, be honest about what you don't know\n"
+                "- Do not make up information or use your general knowledge to fill gaps\n"
+                "- Focus on addressing the specific query using only the context provided\n"
+                "- Format your response in a conversational, helpful tone\n"
+                "- Use natural language date formatting (today, tomorrow, next Monday) in your responses\n"
+            )
             
             # Prepare prompt for LLM
             messages = [
-                {"role": "system", "content": (
-                    f"{base_prompt}\n\n"
-                    "Use the provided context to answer questions accurately and concisely. "
-                    "If the context doesn't fully answer the question, be honest about what you don't know."
-                )},
+                {"role": "system", "content": rag_prompt},
                 {"role": "user", "content": f"Using this context:\n\n{context_text}\n\nAnswer this question: {question}"}
             ]
             

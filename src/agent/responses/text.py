@@ -33,6 +33,14 @@ class TextResponse(ActionResponse):
     def response_type(self) -> str:
         return "text"
     
+    @property
+    def content(self) -> str:
+        """
+        Return the message as content for conversation history.
+        This property ensures compatibility with the process_chat method.
+        """
+        return self.message
+    
     def to_http_response(self) -> Tuple[Dict[str, Any], int]:
         return {
             "message": self.message,
