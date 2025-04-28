@@ -17,11 +17,7 @@ __pycache__/
 # Ignore token cache
 token_cache.json
 
-# Ignore RAG data files
-chunks.json
-chunks.json.partial
-
-#Ignore local memory
+# Ignore local memory
 memory_store.json
 
 run_sql_scripts_adhoc.py
