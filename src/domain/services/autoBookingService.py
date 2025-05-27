@@ -125,7 +125,7 @@ def call_reasoning_agent(command, username, mac_password, user_api_key):
         logging.info(f"Request payload: {payload}")
         logging.info(f"Request headers: {dict(headers)}")
         
-        response = requests.post(agent_url, json=payload, headers=headers, timeout=25)
+        response = requests.post(agent_url, json=payload, headers=headers, timeout=60)
         
         logging.info(f"Agent response status: {response.status_code}")
         logging.info(f"Agent response content: {response.text[:500]}...")  # Log first 500 chars
