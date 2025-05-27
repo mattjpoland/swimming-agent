@@ -36,8 +36,7 @@ def process_auto_booking():
         if not today_command:
             logging.info(f"No booking scheduled for {username} on {today}")
             continue
-        
-        # Get the MAC password from auth_data table
+          # Get the MAC password and API key from auth_data table
         mac_password = get_mac_password(username)
         if not mac_password:
             logging.warning(f"Missing MAC password for user {username}, cannot proceed with booking")
@@ -47,6 +46,20 @@ def process_auto_booking():
                 "message": "Missing MAC password"
             })
             continue
+        
+        # Get the user's API key for agent authentication
+        from src.domain.sql.authGateway import get_auth
+        user_auth = get_auth(username)
+        if not user_auth or not user_auth.get("api_key"):
+            logging.warning(f"Missing API key for user {username}, cannot proceed with booking")
+            results.append({
+                "username": username,
+                "status": "error",
+                "message": "Missing API key"
+            })
+            continue
+        
+        user_api_key = user_auth["api_key"]
         
         # Format date for booking
         eastern = pytz.timezone('US/Eastern')
@@ -58,9 +71,8 @@ def process_auto_booking():
         
         try:
             logging.info(f"Sending command to reasoning agent for {username}: {processed_command}")
-            
-            # Call the reasoning agent endpoint
-            agent_result = call_reasoning_agent(processed_command, username, mac_password)
+              # Call the reasoning agent endpoint
+            agent_result = call_reasoning_agent(processed_command, username, mac_password, user_api_key)
             
             if agent_result.get("status") == "success":
                 logging.info(f"Successfully processed auto-booking for {username}")
@@ -87,7 +99,7 @@ def process_auto_booking():
     
     return results
 
-def call_reasoning_agent(command, username, mac_password):
+def call_reasoning_agent(command, username, mac_password, user_api_key):
     """
     Call the reasoning agent endpoint with the scheduling command.
     """
@@ -98,10 +110,10 @@ def call_reasoning_agent(command, username, mac_password):
             "response_format": "auto"
         }
         
-        # Prepare headers with authentication
+        # Prepare headers with authentication using the user's API key
         headers = {
             "Content-Type": "application/json",
-            "x-api-key": os.getenv("API_KEY", ""),
+            "x-api-key": user_api_key,
             "x-mac-username": username,
             "x-mac-password": mac_password
         }
