@@ -254,3 +254,40 @@ def auto_book_lanes():
         logging.exception(f"Auto-booking process failed: {str(e)}")
         return jsonify({"status": "error", "message": f"Auto-booking process failed: {str(e)}"}), 500
 
+@api_bp.route("/cron_schedule_swim_lanes", methods=["POST"])
+@require_api_key
+def cron_schedule_swim_lanes():
+    """
+    CRON Endpoint for automated swim lane scheduling.
+    This endpoint is designed to be called by external CRON services.
+    It processes all active schedules and attempts to book lanes using the reasoning agent.
+    """
+    from src.domain.services.autoBookingService import process_auto_booking
+    
+    try:
+        logging.info("CRON auto-booking process started")
+        results = process_auto_booking()
+        
+        # Count successful and failed bookings
+        successful = len([r for r in results if r.get("status") == "success"])
+        failed = len([r for r in results if r.get("status") == "error"])
+        
+        logging.info(f"CRON auto-booking completed: {successful} successful, {failed} failed")
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Auto-booking process completed: {successful} successful, {failed} failed",
+            "results": results,
+            "summary": {
+                "total_processed": len(results),
+                "successful": successful,
+                "failed": failed
+            }
+        }), 200
+    except Exception as e:
+        logging.exception(f"CRON auto-booking process failed: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Auto-booking process failed: {str(e)}"
+        }), 500
+

@@ -12,7 +12,14 @@ def require_api_key(f):
 
         mac_password = request.headers.get("x-mac-pw")
         auth_header = request.headers.get("Authorization")
-        requested_api_key = auth_header.split(" ")[1] if auth_header else None
+        x_api_key = request.headers.get("x-api-key")
+        
+        # Support both Authorization: Bearer <key> and x-api-key: <key> formats
+        requested_api_key = None
+        if auth_header and auth_header.startswith("Bearer "):
+            requested_api_key = auth_header.split(" ")[1]
+        elif x_api_key:
+            requested_api_key = x_api_key
 
         g.context = load_context_for_authenticated_user(requested_api_key, mac_password)
 

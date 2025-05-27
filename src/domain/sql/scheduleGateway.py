@@ -11,87 +11,54 @@ def add_or_update_schedule(username, schedule):
     """
     Add or update a user's swim lane schedule.
     The schedule parameter should be a dictionary with keys for each day of the week.
+    Each day should contain a command string for the reasoning agent or None.
+    
     Example:
     {
-        "monday": {"pool": "Indoor Pool", "lane": "Lane 1", "time": "08:00:00"},
+        "monday": "Look up available swim lane availability and book a swim lane on {date}. I would prefer outdoor pool at 7PM for 60 minutes. I'll take any lane but prefer 5, 2, 4, 3, 6, then 1. I'm willing to go a half hour earlier or later if need be. And as a last resort I'm also willing to shorten it to 30 minutes.",
         "tuesday": None,
-        "wednesday": {"pool": "Outdoor Pool", "lane": "Lane 2", "time": "10:00:00"},
-        ...
+        "wednesday": "Book indoor pool at 6AM for 30 minutes, any available lane",
+        "thursday": "Book outdoor pool lane 2 at 5:30 PM for 60 minutes on {date}",
+        "friday": None,
+        "saturday": "Look for availability and book any outdoor lane for 45 minutes around 8 AM on {date}",
+        "sunday": None
     }
     """
-    # Safely extract values from the schedule, handling None values
-    def safe_get(day_schedule, key):
-        if day_schedule is None:
-            return None
-        return day_schedule.get(key)
-    
-    monday_data = schedule.get("monday", None)
-    tuesday_data = schedule.get("tuesday", None)
-    wednesday_data = schedule.get("wednesday", None)
-    thursday_data = schedule.get("thursday", None)
-    friday_data = schedule.get("friday", None)
-    saturday_data = schedule.get("saturday", None)
-    sunday_data = schedule.get("sunday", None)
+    # Extract command strings for each day
+    monday_command = schedule.get("monday")
+    tuesday_command = schedule.get("tuesday")
+    wednesday_command = schedule.get("wednesday")
+    thursday_command = schedule.get("thursday")
+    friday_command = schedule.get("friday")
+    saturday_command = schedule.get("saturday")
+    sunday_command = schedule.get("sunday")
     
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO swim_lane_schedule (
-            username, monday_pool, monday_lane, monday_time,
-            tuesday_pool, tuesday_lane, tuesday_time,
-            wednesday_pool, wednesday_lane, wednesday_time,
-            thursday_pool, thursday_lane, thursday_time,
-            friday_pool, friday_lane, friday_time,
-            saturday_pool, saturday_lane, saturday_time,
-            sunday_pool, sunday_lane, sunday_time
+            username, monday_command, tuesday_command, wednesday_command,
+            thursday_command, friday_command, saturday_command, sunday_command
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (username) DO UPDATE SET
-            monday_pool = EXCLUDED.monday_pool,
-            monday_lane = EXCLUDED.monday_lane,
-            monday_time = EXCLUDED.monday_time,
-            tuesday_pool = EXCLUDED.tuesday_pool,
-            tuesday_lane = EXCLUDED.tuesday_lane,
-            tuesday_time = EXCLUDED.tuesday_time,
-            wednesday_pool = EXCLUDED.wednesday_pool,
-            wednesday_lane = EXCLUDED.wednesday_lane,
-            wednesday_time = EXCLUDED.wednesday_time,
-            thursday_pool = EXCLUDED.thursday_pool,
-            thursday_lane = EXCLUDED.thursday_lane,
-            thursday_time = EXCLUDED.thursday_time,
-            friday_pool = EXCLUDED.friday_pool,
-            friday_lane = EXCLUDED.friday_lane,
-            friday_time = EXCLUDED.friday_time,
-            saturday_pool = EXCLUDED.saturday_pool,
-            saturday_lane = EXCLUDED.saturday_lane,
-            saturday_time = EXCLUDED.saturday_time,
-            sunday_pool = EXCLUDED.sunday_pool,
-            sunday_lane = EXCLUDED.sunday_lane,
-            sunday_time = EXCLUDED.sunday_time,
+            monday_command = EXCLUDED.monday_command,
+            tuesday_command = EXCLUDED.tuesday_command,
+            wednesday_command = EXCLUDED.wednesday_command,
+            thursday_command = EXCLUDED.thursday_command,
+            friday_command = EXCLUDED.friday_command,
+            saturday_command = EXCLUDED.saturday_command,
+            sunday_command = EXCLUDED.sunday_command,
             updated_at = CURRENT_TIMESTAMP;
     """, (
         username,
-        safe_get(monday_data, "pool"),
-        safe_get(monday_data, "lane"),
-        safe_get(monday_data, "time"),
-        safe_get(tuesday_data, "pool"),
-        safe_get(tuesday_data, "lane"),
-        safe_get(tuesday_data, "time"),
-        safe_get(wednesday_data, "pool"),
-        safe_get(wednesday_data, "lane"),
-        safe_get(wednesday_data, "time"),
-        safe_get(thursday_data, "pool"),
-        safe_get(thursday_data, "lane"),
-        safe_get(thursday_data, "time"),
-        safe_get(friday_data, "pool"),
-        safe_get(friday_data, "lane"),
-        safe_get(friday_data, "time"),
-        safe_get(saturday_data, "pool"),
-        safe_get(saturday_data, "lane"),
-        safe_get(saturday_data, "time"),
-        safe_get(sunday_data, "pool"),
-        safe_get(sunday_data, "lane"),
-        safe_get(sunday_data, "time")
+        monday_command,
+        tuesday_command,
+        wednesday_command,
+        thursday_command,
+        friday_command,
+        saturday_command,
+        sunday_command
     ))
     conn.commit()
     conn.close()
@@ -101,13 +68,8 @@ def get_schedule(username):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT monday_pool, monday_lane, monday_time,
-               tuesday_pool, tuesday_lane, tuesday_time,
-               wednesday_pool, wednesday_lane, wednesday_time,
-               thursday_pool, thursday_lane, thursday_time,
-               friday_pool, friday_lane, friday_time,
-               saturday_pool, saturday_lane, saturday_time,
-               sunday_pool, sunday_lane, sunday_time
+        SELECT monday_command, tuesday_command, wednesday_command,
+               thursday_command, friday_command, saturday_command, sunday_command
         FROM swim_lane_schedule
         WHERE username = %s;
     """, (username,))
@@ -115,13 +77,13 @@ def get_schedule(username):
     conn.close()
     if result:
         return {
-            "monday": {"pool": result[0], "lane": result[1], "time": result[2]} if result[2] else None,
-            "tuesday": {"pool": result[3], "lane": result[4], "time": result[5]} if result[5] else None,
-            "wednesday": {"pool": result[6], "lane": result[7], "time": result[8]} if result[8] else None,
-            "thursday": {"pool": result[9], "lane": result[10], "time": result[11]} if result[11] else None,
-            "friday": {"pool": result[12], "lane": result[13], "time": result[14]} if result[14] else None,
-            "saturday": {"pool": result[15], "lane": result[16], "time": result[17]} if result[17] else None,
-            "sunday": {"pool": result[18], "lane": result[19], "time": result[20]} if result[20] else None
+            "monday": result[0] if result[0] else None,
+            "tuesday": result[1] if result[1] else None,
+            "wednesday": result[2] if result[2] else None,
+            "thursday": result[3] if result[3] else None,
+            "friday": result[4] if result[4] else None,
+            "saturday": result[5] if result[5] else None,
+            "sunday": result[6] if result[6] else None
         }
     return None
 
@@ -130,14 +92,8 @@ def get_all_active_schedules():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT username, 
-               monday_pool, monday_lane, monday_time,
-               tuesday_pool, tuesday_lane, tuesday_time,
-               wednesday_pool, wednesday_lane, wednesday_time,
-               thursday_pool, thursday_lane, thursday_time,
-               friday_pool, friday_lane, friday_time,
-               saturday_pool, saturday_lane, saturday_time,
-               sunday_pool, sunday_lane, sunday_time
+        SELECT username, monday_command, tuesday_command, wednesday_command,
+               thursday_command, friday_command, saturday_command, sunday_command
         FROM swim_lane_schedule;
     """)
     results = cursor.fetchall()
@@ -148,13 +104,13 @@ def get_all_active_schedules():
         username = row[0]
         schedule = {
             "username": username,
-            "monday": {"pool": row[1], "lane": row[2], "time": row[3]} if row[3] else None,
-            "tuesday": {"pool": row[4], "lane": row[5], "time": row[6]} if row[6] else None,
-            "wednesday": {"pool": row[7], "lane": row[8], "time": row[9]} if row[9] else None,
-            "thursday": {"pool": row[10], "lane": row[11], "time": row[12]} if row[12] else None,
-            "friday": {"pool": row[13], "lane": row[14], "time": row[15]} if row[15] else None,
-            "saturday": {"pool": row[16], "lane": row[17], "time": row[18]} if row[18] else None,
-            "sunday": {"pool": row[19], "lane": row[20], "time": row[21]} if row[21] else None
+            "monday": row[1] if row[1] else None,
+            "tuesday": row[2] if row[2] else None,
+            "wednesday": row[3] if row[3] else None,
+            "thursday": row[4] if row[4] else None,
+            "friday": row[5] if row[5] else None,
+            "saturday": row[6] if row[6] else None,
+            "sunday": row[7] if row[7] else None
         }
         schedules.append(schedule)
     

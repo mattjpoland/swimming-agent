@@ -24,17 +24,9 @@ class ManageScheduleAction(AgentAction):
                     "type": "string", 
                     "description": "The day of week to update (monday, tuesday, wednesday, thursday, friday, saturday, sunday)."
                 },
-                "pool": {
+                "command": {
                     "type": "string", 
-                    "description": "The pool to book ('Indoor Pool' or 'Outdoor Pool'). Required when adding a schedule."
-                },
-                "lane": {
-                    "type": "string", 
-                    "description": "The lane to book (e.g., 'Lane 1', 'Lane 2'). Required when adding a schedule."
-                },
-                "time": {
-                    "type": "string", 
-                    "description": "The time to book in 24-hour format (e.g., '06:00:00', '17:30:00'). Required when adding a schedule."
+                    "description": "The booking command for the reasoning agent (e.g., 'Look up available swim lane availability and book a swim lane on {date}. I would prefer outdoor pool at 7PM for 60 minutes.'). Required when adding a schedule. Use {date} as placeholder for the booking date."
                 },
                 "action": {
                     "type": "string",
@@ -48,16 +40,16 @@ class ManageScheduleAction(AgentAction):
     @property
     def prompt_instructions(self):
         return (
-                "You can help users manage their automated swim lane booking schedule. "
-                "Users can set up recurring bookings for specific days of the week. "
-                "Use the manage_schedule function with the following actions: "
-                "- 'view': Show the user's current schedule (no additional parameters needed) "
-                "- 'add': Add or update a booking for a specific day (requires day, pool, lane, time) "
-                "- 'remove': Remove a booking for a specific day (requires day) "
-                "- 'clear': Clear the entire schedule (no additional parameters needed) "
-                "For time, use 24-hour format (e.g., '06:00:00' for 6:00 AM). "
-                "The auto-booking system will automatically book lanes according to the user's schedule "
-                "if they have their MAC password configured in the system."
+            "You can help users manage their automated swim lane booking schedule. "
+            "Users can set up recurring bookings for specific days of the week using natural language commands. "
+            "Use the manage_schedule function with the following actions: "
+            "- 'view': Show the user's current schedule (no additional parameters needed) "
+            "- 'add': Add or update a booking command for a specific day (requires day and command) "
+            "- 'remove': Remove a booking for a specific day (requires day) "
+            "- 'clear': Clear the entire schedule (no additional parameters needed) "
+            "For schedules, use the 'command' parameter with natural language like: "
+            "'Look up available swim lane availability and book a swim lane on {date}. I would prefer outdoor pool at 7PM for 60 minutes. I'll take any lane but prefer 5, 2, 4, 3, 6, then 1. I'm willing to go a half hour earlier or later if need be.' "
+            "The auto-booking system will send these commands to the reasoning agent for intelligent booking decisions."
         )
     
     @property
@@ -65,15 +57,16 @@ class ManageScheduleAction(AgentAction):
         return (
             "Format your response as follows:\n"
             "1. For 'view' action, you MUST ALWAYS present the user's COMPLETE SCHEDULE in your response:\n"
-            "   - ALWAYS INCLUDE ALL scheduled days, times, pools and lanes in your response\n"
+            "   - ALWAYS INCLUDE ALL scheduled days and their booking commands/details in your response\n"
             "   - If auto-booking is inactive, still show the FULL SCHEDULE but clearly note it's not currently auto-booking\n"
             "   - If the schedule is in the response data, but not in your message, this is an ERROR - fix it by including the schedule\n"
             "   - NEVER tell a user they 'don't have a schedule' if the API returns schedule data\n"
-            "2. For 'add' action, confirm the day, time, pool, and lane that was scheduled\n"
+            "   - Show command-based schedules clearly\n"
+            "2. For 'add' action, confirm the day and command/details that were scheduled\n"
             "3. For 'remove' action, confirm which day's booking was removed\n"
             "4. For 'clear' action, confirm that the entire schedule was cleared\n"
             "5. If there was an error, explain clearly what went wrong and how to fix it\n"
-            "6. Include a brief explanation of how the auto-booking system works"
+            "6. Include a brief explanation of how the auto-booking system works with the reasoning agent"
         )
     
     def _days_to_ordinal(self, day):
@@ -118,9 +111,7 @@ class ManageScheduleAction(AgentAction):
             # Extract parameters
             action = arguments.get("action", "view").lower()
             day = self._days_to_ordinal(arguments.get("day", "")) if arguments.get("day") else None
-            pool = arguments.get("pool")
-            lane = arguments.get("lane")
-            time = arguments.get("time") 
+            command = arguments.get("command")
             
             # Check for username - first try MAC_USERNAME, then try USERNAME, finally check IS_ADMIN
             username = context.get("MAC_USERNAME") or context.get("USERNAME")
@@ -165,10 +156,9 @@ class ManageScheduleAction(AgentAction):
                 for day in days:
                     day_data = current_schedule.get(day)
                     if day_data:
-                        pool = day_data.get("pool", "Unknown pool")
-                        lane = day_data.get("lane", "Unknown lane")
-                        time_value = day_data.get("time", "Unknown time")
-                        schedule_details.append(f"- {day.capitalize()}: {pool}, {lane} at {time_value}")
+                        # Command-based format (string)
+                        if isinstance(day_data, str):
+                            schedule_details.append(f"- {day.capitalize()}: {day_data}")
                 
                 schedule_text = "\n".join(schedule_details)
                 
@@ -177,7 +167,7 @@ class ManageScheduleAction(AgentAction):
                 
                 message = (f"Here's your current automated booking schedule (Auto-booking is {auto_booking_status}):\n\n"
                           f"{schedule_text}\n\n"
-                          f"The system will automatically book these lanes according to this schedule "
+                          f"The system will automatically execute these booking commands using the reasoning agent "
                           f"{'when it runs each day' if has_password else 'once you configure your MAC password'}.")
                 
                 return jsonify({
@@ -188,10 +178,16 @@ class ManageScheduleAction(AgentAction):
                 }), 200
                 
             elif action == "add":
-                # Validate required parameters
-                if not all([day, pool, lane, time]):
+                # Command-based format
+                if not command:
                     return jsonify({
-                        "message": "Missing required parameters. Please provide day, pool, lane, and time.",
+                        "message": "Please provide a command for the reasoning agent.",
+                        "status": "error"
+                    }), 400
+                    
+                if not day:
+                    return jsonify({
+                        "message": "Please specify which day to schedule the command for.",
                         "status": "error"
                     }), 400
                 
@@ -209,26 +205,22 @@ class ManageScheduleAction(AgentAction):
                 else:
                     schedule = current_schedule.copy()
                 
-                # Check if they have a password already (for informational purposes only)
-                has_password = get_mac_password(username) is not None
-                auto_booking_message = " Auto-booking is active." if has_password else " Note: Auto-booking is inactive - MAC password not configured."
-                
-                # Update the specific day
-                schedule[day] = {
-                    "pool": pool,
-                    "lane": lane,
-                    "time": time
-                }
+                # Update the specific day with command
+                schedule[day] = command
                 
                 # Save to database
                 add_or_update_schedule(username, schedule)
                 
+                # Check if they have a password already (for informational purposes only)
+                has_password = get_mac_password(username) is not None
+                auto_booking_message = " Auto-booking is active." if has_password else " Note: Auto-booking is inactive - MAC password not configured."
+                
                 return jsonify({
-                    "message": f"Successfully scheduled {pool}, {lane} for {day.capitalize()} at {time}." + auto_booking_message,
+                    "message": f"Successfully scheduled command for {day.capitalize()}: {command}" + auto_booking_message,
                     "status": "success",
                     "auto_booking_enabled": has_password
                 }), 200
-                
+                    
             elif action == "remove":
                 # Validate parameters
                 if not day:
