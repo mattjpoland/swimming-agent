@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import requests
+import time
 from src.domain.sql.scheduleGateway import get_all_active_schedules
 from src.domain.sql.authGateway import get_mac_password
 import pytz
@@ -119,32 +120,50 @@ def call_reasoning_agent(command, username, mac_password, user_api_key):
             "x-api-key": user_api_key,
             "x-mac-username": username,
             "x-mac-password": mac_password
-        }        # Make the request to the agent endpoint with shorter timeout to prevent hanging
+        }
+        
+        # Make the request to the agent endpoint with shorter timeout to prevent hanging
         agent_url = f"https://swimming-agent.onrender.com/agent/chat"
         logging.info(f"Calling agent endpoint: {agent_url}")
         logging.info(f"Request payload: {payload}")
         logging.info(f"Request headers: {dict(headers)}")
         
-        response = requests.post(agent_url, json=payload, headers=headers, timeout=60)
-        
-        logging.info(f"Agent response status: {response.status_code}")
-        logging.info(f"Agent response content: {response.text[:500]}...")  # Log first 500 chars
-        
-        if response.status_code == 200:
-            result = response.json()
-            return {
-                "status": "success",
-                "message": result.get("message", "Command processed successfully"),
-                "details": result
-            }
-        else:
-            return {
-                "status": "error",
-                "message": f"Agent endpoint returned status {response.status_code}: {response.text}"
-            }
-            
+        # Add retry logic for network issues
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    agent_url, 
+                    json=payload, 
+                    headers=headers, 
+                    timeout=30,  # Reduced timeout
+                    verify=True
+                )
+                
+                logging.info(f"Agent response status: {response.status_code}")
+                logging.info(f"Agent response content: {response.text[:500]}...")  # Log first 500 chars
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return {
+                        "status": "success",
+                        "message": result.get("message", "Command processed successfully"),
+                        "details": result
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": f"Agent endpoint returned status {response.status_code}: {response.text}"
+                    }
+                    
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                logging.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt == max_retries - 1:  # Last attempt
+                    raise
+                time.sleep(5)  # Wait before retry
+                
     except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to call reasoning agent: {e}")
+        logging.error(f"Failed to call reasoning agent after {max_retries} attempts: {e}")
         return {
             "status": "error",
             "message": f"Failed to communicate with reasoning agent: {str(e)}"

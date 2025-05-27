@@ -91,9 +91,8 @@ class AvailabilityAction(AgentAction):
                 return jsonify(self._generate_text_response(pool_name, date, context))
             else:
                 return self._generate_visualization(pool_name, date, context)
-                
         except Exception as e:
-            logging.error(f"Error checking availability: {str(e)}")
+            logging.error(f"Error checking availability: {str(e)}", exc_info=True)
             return jsonify({"message": "I couldn't check availability at this time. Please try again later.", "status": "error"}), 500
     
     def _generate_text_response(self, pool_name, date, context):

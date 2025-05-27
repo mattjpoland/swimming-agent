@@ -76,8 +76,18 @@ def login_via_context(context):
     if response.status_code == 200:
         try:
             data = response.json()
-            token = data.get("data", {}).get("token")
-            expiration = data.get("data", {}).get("tokenExpiration")  # Assuming response contains an expiration field
+            if data is None:
+                logging.info("❌ Login failed: Response data is None.")
+                return None
+                
+            # Safely access nested data
+            data_section = data.get("data")
+            if data_section is None:
+                logging.info("❌ Login failed: No 'data' section in response.")
+                return None
+                
+            token = data_section.get("token")
+            expiration = data_section.get("tokenExpiration")
 
             if token and expiration:
                 logging.info("✅ Login successful! Token retrieved.")
@@ -145,5 +155,3 @@ if __name__ == "__main__":
     if auth_token:
         # Get today's date in YYYY-MM-DD format
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-
