@@ -71,8 +71,11 @@ def process_auto_booking():
         
         try:
             logging.info(f"Sending command to reasoning agent for {username}: {processed_command}")
-              # Call the reasoning agent endpoint
+            
+            # Call the reasoning agent endpoint with detailed logging
+            logging.info(f"Making agent request for user {username}...")
             agent_result = call_reasoning_agent(processed_command, username, mac_password, user_api_key)
+            logging.info(f"Agent request completed for user {username} with status: {agent_result.get('status')}")
             
             if agent_result.get("status") == "success":
                 logging.info(f"Successfully processed auto-booking for {username}")
@@ -116,10 +119,16 @@ def call_reasoning_agent(command, username, mac_password, user_api_key):
             "x-api-key": user_api_key,
             "x-mac-username": username,
             "x-mac-password": mac_password
-        }
-          # Make the request to the agent endpoint
+        }        # Make the request to the agent endpoint with shorter timeout to prevent hanging
         agent_url = f"https://swimming-agent.onrender.com/agent/chat"
-        response = requests.post(agent_url, json=payload, headers=headers, timeout=30)
+        logging.info(f"Calling agent endpoint: {agent_url}")
+        logging.info(f"Request payload: {payload}")
+        logging.info(f"Request headers: {dict(headers)}")
+        
+        response = requests.post(agent_url, json=payload, headers=headers, timeout=25)
+        
+        logging.info(f"Agent response status: {response.status_code}")
+        logging.info(f"Agent response content: {response.text[:500]}...")  # Log first 500 chars
         
         if response.status_code == 200:
             result = response.json()

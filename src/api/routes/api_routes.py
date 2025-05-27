@@ -274,6 +274,13 @@ def cron_schedule_swim_lanes():
         
         logging.info(f"CRON auto-booking completed: {successful} successful, {failed} failed")
         
+        # Log detailed results for debugging
+        for result in results:
+            username = result.get("username", "unknown")
+            status = result.get("status", "unknown")
+            message = result.get("message", "no message")
+            logging.info(f"User {username}: {status} - {message}")
+        
         return jsonify({
             "status": "success", 
             "message": f"Auto-booking process completed: {successful} successful, {failed} failed",
@@ -288,6 +295,7 @@ def cron_schedule_swim_lanes():
         logging.exception(f"CRON auto-booking process failed: {str(e)}")
         return jsonify({
             "status": "error", 
-            "message": f"Auto-booking process failed: {str(e)}"
+            "message": f"Auto-booking process failed: {str(e)}",
+            "error_type": type(e).__name__
         }), 500
 
