@@ -13,6 +13,88 @@ def get_day_of_week():
     today = datetime.datetime.now(eastern)
     return today.strftime("%A").lower()
 
+def call_reasoning_agent(command, username, mac_password, user_api_key, session_id=None):
+    """
+    Call the reasoning agent endpoint with the scheduling command.
+    """
+    try:
+        # Prepare the request payload
+        payload = {
+            "user_input": command,
+            "response_format": "auto"
+        }
+        
+        # Add session_id if provided
+        if session_id:
+            payload["session_id"] = session_id
+        
+        # Prepare headers with authentication using the user's API key
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": user_api_key,
+            "x-mac-username": username,
+            "x-mac-password": mac_password
+        }
+        
+        # Make the request to the agent endpoint with shorter timeout to prevent hanging
+        agent_url = f"https://swimming-agent.onrender.com/agent/chat"
+        logging.info(f"Calling agent endpoint: {agent_url}")
+        logging.info(f"Request payload: {payload}")
+        logging.info(f"Request headers: {dict(headers)}")
+        
+        # Add retry logic for network issues
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    agent_url, 
+                    json=payload, 
+                    headers=headers, 
+                    timeout=30,  # Reduced timeout
+                    verify=True
+                )
+                
+                logging.info(f"Agent response status: {response.status_code}")
+                logging.info(f"Agent response content: {response.text[:500]}...")  # Log first 500 chars
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    # Extract session_id from response if present
+                    returned_session_id = result.get("session_id", session_id)
+                    return {
+                        "status": "success",
+                        "message": result.get("message", "Command processed successfully"),
+                        "details": result,
+                        "session_id": returned_session_id
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": f"Agent endpoint returned status {response.status_code}: {response.text}",
+                        "session_id": session_id
+                    }
+                    
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                logging.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt == max_retries - 1:  # Last attempt
+                    raise
+                time.sleep(5)  # Wait before retry
+                
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to call reasoning agent after {max_retries} attempts: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to communicate with reasoning agent: {str(e)}",
+            "session_id": session_id
+        }
+    except Exception as e:
+        logging.error(f"Unexpected error calling reasoning agent: {e}")
+        return {
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}",
+            "session_id": session_id
+        }
+
 def process_auto_booking():
     """
     Process automated bookings based on saved schedules.
@@ -78,13 +160,33 @@ def process_auto_booking():
             agent_result = call_reasoning_agent(processed_command, username, mac_password, user_api_key)
             logging.info(f"Agent request completed for user {username} with status: {agent_result.get('status')}")
             
+            # Always make a follow-up call to ensure booking happens
             if agent_result.get("status") == "success":
-                logging.info(f"Successfully processed auto-booking for {username}")
-                results.append({
-                    "username": username,
-                    "status": "success",
-                    "message": agent_result.get("message", "Booking processed successfully")
-                })
+                session_id = agent_result.get("session_id")
+                
+                logging.info(f"Making follow-up call for {username} to force booking")
+                
+                # Make a follow-up call to force booking
+                follow_up_message = "If you booked a lane for me, thank you. If you presented options, please just make a selection you think most fits my preferences and book it."
+                
+                follow_up_result = call_reasoning_agent(follow_up_message, username, mac_password, user_api_key, session_id)
+                logging.info(f"Follow-up agent request completed for user {username} with status: {follow_up_result.get('status')}")
+                
+                # Use the follow-up result for the final status
+                if follow_up_result.get("status") == "success":
+                    logging.info(f"Successfully processed auto-booking for {username} after follow-up")
+                    results.append({
+                        "username": username,
+                        "status": "success",
+                        "message": follow_up_result.get("message", "Booking processed successfully after follow-up")
+                    })
+                else:
+                    logging.error(f"Failed to process auto-booking for {username} after follow-up: {follow_up_result}")
+                    results.append({
+                        "username": username,
+                        "status": "error",
+                        "message": follow_up_result.get("message", "Booking failed after follow-up")
+                    })
             else:
                 logging.error(f"Failed to process auto-booking for {username}: {agent_result}")
                 results.append({
@@ -102,75 +204,3 @@ def process_auto_booking():
             })
     
     return results
-
-def call_reasoning_agent(command, username, mac_password, user_api_key):
-    """
-    Call the reasoning agent endpoint with the scheduling command.
-    """
-    try:
-        # Prepare the request payload
-        payload = {
-            "user_input": command,
-            "response_format": "auto"
-        }
-        
-        # Prepare headers with authentication using the user's API key
-        headers = {
-            "Content-Type": "application/json",
-            "x-api-key": user_api_key,
-            "x-mac-username": username,
-            "x-mac-password": mac_password
-        }
-        
-        # Make the request to the agent endpoint with shorter timeout to prevent hanging
-        agent_url = f"https://swimming-agent.onrender.com/agent/chat"
-        logging.info(f"Calling agent endpoint: {agent_url}")
-        logging.info(f"Request payload: {payload}")
-        logging.info(f"Request headers: {dict(headers)}")
-        
-        # Add retry logic for network issues
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = requests.post(
-                    agent_url, 
-                    json=payload, 
-                    headers=headers, 
-                    timeout=30,  # Reduced timeout
-                    verify=True
-                )
-                
-                logging.info(f"Agent response status: {response.status_code}")
-                logging.info(f"Agent response content: {response.text[:500]}...")  # Log first 500 chars
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    return {
-                        "status": "success",
-                        "message": result.get("message", "Command processed successfully"),
-                        "details": result
-                    }
-                else:
-                    return {
-                        "status": "error",
-                        "message": f"Agent endpoint returned status {response.status_code}: {response.text}"
-                    }
-                    
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                logging.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
-                if attempt == max_retries - 1:  # Last attempt
-                    raise
-                time.sleep(5)  # Wait before retry
-                
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to call reasoning agent after {max_retries} attempts: {e}")
-        return {
-            "status": "error",
-            "message": f"Failed to communicate with reasoning agent: {str(e)}"
-        }
-    except Exception as e:
-        logging.error(f"Unexpected error calling reasoning agent: {e}")
-        return {
-            "status": "error",
-            "message": f"Unexpected error: {str(e)}"
-        }
