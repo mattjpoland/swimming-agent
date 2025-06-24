@@ -25,6 +25,9 @@ def get_availability(item_id, date_str, context):
             return {}
 
         data = check_swim_lane_availability(token, date_str, item_id, context)
+        
+        # Log the raw API response for debugging
+        logging.info(f"🔍 Raw API response for ItemId {item_id} on {date_str}: {data}")
 
         # Initialize all time slots as unavailable
         availability = {time: [] for time in context["TIME_SLOTS"]}
@@ -44,6 +47,8 @@ def get_availability(item_id, date_str, context):
         if not available_times:
             logging.info(f"⚠️ No available times in data for ItemId {item_id} on {date_str}")
             return availability
+            
+        logging.info(f"🔍 Found {len(available_times)} time slots in API response")
 
         for slot in available_times:
             if not slot or "StartDateTime" not in slot:
@@ -52,12 +57,22 @@ def get_availability(item_id, date_str, context):
             formatted_time = format_api_time(slot["StartDateTime"])
             if formatted_time and formatted_time in availability:
                 possible_selections = slot.get("PossibleBookSelections", [])
+                logging.info(f"🔍 Processing time slot {formatted_time} with {len(possible_selections)} selection groups")
+                
                 for lane_group in possible_selections:
                     if isinstance(lane_group, list):
                         for lane in lane_group:
                             if lane and "Name" in lane:
                                 lane_name = lane["Name"]
                                 availability[formatted_time].append(lane_name)
+                                logging.info(f"🔍 Added lane {lane_name} to {formatted_time}")
+
+        # Log final availability summary
+        total_slots = sum(len(lanes) for lanes in availability.values())
+        logging.info(f"🔍 Final availability summary for ItemId {item_id}: {total_slots} total lane slots")
+        for time_slot, lanes in availability.items():
+            if lanes:
+                logging.info(f"🔍 {time_slot}: {len(lanes)} lanes available - {lanes}")
 
         return availability
         

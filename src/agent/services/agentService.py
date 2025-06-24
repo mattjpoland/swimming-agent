@@ -334,10 +334,13 @@ class AgentService:
             decision_response = self.openai_gateway.get_completion(messages, temperature=0.1)
             decision_text = decision_response.choices[0].message.content.strip()
             
-            logging.debug(f"Tool chain evaluation response: {decision_text}")
+            # Log the full evaluation prompt and response for debugging
+            logging.info(f"🔍 Tool chain evaluation prompt (last message): {messages[-1]['content'][:200]}...")
+            logging.info(f"🔍 Tool chain evaluation full response: {decision_text}")
             
             if decision_text.startswith("COMPLETE:"):
-                logging.info(f"Tool chain evaluation: Complete - {decision_text[9:].strip()}")
+                completion_reason = decision_text[9:].strip()
+                logging.info(f"Tool chain evaluation: Complete - {completion_reason}")
                 return False, ""
             elif decision_text.startswith("MORE_TOOLS_NEEDED:"):
                 # Extract the reasoning part after MORE_TOOLS_NEEDED

@@ -134,12 +134,21 @@ class AvailabilityAction(AgentAction):
             # Get item_id and check availability
             item_id = context["ITEMS"][pool_name]
             availability = get_availability(item_id, date, context)
+            
+            # Log the raw availability data for debugging
+            logging.info(f"🔍 Raw availability data for {pool_name} on {date}: {availability}")
 
             # Format text response
             availability_message = f"Availability for {pool_name} on {date}:\n"
+            available_count = 0
             for time_slot, lanes in availability.items():
                 if lanes:  # Only show time slots with available lanes
                     availability_message += f"{time_slot}: Lanes {', '.join(map(str, lanes))}\n"
+                    available_count += len(lanes)
+            
+            # Log summary for debugging
+            logging.info(f"🔍 Availability summary for {pool_name}: {available_count} total lane slots available")
+            logging.info(f"🔍 Formatted availability message: {availability_message}")
 
             return {"message": availability_message, "status": "success"}
     
