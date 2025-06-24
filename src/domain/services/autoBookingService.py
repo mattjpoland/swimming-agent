@@ -27,20 +27,17 @@ def call_reasoning_agent(command, username, mac_password, user_api_key, session_
         # Add session_id if provided
         if session_id:
             payload["session_id"] = session_id
-        
-        # Prepare headers with authentication using the user's API key
+          # Prepare headers with authentication using the user's API key
         headers = {
             "Content-Type": "application/json",
             "x-api-key": user_api_key,
-            "x-mac-username": username,
-            "x-mac-password": mac_password
+            "x-mac-pw": mac_password  # Fixed header name to match decorator
         }
-        
-        # Make the request to the agent endpoint with shorter timeout to prevent hanging
+          # Make the request to the agent endpoint with shorter timeout to prevent hanging
         agent_url = f"https://swimming-agent.onrender.com/agent/chat"
         logging.info(f"Calling agent endpoint: {agent_url}")
         logging.info(f"Request payload: {payload}")
-        logging.info(f"Request headers: {dict(headers)}")
+        logging.info(f"Request headers: {{'Content-Type': headers['Content-Type'], 'x-api-key': '***', 'x-mac-pw': '***'}}")  # Hide sensitive data
         
         # Add retry logic for network issues
         max_retries = 3
