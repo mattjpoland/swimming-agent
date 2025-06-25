@@ -82,7 +82,7 @@ def run_auto_booking(self):
         # Try to import the auto-booking service with better error handling
         try:
             # Import from the domain services
-            from domain.services.autoBookingService import process_auto_booking
+            from src.domain.services.autoBookingService import process_auto_booking
             logging.info("Successfully imported process_auto_booking")
         except ImportError as import_error:
             logging.error(f"Import error: {import_error}")

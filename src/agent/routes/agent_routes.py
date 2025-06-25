@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g, Response
-from agent.services.agentService import AgentService
-from decorators import require_api_key
+from src.agent.services.agentService import AgentService
+from src.decorators import require_api_key
 import logging
 import os
 import json

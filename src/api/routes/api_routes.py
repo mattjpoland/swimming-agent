@@ -241,7 +241,7 @@ def debug_query_route():
 @require_api_key
 def auto_book_lanes():
     """API Endpoint for auto-booking scheduled swim lanes for the current day."""
-    from domain.services.autoBookingService import process_auto_booking
+    from src.domain.services.autoBookingService import process_auto_booking
     
     try:
         results = process_auto_booking()
