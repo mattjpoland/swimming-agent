@@ -1,6 +1,7 @@
 import os
 from celery import Celery
 from dotenv import load_dotenv
+import ssl
 
 # Load environment variables
 load_dotenv()
@@ -25,7 +26,7 @@ celery_app = Celery(
     include=['tasks']
 )
 
-# Celery configuration
+# Celery configuration with SSL settings for Upstash Redis
 celery_app.conf.update(
     task_serializer='json',
     accept_content=['json'],
@@ -37,6 +38,19 @@ celery_app.conf.update(
     task_soft_time_limit=25 * 60,  # 25 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    # Redis SSL configuration for Upstash
+    broker_use_ssl={
+        'ssl_cert_reqs': ssl.CERT_NONE,
+        'ssl_ca_certs': None,
+        'ssl_certfile': None,
+        'ssl_keyfile': None,
+    },
+    redis_backend_use_ssl={
+        'ssl_cert_reqs': ssl.CERT_NONE,
+        'ssl_ca_certs': None,
+        'ssl_certfile': None,
+        'ssl_keyfile': None,
+    }
 )
 
 @celery_app.task(bind=True, name='run_auto_booking')
