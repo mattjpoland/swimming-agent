@@ -1,14 +1,7 @@
 import os
-import sys
 from celery import Celery
 from dotenv import load_dotenv
 import ssl
-
-# Add the parent directory to Python path so we can import src modules
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
 
 # Load environment variables
 load_dotenv()
