@@ -260,42 +260,76 @@ def cron_schedule_swim_lanes():
     """
     CRON Endpoint for automated swim lane scheduling.
     This endpoint is designed to be called by external CRON services.
-    It processes all active schedules and attempts to book lanes using the reasoning agent.
+    It queues the auto-booking process as a background task using Celery.
     """
-    from src.domain.services.autoBookingService import process_auto_booking
-    
     try:
-        logging.info("CRON auto-booking process started")
-        results = process_auto_booking()
+        logging.info("CRON auto-booking process queued")
         
-        # Count successful and failed bookings
-        successful = len([r for r in results if r.get("status") == "success"])
-        failed = len([r for r in results if r.get("status") == "error"])
+        # Import and queue the Celery task
+        from tasks import run_auto_booking
         
-        logging.info(f"CRON auto-booking completed: {successful} successful, {failed} failed")
+        # Queue the task for background execution
+        task = run_auto_booking.delay()
         
-        # Log detailed results for debugging
-        for result in results:
-            username = result.get("username", "unknown")
-            status = result.get("status", "unknown")
-            message = result.get("message", "no message")
-            logging.info(f"User {username}: {status} - {message}")
+        logging.info(f"Auto-booking task queued with ID: {task.id}")
         
         return jsonify({
-            "status": "success", 
-            "message": f"Auto-booking process completed: {successful} successful, {failed} failed",
-            "results": results,
-            "summary": {
-                "total_processed": len(results),
-                "successful": successful,
-                "failed": failed
-            }
-        }), 200
+            "status": "accepted", 
+            "message": "Auto-booking process has been queued for background execution",
+            "task_id": task.id
+        }), 202
     except Exception as e:
-        logging.exception(f"CRON auto-booking process failed: {str(e)}")
+        logging.exception(f"Failed to queue auto-booking task: {str(e)}")
         return jsonify({
             "status": "error", 
-            "message": f"Auto-booking process failed: {str(e)}",
+            "message": f"Failed to queue auto-booking task: {str(e)}",
             "error_type": type(e).__name__
+        }), 500
+
+@api_bp.route("/task-status/<task_id>", methods=["GET"])
+@require_api_key
+def get_task_status(task_id):
+    """
+    Get the status of a background task by its ID.
+    """
+    try:
+        from tasks import run_auto_booking
+        
+        # Get the task result
+        task_result = run_auto_booking.AsyncResult(task_id)
+        
+        if task_result.state == 'PENDING':
+            response = {
+                'task_id': task_id,
+                'state': task_result.state,
+                'status': 'Task is pending...'
+            }
+        elif task_result.state == 'PROGRESS':
+            response = {
+                'task_id': task_id,
+                'state': task_result.state,
+                'status': task_result.info.get('status', 'Task is running...')
+            }
+        elif task_result.state == 'SUCCESS':
+            response = {
+                'task_id': task_id,
+                'state': task_result.state,
+                'result': task_result.result
+            }
+        else:
+            # Task failed or was revoked
+            response = {
+                'task_id': task_id,
+                'state': task_result.state,
+                'error': str(task_result.info)
+            }
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logging.exception(f"Failed to get task status for {task_id}: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Failed to get task status: {str(e)}"
         }), 500
 

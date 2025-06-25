@@ -1,0 +1,52 @@
+services:
+  # Web service for Flask application
+  - type: web
+    name: swimming-agent-web
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn src.server:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: UPSTASH_REDIS_HOST
+        sync: false
+      - key: UPSTASH_REDIS_PORT
+        sync: false
+      - key: UPSTASH_REDIS_PASSWORD
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # Add other environment variables as needed
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MAC_PASSWORD
+        sync: false
+
+  # Background worker service for Celery
+  - type: worker
+    name: swimming-agent-worker
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A tasks worker --loglevel=info
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: UPSTASH_REDIS_HOST
+        sync: false
+      - key: UPSTASH_REDIS_PORT
+        sync: false
+      - key: UPSTASH_REDIS_PASSWORD
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # Add other environment variables as needed
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MAC_PASSWORD
+        sync: false 
