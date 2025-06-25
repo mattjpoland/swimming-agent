@@ -4,9 +4,17 @@ from celery import Celery
 from dotenv import load_dotenv
 import ssl
 
-# Ensure the current directory is in Python path for imports
-if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Get the directory containing this tasks.py file
+TASKS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Add the tasks directory to Python path if not already there
+if TASKS_DIR not in sys.path:
+    sys.path.insert(0, TASKS_DIR)
+
+# Also add the parent directory (which contains src/) to Python path
+PARENT_DIR = os.path.dirname(TASKS_DIR)
+if PARENT_DIR not in sys.path:
+    sys.path.insert(0, PARENT_DIR)
 
 # Load environment variables
 load_dotenv()
@@ -71,8 +79,15 @@ def run_auto_booking(self):
         logging.info(f"Python path: {sys.path}")
         logging.info(f"Tasks.py location: {os.path.abspath(__file__)}")
         
-        # Import the auto-booking service
-        from src.domain.services.autoBookingService import process_auto_booking
+        # Try to import the auto-booking service with better error handling
+        try:
+            from src.domain.services.autoBookingService import process_auto_booking
+            logging.info("Successfully imported process_auto_booking")
+        except ImportError as import_error:
+            logging.error(f"Import error: {import_error}")
+            logging.error(f"Available modules in src: {os.listdir('src') if os.path.exists('src') else 'src directory not found'}")
+            logging.error(f"Available modules in current directory: {os.listdir('.')}")
+            raise
         
         # Update task state to indicate processing
         self.update_state(
