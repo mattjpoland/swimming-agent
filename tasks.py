@@ -1,7 +1,12 @@
 import os
+import sys
 from celery import Celery
 from dotenv import load_dotenv
 import ssl
+
+# Ensure the current directory is in Python path for imports
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Load environment variables
 load_dotenv()
@@ -60,6 +65,12 @@ def run_auto_booking(self):
     This task imports and calls the existing process_auto_booking function.
     """
     try:
+        # Debug: Log the current working directory and Python path
+        import logging
+        logging.info(f"Current working directory: {os.getcwd()}")
+        logging.info(f"Python path: {sys.path}")
+        logging.info(f"Tasks.py location: {os.path.abspath(__file__)}")
+        
         # Import the auto-booking service
         from src.domain.services.autoBookingService import process_auto_booking
         
