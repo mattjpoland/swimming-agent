@@ -3,8 +3,8 @@ import datetime
 import logging
 import requests
 import time
-from src.domain.sql.scheduleGateway import get_all_active_schedules
-from src.domain.sql.authGateway import get_mac_password
+from domain.sql.scheduleGateway import get_all_active_schedules
+from domain.sql.authGateway import get_mac_password
 import pytz
 
 def get_day_of_week():
@@ -132,7 +132,7 @@ def process_auto_booking():
             continue
         
         # Get the user's API key for agent authentication
-        from src.domain.sql.authGateway import get_auth
+        from domain.sql.authGateway import get_auth
         user_auth = get_auth(username)
         if not user_auth or not user_auth.get("api_key"):
             logging.warning(f"Missing API key for user {username}, cannot proceed with booking")

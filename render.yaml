@@ -31,7 +31,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: celery -A tasks worker --loglevel=info
+    startCommand: celery -A src.worker.tasks worker --loglevel=info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

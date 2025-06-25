@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g, Response
-from src.agent.services.agentService import AgentService
-from src.decorators import require_api_key
+from agent.services.agentService import AgentService
+from decorators import require_api_key
 import logging
 import os
 import json
@@ -13,7 +13,7 @@ agent_service = AgentService()
 @require_api_key
 def chat():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         user_input = data.get('user_input')
         
         # Log raw request body if REQUEST_LOGGING is enabled

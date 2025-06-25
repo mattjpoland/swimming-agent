@@ -56,7 +56,7 @@ def get_swim_lane_availability():
 
     item_id = g.context["ITEMS"][pool_name]
     availability = get_availability(item_id, date_str, g.context)
-    appt = get_appointment_data(date_str, g.context)
+    appt = get_appointment_data(date_str, date_str, g.context)
 
     img_io = generate_visualization(availability, pool_name, date_str, appt, g.context)
     return send_file(img_io, mimetype="image/png")
@@ -73,7 +73,7 @@ def get_user_appointments():
 @require_api_key
 def book_lane():
     """API Endpoint to book a swim lane."""
-    data = request.json
+    data = request.json or {}
     date = data.get("date")
     time = data.get("time")
     duration = data.get("duration", "60")
@@ -98,7 +98,7 @@ def book_lane():
 @require_api_key
 def cancel_lane():
     """API Endpoint to cancel a swim lane appointment."""
-    data = request.json
+    data = request.json or {}
     appointment_date = data.get("date")
     response, status_code = cancel_appointment_action(appointment_date, g.context)
     return jsonify(response), status_code
@@ -222,7 +222,7 @@ def get_rag_status():
 def debug_query_route():
     """Debug a RAG query"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         query = data.get('query')
         if not query:
             return jsonify({"error": "No query provided"}), 400
@@ -241,7 +241,7 @@ def debug_query_route():
 @require_api_key
 def auto_book_lanes():
     """API Endpoint for auto-booking scheduled swim lanes for the current day."""
-    from src.domain.services.autoBookingService import process_auto_booking
+    from domain.services.autoBookingService import process_auto_booking
     
     try:
         results = process_auto_booking()
@@ -266,7 +266,7 @@ def cron_schedule_swim_lanes():
         logging.info("CRON auto-booking process queued")
         
         # Import and queue the Celery task
-        from tasks import run_auto_booking
+        from worker.tasks import run_auto_booking
         
         # Queue the task for background execution
         task = run_auto_booking.delay()
@@ -293,7 +293,7 @@ def get_task_status(task_id):
     Get the status of a background task by its ID.
     """
     try:
-        from tasks import run_auto_booking
+        from worker.tasks import run_auto_booking
         
         # Get the task result
         task_result = run_auto_booking.AsyncResult(task_id)

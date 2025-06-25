@@ -11,7 +11,7 @@ TASKS_DIR = os.path.dirname(os.path.abspath(__file__))
 if TASKS_DIR not in sys.path:
     sys.path.insert(0, TASKS_DIR)
 
-# Also add the parent directory (which contains src/) to Python path
+# Also add the parent directory (which contains domain/, agent/, etc.) to Python path
 PARENT_DIR = os.path.dirname(TASKS_DIR)
 if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
@@ -36,7 +36,7 @@ celery_app = Celery(
     'swimming_agent',
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=['tasks']
+    include=['src.worker.tasks']
 )
 
 # Celery configuration with SSL settings for Upstash Redis
@@ -81,12 +81,13 @@ def run_auto_booking(self):
         
         # Try to import the auto-booking service with better error handling
         try:
-            from src.domain.services.autoBookingService import process_auto_booking
+            # Import from the domain services
+            from domain.services.autoBookingService import process_auto_booking
             logging.info("Successfully imported process_auto_booking")
         except ImportError as import_error:
             logging.error(f"Import error: {import_error}")
-            logging.error(f"Available modules in src: {os.listdir('src') if os.path.exists('src') else 'src directory not found'}")
             logging.error(f"Available modules in current directory: {os.listdir('.')}")
+            logging.error(f"Available modules in parent directory: {os.listdir('..') if os.path.exists('..') else 'parent directory not found'}")
             raise
         
         # Update task state to indicate processing
