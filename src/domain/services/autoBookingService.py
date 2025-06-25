@@ -47,7 +47,7 @@ def call_reasoning_agent(command, username, mac_password, user_api_key, session_
                     agent_url, 
                     json=payload, 
                     headers=headers, 
-                    timeout=30,  # Reduced timeout
+                    timeout=120,  # Reduced timeout
                     verify=True
                 )
                 
