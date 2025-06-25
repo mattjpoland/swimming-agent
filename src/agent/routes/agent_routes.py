@@ -66,10 +66,15 @@ def chat():
         else:
             # Add session_id to the response
             if isinstance(result, dict):
+                logging.info(f"Adding session_id {session_id} to response dict")
                 result['session_id'] = session_id
+                logging.info(f"Response dict after adding session_id: {result}")
+            else:
+                logging.warning(f"Result is not a dict, it's a {type(result)}: {result}")
             
             # Otherwise, jsonify the dictionary result
             response = jsonify(result)
+            logging.info(f"Final response object: {response}")
         
         # Return the response
         return response, status_code

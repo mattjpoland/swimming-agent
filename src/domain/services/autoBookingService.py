@@ -56,8 +56,12 @@ def call_reasoning_agent(command, username, mac_password, user_api_key, session_
                 
                 if response.status_code == 200:
                     result = response.json()
+                    logging.info(f"Parsed JSON response: {result}")
                     # Extract session_id from response if present
                     returned_session_id = result.get("session_id", session_id)
+                    logging.info(f"Extracted session_id: {returned_session_id}")
+                    logging.info(f"Original session_id parameter: {session_id}")
+                    logging.info(f"Result keys: {list(result.keys())}")
                     return {
                         "status": "success",
                         "message": result.get("message", "Command processed successfully"),
@@ -156,11 +160,15 @@ def process_auto_booking():
             logging.info(f"Making agent request for user {username}...")
             agent_result = call_reasoning_agent(processed_command, username, mac_password, user_api_key)
             logging.info(f"Agent request completed for user {username} with status: {agent_result.get('status')}")
+            logging.info(f"Agent result details: {agent_result}")
             
             # Always make a follow-up call to ensure booking happens
-            if agent_result.get("status") == "success":
-                session_id = agent_result.get("session_id")
-                
+            # Check if we have a session_id (which indicates the first call was successful)
+            session_id = agent_result.get("session_id")
+            logging.info(f"Session ID from first call: {session_id}")
+            
+            if session_id:
+                logging.info(f"First call successful, session_id: {session_id}")
                 logging.info(f"Making follow-up call for {username} to force booking")
                 
                 # Make a follow-up call to force booking
@@ -168,6 +176,7 @@ def process_auto_booking():
                 
                 follow_up_result = call_reasoning_agent(follow_up_message, username, mac_password, user_api_key, session_id)
                 logging.info(f"Follow-up agent request completed for user {username} with status: {follow_up_result.get('status')}")
+                logging.info(f"Follow-up result details: {follow_up_result}")
                 
                 # Use the follow-up result for the final status
                 if follow_up_result.get("status") == "success":
@@ -185,11 +194,11 @@ def process_auto_booking():
                         "message": follow_up_result.get("message", "Booking failed after follow-up")
                     })
             else:
-                logging.error(f"Failed to process auto-booking for {username}: {agent_result}")
+                logging.error(f"Failed to process auto-booking for {username}: No session_id returned from first call")
                 results.append({
                     "username": username,
                     "status": "error",
-                    "message": agent_result.get("message", "Booking failed")
+                    "message": agent_result.get("message", "Booking failed - no session established")
                 })
                 
         except Exception as e:
