@@ -33,9 +33,21 @@ def login():
             else:
                 # Check if user is enabled and has MAC password for dashboard access
                 if auth_entry.get("is_enabled") and auth_entry.get("mac_password"):
+                    # Auto-sync MAC password if it's different from what they logged in with
+                    stored_mac_password = auth_entry.get("mac_password")
+                    if stored_mac_password and stored_mac_password != password:
+                        # Password has changed - update it automatically
+                        success = update_mac_password(username, password)
+                        if success:
+                            logging.info(f"Auto-updated MAC password for {username} - password had changed")
+                        else:
+                            logging.error(f"Failed to auto-update MAC password for {username}")
+                    
                     return redirect(url_for("web.user_dashboard"))
                 elif auth_entry.get("is_enabled"):
                     # User is enabled but needs to set MAC password
+                    # Store the password temporarily so they can choose to save it
+                    session['login_password'] = password
                     return redirect(url_for("web.setup_mac_password"))
                 else:
                     # User is not enabled yet
@@ -355,10 +367,13 @@ def user_dashboard():
     if not username:
         return redirect(url_for("web.login"))
     
-    # Verify user is enabled and has MAC password
+    # Verify user is enabled
     auth_entry = get_auth(username)
-    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+    if not auth_entry or not auth_entry.get("is_enabled"):
         return redirect(url_for("web.already_submitted"))
+    
+    # Check if user has MAC password for auto-booking features
+    has_mac_password = auth_entry.get("mac_password") is not None
     
     # Get the user's current schedule
     user_schedule = get_schedule(username)
@@ -373,7 +388,7 @@ def user_dashboard():
             "sunday": None
         }
     
-    return render_template("user_dashboard.html", username=username, schedule=user_schedule)
+    return render_template("user_dashboard.html", username=username, schedule=user_schedule, has_mac_password=has_mac_password)
 
 @web_bp.route("/user/schedule", methods=["POST"])
 def update_my_schedule():
@@ -382,9 +397,9 @@ def update_my_schedule():
     if not username:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
     
-    # Verify user is enabled and has MAC password
+    # Verify user is enabled (MAC password not required to save schedule)
     auth_entry = get_auth(username)
-    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+    if not auth_entry or not auth_entry.get("is_enabled"):
         return jsonify({"status": "error", "message": "Access denied"}), 403
     
     data = request.json
@@ -392,7 +407,12 @@ def update_my_schedule():
     
     try:
         add_or_update_schedule(username, schedule_data)
-        return jsonify({"status": "success", "message": "Your schedule has been updated successfully!"})
+        
+        # Check if they have MAC password for appropriate message
+        if not auth_entry.get("mac_password"):
+            return jsonify({"status": "warning", "message": "Schedule saved, but you need to set your MAC password first to enable auto-booking."})
+        else:
+            return jsonify({"status": "success", "message": "Your schedule has been updated successfully!"})
     except Exception as e:
         logging.error(f"Error updating schedule for {username}: {str(e)}")
         return jsonify({"status": "error", "message": "Failed to update schedule. Please try again."}), 500
@@ -404,9 +424,9 @@ def delete_my_schedule():
     if not username:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
     
-    # Verify user is enabled and has MAC password
+    # Verify user is enabled (MAC password not required to delete schedule)
     auth_entry = get_auth(username)
-    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+    if not auth_entry or not auth_entry.get("is_enabled"):
         return jsonify({"status": "error", "message": "Access denied"}), 403
     
     try:
@@ -472,29 +492,35 @@ def setup_mac_password():
         return redirect(url_for("web.user_dashboard"))
     
     if request.method == "POST":
-        mac_password = request.form.get("mac_password", "").strip()
+        save_login_password = request.form.get("save_login_password") == "on"
         
-        if not mac_password:
-            error = "MAC password is required."
-            return render_template("setup_mac_password.html", username=username, error=error)
-        
-        # Validate the MAC password by attempting to login
-        context = load_context_for_registration_pages()
-        login_response = login_with_credentials(username, mac_password, context)
-        
-        if not login_response:
-            error = "Invalid MAC password. Please verify this is the correct password for the MAC website."
-            return render_template("setup_mac_password.html", username=username, error=error)
-        
-        # Update the MAC password
-        success = update_mac_password(username, mac_password)
-        
-        if success:
-            logging.info(f"User {username} successfully set their MAC password")
-            return redirect(url_for("web.user_dashboard"))
+        if save_login_password:
+            # Use the password from their recent login session
+            login_password = session.get('login_password')
+            
+            if not login_password:
+                error = "Session expired. Please log in again."
+                return render_template("setup_mac_password.html", username=username, error=error)
+            
+            # Update the MAC password with their login password
+            success = update_mac_password(username, login_password)
+            
+            if success:
+                logging.info(f"User {username} successfully saved their login password as MAC password")
+                # Clear the login password from session for security
+                if 'login_password' in session:
+                    del session['login_password']
+                return redirect(url_for("web.user_dashboard"))
+            else:
+                error = "Failed to save MAC password. Please try again."
+                return render_template("setup_mac_password.html", username=username, error=error)
         else:
-            error = "Failed to save MAC password. Please try again."
-            return render_template("setup_mac_password.html", username=username, error=error)
+            # User chose not to save their password, go to dashboard without MAC password
+            logging.info(f"User {username} chose not to save their MAC password")
+            # Clear the login password from session for security
+            if 'login_password' in session:
+                del session['login_password']
+            return redirect(url_for("web.user_dashboard"))
     
     return render_template("setup_mac_password.html", username=username)
 

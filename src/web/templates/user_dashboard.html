@@ -261,7 +261,11 @@
     <div class="admin-container">
         <div class="dashboard-header">
             <h1>Welcome, {{ username }}!</h1>
+            {% if has_mac_password %}
             <p>Manage your automatic swim lane booking schedule</p>
+            {% else %}
+            <p>Complete your setup to enable automatic swim lane booking</p>
+            {% endif %}
         </div>
         
         <div class="tab-container">
@@ -274,8 +278,20 @@
             <!-- Schedule Tab -->
             <div id="schedule-tab" class="tab-content active">
                 <h2>🗓️ Your Auto-Booking Schedule</h2>
+                {% if has_mac_password %}
                 <p>Set up automatic swim lane booking for each day of the week.</p>
+                
+                <div style="background: #d1ecf1; padding: 15px; border-radius: 6px; border-left: 4px solid #bee5eb; margin: 15px 0; font-size: 14px;">
+                    <p style="margin: 0;"><strong>💡 Pro Tip:</strong> Your MAC password automatically syncs when you login, so your bookings will always work with your current password!</p>
+                </div>
+                {% else %}
+                <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                    <h3 style="color: #856404; margin-top: 0;">🔐 MAC Password Required</h3>
+                    <p style="margin: 0;">You need to set your MAC password first to enable automatic lane booking. Go to the Account tab to set it up.</p>
+                </div>
+                {% endif %}
             
+            {% if has_mac_password %}
             <form id="scheduleForm">
                 <div class="day-schedule">
                     <label for="monday">Monday <span class="status-indicator {{ 'status-active' if schedule.monday else 'status-empty' }}">{{ 'Active' if schedule.monday else 'Not Set' }}</span></label>
@@ -317,15 +333,31 @@
                     <button type="button" class="btn btn-danger" onclick="deleteSchedule()">🗑️ Clear All</button>
                 </div>
             </form>
+            {% endif %}
             </div>
             
             <!-- Account Tab -->
             <div id="account-tab" class="tab-content">
                 <h2>🔐 Account Settings</h2>
-                <p>Manage your account settings and MAC website password.</p>
+                {% if has_mac_password %}
+                <p>Your account is fully configured for automatic lane booking.</p>
                 
-                <h3>MAC Password</h3>
-                <p>Update your MAC website password used for automatic lane bookings.</p>
+                <div style="background: #d4edda; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-top: 0;">✅ Auto-Sync Enabled</h3>
+                    <p style="margin: 0;">Your MAC password is automatically synchronized when you login. If you change your MAC website password, just login with the new password and it will be updated automatically.</p>
+                </div>
+                
+                <h3>MAC Password Status</h3>
+                <p>✅ <strong>MAC password is set and ready for auto-booking</strong></p>
+                <p style="font-size: 14px; color: #666;">The system automatically keeps your stored password in sync with your MAC website login. No manual updates needed!</p>
+                {% else %}
+                <div style="background: #d4edda; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-top: 0;">🚀 Complete Your Setup</h3>
+                    <p style="margin: 0;">Set your MAC password to enable automatic swim lane booking and unlock all features!</p>
+                </div>
+                
+                <h3>Set MAC Password</h3>
+                <p>Enter your MAC website password to enable automatic lane bookings.</p>
                 
                 <form id="macPasswordForm">
                     <div class="day-schedule">
@@ -336,13 +368,14 @@
                     </div>
                     
                     <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 20px 0;">
-                        <p style="margin: 0;"><strong>⚠️ Important:</strong> This should be the same password you use to login to the MAC website (ourclublogin.com). Changing this will update the password used for automatic lane bookings.</p>
+                        <p style="margin: 0;"><strong>⚠️ Important:</strong> This should be the same password you use to login to the MAC website (ourclublogin.com). Once set, the system will automatically keep it synchronized.</p>
                     </div>
                     
                     <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="updateMacPassword()">🔐 Update Password</button>
+                        <button type="button" class="btn btn-primary" onclick="updateMacPassword()">🚀 Set Password</button>
                     </div>
                 </form>
+                {% endif %}
             </div>
             
             <!-- Help Tab -->
@@ -434,6 +467,9 @@
                 if (data.status === 'success') {
                     alert('✅ ' + data.message);
                     location.reload();
+                } else if (data.status === 'warning') {
+                    alert('⚠️ ' + data.message);
+                    location.reload();
                 } else {
                     alert('❌ Error: ' + data.message);
                 }
@@ -468,7 +504,7 @@
             
             // Validation
             if (!newPassword) {
-                alert('❌ Please enter your MAC password');
+                alert('❌ Please enter your MAC website password');
                 return;
             }
             
