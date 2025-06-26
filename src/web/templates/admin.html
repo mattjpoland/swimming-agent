@@ -38,6 +38,13 @@
         .admin-nav a.active {
             background-color: #0056b3;
         }
+        .admin-nav a.logout-btn {
+            background-color: #6c757d;
+            margin-left: 20px;
+        }
+        .admin-nav a.logout-btn:hover {
+            background-color: #5a6268;
+        }
         
         /* Responsive table container */
         .table-container {
@@ -311,6 +318,7 @@
         <div class="admin-nav">
             <a href="{{ url_for('web.admin_page') }}" class="active">User Management</a>
             <a href="{{ url_for('web.admin_schedules') }}">Schedule Management</a>
+            <a href="{{ url_for('web.logout') }}" class="logout-btn">🚪 Logout</a>
         </div>
         
         <!-- Desktop Table View -->
