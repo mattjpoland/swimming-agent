@@ -111,3 +111,17 @@ def delete_user(username):
     conn.commit()
     conn.close()
     return rows_deleted > 0
+
+def update_api_key(username, new_api_key):
+    """Update the API key for a specific user."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE auth_data
+        SET api_key = %s
+        WHERE username = %s
+    """, (new_api_key, username))
+    rows_updated = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return rows_updated > 0

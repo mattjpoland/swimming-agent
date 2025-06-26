@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, jsonify
 import logging
 import os
-from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth, delete_user
+import secrets
+from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth, delete_user, update_api_key
 from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
@@ -231,6 +232,49 @@ def delete_user_admin():
         logging.exception(f"Error deleting user {username}: {str(e)}")
         return jsonify({"status": "error", "message": f"An error occurred while deleting user {username}: {str(e)}"}), 500
 
+@web_bp.route("/admin/regenerate-api-key", methods=["POST"])
+@require_admin
+def regenerate_api_key():
+    """Regenerate API key for a user."""
+    data = request.json
+    username = data.get("username") if data else None
+    
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+    
+    # Check if user exists
+    auth_entry = get_auth(username)
+    if not auth_entry:
+        return jsonify({"status": "error", "message": f"User {username} not found"}), 404
+    
+    # Don't allow regenerating admin API keys from this interface
+    if auth_entry.get("is_admin"):
+        return jsonify({"status": "error", "message": "Cannot regenerate API keys for admin users"}), 403
+    
+    try:
+        # Generate new API key
+        new_api_key = generate_api_key()
+        
+        # Update the API key in the database
+        success = update_api_key(username, new_api_key)
+        
+        if success:
+            return jsonify({
+                "status": "success", 
+                "message": f"API key regenerated for {username}",
+                "new_api_key": new_api_key
+            })
+        else:
+            return jsonify({"status": "error", "message": f"Failed to regenerate API key for {username}"}), 500
+            
+    except Exception as e:
+        logging.exception(f"Error regenerating API key for {username}: {str(e)}")
+        return jsonify({"status": "error", "message": f"An error occurred while regenerating API key for {username}: {str(e)}"}), 500
+
+def generate_api_key():
+    """Generate a secure API key."""
+    return secrets.token_urlsafe(32)
+
 @web_bp.route("/select_family_member", methods=["POST"])
 def select_family_member():
     """Handle family member selection and complete registration."""
@@ -242,8 +286,8 @@ def select_family_member():
     if not username or not customer_id or not family_member_id:
         return render_template("registration.html", error="Missing required information"), 400
     
-    # Generate a placeholder API key for now (you may want to implement actual API key generation)
-    api_key = f"temp_key_{username}"
+    # Generate a proper API key
+    api_key = generate_api_key()
     
     # Store the auth data with MAC password if provided
     mac_password_to_store = mac_password if mac_password else None

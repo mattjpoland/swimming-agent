@@ -146,6 +146,14 @@
             background-color: #c82333 !important;
         }
         
+        .regenerate-btn {
+            background-color: #ffc107 !important;
+        }
+        
+        .regenerate-btn:hover {
+            background-color: #e0a800 !important;
+        }
+        
         .admin-badge {
             color: #6c757d;
             font-style: italic;
@@ -361,6 +369,9 @@
                                     <button type="submit">Toggle Enabled</button>
                                 </form>
                                 <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">MAC Password</button>
+                                {% if record.api_key.startswith('temp_key_') %}
+                                <button type="button" class="regenerate-btn" onclick="regenerateApiKey('{{ record.username|e }}')">Fix API Key</button>
+                                {% endif %}
                                 <button type="button" class="delete-btn" onclick="deleteUser('{{ record.username|e }}')">Delete User</button>
                                 {% else %}
                                 <span class="admin-badge">Admin</span>
@@ -412,6 +423,9 @@
                         <button type="submit">Toggle Enabled</button>
                     </form>
                     <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">Set MAC Password</button>
+                    {% if record.api_key.startswith('temp_key_') %}
+                    <button type="button" class="regenerate-btn" onclick="regenerateApiKey('{{ record.username|e }}')">Fix API Key</button>
+                    {% endif %}
                     <button type="button" class="delete-btn" onclick="deleteUser('{{ record.username|e }}')">Delete User</button>
                     {% else %}
                     <span class="admin-badge">Admin User</span>
@@ -529,6 +543,34 @@
             })
             .catch(error => {
                 alert('❌ Error deleting user: ' + error);
+            });
+        }
+
+        function regenerateApiKey(username) {
+            if (!confirm(`🔑 Regenerate API key for "${username}"?\n\nThis will:\n• Generate a new secure API key\n• Replace the temporary placeholder key\n• Require the user to use the new key for API access\n\nContinue?`)) {
+                return;
+            }
+
+            fetch('/web/admin/regenerate-api-key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message + '\n\nNew API Key: ' + data.new_api_key);
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error regenerating API key: ' + error);
             });
         }
     </script>
