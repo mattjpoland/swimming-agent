@@ -1,5 +1,6 @@
 import requests
 import json
+import logging
 
 def login_with_credentials(username, password, context):
     """Fetch an authentication token using provided username and password, return the full JSON response."""
