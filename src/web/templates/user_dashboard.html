@@ -286,6 +286,35 @@
                 </div>
             </form>
         </div>
+        
+        <div class="schedule-section">
+            <h2>🔐 MAC Password Settings</h2>
+            <p>Update your MAC website password used for automatic lane bookings.</p>
+            
+            <form id="macPasswordForm">
+                <div class="day-schedule">
+                    <label for="new_mac_password">New MAC Password</label>
+                    <input type="password" id="new_mac_password" name="new_mac_password" 
+                           placeholder="Enter your new MAC website password" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border-color 0.3s;">
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="confirm_mac_password">Confirm MAC Password</label>
+                    <input type="password" id="confirm_mac_password" name="confirm_mac_password" 
+                           placeholder="Confirm your new MAC password" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border-color 0.3s;">
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                    <p style="margin: 0;"><strong>⚠️ Important:</strong> This should be the same password you use to login to the MAC website (ourclublogin.com). Changing this will update the password used for automatic lane bookings.</p>
+                </div>
+                
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-primary" onclick="updateMacPassword()">🔐 Update Password</button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <script>
@@ -339,6 +368,52 @@
                     alert('❌ Error deleting schedule: ' + error);
                 });
             }
+        }
+        
+        function updateMacPassword() {
+            const newPassword = document.getElementById('new_mac_password').value;
+            const confirmPassword = document.getElementById('confirm_mac_password').value;
+            
+            // Validation
+            if (!newPassword) {
+                alert('❌ Please enter a new MAC password');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                alert('❌ Passwords do not match. Please check and try again.');
+                return;
+            }
+            
+            // Confirm action
+            if (!confirm('⚠️ Are you sure you want to update your MAC password? This will affect your automatic lane bookings.')) {
+                return;
+            }
+            
+            // Update password
+            fetch('/web/user/mac-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mac_password: newPassword
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    // Clear the form
+                    document.getElementById('new_mac_password').value = '';
+                    document.getElementById('confirm_mac_password').value = '';
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error updating MAC password: ' + error);
+            });
         }
         
         // Auto-save draft functionality (optional enhancement)
