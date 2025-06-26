@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, jsonify
 import logging
 import os
-from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth
+from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth, delete_user
 from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
@@ -193,6 +193,43 @@ def update_user_mac_password():
         return jsonify({"status": "success", "message": message})
     else:
         return jsonify({"status": "error", "message": f"Failed to update MAC password for {username}"}), 500
+
+@web_bp.route("/admin/delete-user", methods=["POST"])
+@require_admin
+def delete_user_admin():
+    """Delete a user and all their associated data."""
+    data = request.json
+    username = data.get("username") if data else None
+    
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+    
+    # Check if user exists
+    auth_entry = get_auth(username)
+    if not auth_entry:
+        return jsonify({"status": "error", "message": f"User {username} not found"}), 404
+    
+    # Don't allow deleting admin users
+    if auth_entry.get("is_admin"):
+        return jsonify({"status": "error", "message": "Cannot delete admin users"}), 403
+    
+    try:
+        # Delete user's schedule first (if it exists)
+        schedule_deleted = delete_schedule(username)
+        schedule_message = f" Schedule deleted." if schedule_deleted else " No schedule found."
+        
+        # Delete the user from auth_data
+        user_deleted = delete_user(username)
+        
+        if user_deleted:
+            message = f"User {username} has been successfully deleted.{schedule_message}"
+            return jsonify({"status": "success", "message": message})
+        else:
+            return jsonify({"status": "error", "message": f"Failed to delete user {username}"}), 500
+            
+    except Exception as e:
+        logging.exception(f"Error deleting user {username}: {str(e)}")
+        return jsonify({"status": "error", "message": f"An error occurred while deleting user {username}: {str(e)}"}), 500
 
 @web_bp.route("/select_family_member", methods=["POST"])
 def select_family_member():

@@ -131,6 +131,14 @@
             background-color: #0056b3;
         }
         
+        .delete-btn {
+            background-color: #dc3545 !important;
+        }
+        
+        .delete-btn:hover {
+            background-color: #c82333 !important;
+        }
+        
         .admin-badge {
             color: #6c757d;
             font-style: italic;
@@ -345,6 +353,7 @@
                                     <button type="submit">Toggle Enabled</button>
                                 </form>
                                 <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">MAC Password</button>
+                                <button type="button" class="delete-btn" onclick="deleteUser('{{ record.username|e }}')">Delete User</button>
                                 {% else %}
                                 <span class="admin-badge">Admin</span>
                                 {% endif %}
@@ -395,6 +404,7 @@
                         <button type="submit">Toggle Enabled</button>
                     </form>
                     <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">Set MAC Password</button>
+                    <button type="button" class="delete-btn" onclick="deleteUser('{{ record.username|e }}')">Delete User</button>
                     {% else %}
                     <span class="admin-badge">Admin User</span>
                     {% endif %}
@@ -484,6 +494,34 @@
             if (event.target == modal) {
                 closeMacPasswordModal();
             }
+        }
+
+        function deleteUser(username) {
+            if (!confirm(`⚠️ Are you sure you want to delete user "${username}"?\n\nThis will permanently remove:\n• Their user account\n• All auto-booking schedules\n• All associated data\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            fetch('/web/admin/delete-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error deleting user: ' + error);
+            });
         }
     </script>
 </body>

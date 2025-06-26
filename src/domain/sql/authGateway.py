@@ -101,3 +101,13 @@ def get_mac_password(username):
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else None
+
+def delete_user(username):
+    """Delete a user from the auth_data table."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM auth_data WHERE username = %s", (username,))
+    rows_deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return rows_deleted > 0
