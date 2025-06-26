@@ -54,6 +54,11 @@ def login():
                 family_members.append(customer)  # Add the customer to the family_members list
             else:
                 family_members = [customer]  # Create new list with just the customer
+            
+            # Store the MAC password in session for later use during registration
+            session['mac_password'] = password
+            session['username'] = username  # Store username as well
+            
             return render_template("registration.html", customer=customer, family_members=family_members)
 
         # If login fails, return an error
@@ -281,7 +286,7 @@ def select_family_member():
     username = request.form.get("username")
     customer_id = request.form.get("customer_id")
     family_member_id = request.form.get("family_member")
-    mac_password = request.form.get("mac_password", "").strip()
+    save_mac_password = request.form.get("save_mac_password") == "on"  # Checkbox value
     
     if not username or not customer_id or not family_member_id:
         return render_template("registration.html", error="Missing required information"), 400
@@ -289,8 +294,10 @@ def select_family_member():
     # Generate a proper API key
     api_key = generate_api_key()
     
-    # Store the auth data with MAC password if provided
-    mac_password_to_store = mac_password if mac_password else None
+    # Use the MAC password from session if user opted to save it
+    mac_password_to_store = None
+    if save_mac_password and session.get('mac_password'):
+        mac_password_to_store = session.get('mac_password')
     
     try:
         store_auth(
@@ -308,6 +315,10 @@ def select_family_member():
         # Store the username and MAC password status in session for the confirmation page
         session['username'] = username
         session['mac_password_set'] = bool(mac_password_to_store)
+        
+        # Clear the MAC password from session for security after registration
+        if 'mac_password' in session:
+            del session['mac_password']
         
         return redirect(url_for("web.registration_complete"))
         
@@ -402,7 +413,11 @@ def already_submitted():
     if not username:
         return redirect(url_for("web.login"))
     
-    return render_template("already_submitted.html", username=username)
+    # Check if user has MAC password saved
+    auth_entry = get_auth(username)
+    has_mac_password = auth_entry and auth_entry.get("mac_password") is not None
+    
+    return render_template("already_submitted.html", username=username, has_mac_password=has_mac_password)
 
 @web_bp.route("/logout", methods=["GET", "POST"])
 def logout():

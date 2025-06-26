@@ -89,7 +89,11 @@
             <ul class="status-list">
                 <li class="status-enabled">✅ <strong>Account Registered:</strong> Your account has been successfully created</li>
                 <li class="status-warning">⏳ <strong>Admin Approval:</strong> Waiting for administrator to enable your account</li>
+                {% if has_mac_password %}
+                <li class="status-enabled">✅ <strong>MAC Password:</strong> Your MAC password has been saved for auto-booking</li>
+                {% else %}
                 <li class="status-warning">🔐 <strong>MAC Password:</strong> Need to set your MAC website password for auto-booking</li>
+                {% endif %}
             </ul>
         </div>
         
@@ -97,8 +101,10 @@
             <h4>What's Next?</h4>
             <ul style="text-align: left; line-height: 1.6;">
                 <li><strong>Wait for Approval:</strong> An administrator will review and enable your account</li>
+                {% if not has_mac_password %}
                 <li><strong>Set MAC Password:</strong> Once enabled, you can set your MAC password through the admin panel or have an admin set it for you</li>
-                <li><strong>Access Dashboard:</strong> After both steps are complete, you'll be able to manage your auto-booking schedule</li>
+                {% endif %}
+                <li><strong>Access Dashboard:</strong> {% if has_mac_password %}Once your account is approved{% else %}After both steps are complete{% endif %}, you'll be able to manage your auto-booking schedule</li>
             </ul>
         </div>
         
