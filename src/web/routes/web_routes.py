@@ -34,7 +34,11 @@ def login():
                 # Check if user is enabled and has MAC password for dashboard access
                 if auth_entry.get("is_enabled") and auth_entry.get("mac_password"):
                     return redirect(url_for("web.user_dashboard"))
+                elif auth_entry.get("is_enabled"):
+                    # User is enabled but needs to set MAC password
+                    return redirect(url_for("web.setup_mac_password"))
                 else:
+                    # User is not enabled yet
                     return redirect(url_for("web.already_submitted"))
 
         # Handle new user registration
@@ -405,6 +409,70 @@ def delete_my_schedule():
     except Exception as e:
         logging.error(f"Error deleting schedule for {username}: {str(e)}")
         return jsonify({"status": "error", "message": "Failed to delete schedule. Please try again."}), 500
+
+@web_bp.route("/user/mac-password", methods=["POST"])
+def update_my_mac_password():
+    """Allow users to update their own MAC password."""
+    username = session.get('username')
+    if not username:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+    
+    # Verify user is enabled
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled"):
+        return jsonify({"status": "error", "message": "Access denied"}), 403
+    
+    data = request.json
+    mac_password = data.get("mac_password", "").strip() if data else ""
+    
+    if not mac_password:
+        return jsonify({"status": "error", "message": "MAC password is required"}), 400
+    
+    try:
+        success = update_mac_password(username, mac_password)
+        if success:
+            logging.info(f"User {username} updated their MAC password")
+            return jsonify({"status": "success", "message": "Your MAC password has been updated successfully!"})
+        else:
+            return jsonify({"status": "error", "message": "Failed to update MAC password. Please try again."}), 500
+    except Exception as e:
+        logging.error(f"Error updating MAC password for {username}: {str(e)}")
+        return jsonify({"status": "error", "message": "Failed to update MAC password. Please try again."}), 500
+
+@web_bp.route("/setup-mac-password", methods=["GET", "POST"])
+def setup_mac_password():
+    """Allow enabled users to set their MAC password."""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for("web.login"))
+    
+    # Verify user is enabled
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled"):
+        return redirect(url_for("web.already_submitted"))
+    
+    # If they already have a MAC password, redirect to dashboard
+    if auth_entry.get("mac_password"):
+        return redirect(url_for("web.user_dashboard"))
+    
+    if request.method == "POST":
+        mac_password = request.form.get("mac_password", "").strip()
+        
+        if not mac_password:
+            error = "MAC password is required."
+            return render_template("setup_mac_password.html", username=username, error=error)
+        
+        # Update the MAC password
+        success = update_mac_password(username, mac_password)
+        
+        if success:
+            logging.info(f"User {username} successfully set their MAC password")
+            return redirect(url_for("web.user_dashboard"))
+        else:
+            error = "Failed to save MAC password. Please try again."
+            return render_template("setup_mac_password.html", username=username, error=error)
+    
+    return render_template("setup_mac_password.html", username=username)
 
 @web_bp.route("/already_submitted", methods=["GET"])
 def already_submitted():
