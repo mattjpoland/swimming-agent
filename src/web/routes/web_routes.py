@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, jsonify
 import logging
 import os
-from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data
+from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth
 from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
@@ -30,7 +30,11 @@ def login():
             if auth_entry.get("is_admin"):
                 return redirect(url_for("web.admin_page"))
             else:
-                return redirect(url_for("web.already_submitted"))
+                # Check if user is enabled and has MAC password for dashboard access
+                if auth_entry.get("is_enabled") and auth_entry.get("mac_password"):
+                    return redirect(url_for("web.user_dashboard"))
+                else:
+                    return redirect(url_for("web.already_submitted"))
 
         # Handle new user registration
         context = load_context_for_registration_pages()
@@ -45,7 +49,10 @@ def login():
             family_members = get_family_members_action(username, password, context)
             if family_members is None:
                 family_members = []
-            family_members.append(customer)  # Add the customer to the family_members list
+            if isinstance(family_members, list):
+                family_members.append(customer)  # Add the customer to the family_members list
+            else:
+                family_members = [customer]  # Create new list with just the customer
             return render_template("registration.html", customer=customer, family_members=family_members)
 
         # If login fails, return an error
@@ -67,7 +74,8 @@ def admin_page():
             "customer_id": record[2],
             "alt_customer_id": record[3],
             "is_enabled": bool(record[4]),
-            "is_admin": bool(record[5])
+            "is_admin": bool(record[5]),
+            "has_mac_password": bool(record[6]) if len(record) > 6 else False
         }
         for record in auth_data
     ]
@@ -118,8 +126,8 @@ def get_user_schedule():
 def update_user_schedule():
     """Update a user's schedule."""
     data = request.json
-    username = data.get('username')
-    schedule_data = data.get('schedule', {})
+    username = data.get('username') if data else None
+    schedule_data = data.get('schedule', {}) if data else {}
     
     if not username:
         return jsonify({"status": "error", "message": "Username is required"}), 400
@@ -146,8 +154,8 @@ def delete_user_schedule():
 def create_new_schedule():
     """Create a new schedule."""
     data = request.json
-    username = data.get("username")
-    schedule = data.get("schedule", {})
+    username = data.get("username") if data else None
+    schedule = data.get("schedule", {}) if data else {}
     
     # Check if user exists in auth_data
     auth_entry = get_auth(username)
@@ -156,3 +164,158 @@ def create_new_schedule():
     
     add_or_update_schedule(username, schedule)
     return jsonify({"status": "success", "message": f"Schedule created for {username}"})
+
+@web_bp.route("/admin/mac-password", methods=["POST"])
+@require_admin
+def update_user_mac_password():
+    """Update a user's MAC password."""
+    data = request.json
+    username = data.get("username") if data else None
+    mac_password = data.get("mac_password", "").strip() if data else ""
+    
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+    
+    # Check if user exists
+    auth_entry = get_auth(username)
+    if not auth_entry:
+        return jsonify({"status": "error", "message": f"User {username} not found"}), 404
+    
+    # Don't allow updating admin user's MAC password from this interface
+    if auth_entry.get("is_admin"):
+        return jsonify({"status": "error", "message": "Cannot update MAC password for admin users"}), 403
+    
+    # Update the MAC password (empty string will clear it)
+    success = update_mac_password(username, mac_password if mac_password else None)
+    
+    if success:
+        message = f"MAC password {'updated' if mac_password else 'cleared'} for {username}"
+        return jsonify({"status": "success", "message": message})
+    else:
+        return jsonify({"status": "error", "message": f"Failed to update MAC password for {username}"}), 500
+
+@web_bp.route("/select_family_member", methods=["POST"])
+def select_family_member():
+    """Handle family member selection and complete registration."""
+    username = request.form.get("username")
+    customer_id = request.form.get("customer_id")
+    family_member_id = request.form.get("family_member")
+    mac_password = request.form.get("mac_password", "").strip()
+    
+    if not username or not customer_id or not family_member_id:
+        return render_template("registration.html", error="Missing required information"), 400
+    
+    # Generate a placeholder API key for now (you may want to implement actual API key generation)
+    api_key = f"temp_key_{username}"
+    
+    # Store the auth data with MAC password if provided
+    mac_password_to_store = mac_password if mac_password else None
+    
+    try:
+        store_auth(
+            username=username,
+            api_key=api_key,
+            customer_id=customer_id,
+            alt_customer_id=family_member_id,
+            is_enabled=False,  # Will be enabled by admin later
+            is_admin=False,
+            mac_password=mac_password_to_store
+        )
+        
+        logging.info(f"Registration completed for user: {username}, MAC password {'set' if mac_password_to_store else 'not provided'}")
+        
+        # Store the username and MAC password status in session for the confirmation page
+        session['username'] = username
+        session['mac_password_set'] = bool(mac_password_to_store)
+        
+        return redirect(url_for("web.registration_complete"))
+        
+    except Exception as e:
+        logging.error(f"Error storing registration data for {username}: {str(e)}")
+        return render_template("registration.html", error="Registration failed. Please try again."), 500
+
+@web_bp.route("/registration_complete", methods=["GET"])
+def registration_complete():
+    """Show registration completion confirmation."""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for("web.login"))
+    
+    return render_template("confirmation.html", username=username)
+
+@web_bp.route("/user/dashboard", methods=["GET"])
+def user_dashboard():
+    """User dashboard for managing auto-booking schedules."""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for("web.login"))
+    
+    # Verify user is enabled and has MAC password
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+        return redirect(url_for("web.already_submitted"))
+    
+    # Get the user's current schedule
+    user_schedule = get_schedule(username)
+    if user_schedule is None:
+        user_schedule = {
+            "monday": None,
+            "tuesday": None,
+            "wednesday": None,
+            "thursday": None,
+            "friday": None,
+            "saturday": None,
+            "sunday": None
+        }
+    
+    return render_template("user_dashboard.html", username=username, schedule=user_schedule)
+
+@web_bp.route("/user/schedule", methods=["POST"])
+def update_my_schedule():
+    """Allow users to update their own schedule."""
+    username = session.get('username')
+    if not username:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+    
+    # Verify user is enabled and has MAC password
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+        return jsonify({"status": "error", "message": "Access denied"}), 403
+    
+    data = request.json
+    schedule_data = data.get('schedule', {}) if data else {}
+    
+    try:
+        add_or_update_schedule(username, schedule_data)
+        return jsonify({"status": "success", "message": "Your schedule has been updated successfully!"})
+    except Exception as e:
+        logging.error(f"Error updating schedule for {username}: {str(e)}")
+        return jsonify({"status": "error", "message": "Failed to update schedule. Please try again."}), 500
+
+@web_bp.route("/user/schedule", methods=["DELETE"])
+def delete_my_schedule():
+    """Allow users to delete their own schedule."""
+    username = session.get('username')
+    if not username:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+    
+    # Verify user is enabled and has MAC password
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+        return jsonify({"status": "error", "message": "Access denied"}), 403
+    
+    try:
+        success = delete_schedule(username)
+        if success:
+            return jsonify({"status": "success", "message": "Your schedule has been deleted successfully!"})
+        else:
+            return jsonify({"status": "error", "message": "No schedule found to delete"}), 404
+    except Exception as e:
+        logging.error(f"Error deleting schedule for {username}: {str(e)}")
+        return jsonify({"status": "error", "message": "Failed to delete schedule. Please try again."}), 500
+
+@web_bp.route("/logout", methods=["GET", "POST"])
+def logout():
+    """Logout the current user."""
+    session.clear()
+    return redirect(url_for("web.login"))

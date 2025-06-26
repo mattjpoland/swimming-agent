@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAC Swimming Agent - My Dashboard</title>
+    <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('web.static', filename='admin-common.css') }}">
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .dashboard-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .schedule-section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .schedule-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .day-schedule {
+            margin-bottom: 20px;
+        }
+        
+        .day-schedule label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 16px;
+        }
+        
+        .day-schedule textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        .day-schedule textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+        
+        .day-schedule textarea::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .help-section {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .help-section h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        
+        .help-section ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .help-section li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .help-section code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-empty {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .dashboard-header h1 {
+                font-size: 24px;
+            }
+            
+            .schedule-section {
+                padding: 15px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="dashboard-header">
+            <h1>Welcome, {{ username }}!</h1>
+            <p>Manage your automatic swim lane booking schedule</p>
+        </div>
+        
+        <div class="help-section">
+            <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
+            <ul>
+                <li>Enter booking commands for each day you want automatic bookings</li>
+                <li>Use <code>{date}</code> as a placeholder for the actual date</li>
+                <li>Example: <code>book lane 4 at 6:00 AM on {date} for 60 minutes at East Lansing</code></li>
+                <li>Leave days blank if you don't want automatic bookings on those days</li>
+                <li>The system will attempt to book lanes according to your schedule every day</li>
+            </ul>
+        </div>
+        
+        <div class="schedule-section">
+            <h2>🗓️ Your Auto-Booking Schedule</h2>
+            
+            <form id="scheduleForm">
+                <div class="day-schedule">
+                    <label for="monday">Monday <span class="status-indicator {{ 'status-active' if schedule.monday else 'status-empty' }}">{{ 'Active' if schedule.monday else 'Not Set' }}</span></label>
+                    <textarea id="monday" name="monday" placeholder="Enter booking command for Monday (use {date} as placeholder)">{{ schedule.monday or '' }}</textarea>
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="tuesday">Tuesday <span class="status-indicator {{ 'status-active' if schedule.tuesday else 'status-empty' }}">{{ 'Active' if schedule.tuesday else 'Not Set' }}</span></label>
+                    <textarea id="tuesday" name="tuesday" placeholder="Enter booking command for Tuesday (use {date} as placeholder)">{{ schedule.tuesday or '' }}</textarea>
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="wednesday">Wednesday <span class="status-indicator {{ 'status-active' if schedule.wednesday else 'status-empty' }}">{{ 'Active' if schedule.wednesday else 'Not Set' }}</span></label>
+                    <textarea id="wednesday" name="wednesday" placeholder="Enter booking command for Wednesday (use {date} as placeholder)">{{ schedule.wednesday or '' }}</textarea>
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="thursday">Thursday <span class="status-indicator {{ 'status-active' if schedule.thursday else 'status-empty' }}">{{ 'Active' if schedule.thursday else 'Not Set' }}</span></label>
+                    <textarea id="thursday" name="thursday" placeholder="Enter booking command for Thursday (use {date} as placeholder)">{{ schedule.thursday or '' }}</textarea>
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="friday">Friday <span class="status-indicator {{ 'status-active' if schedule.friday else 'status-empty' }}">{{ 'Active' if schedule.friday else 'Not Set' }}</span></label>
+                    <textarea id="friday" name="friday" placeholder="Enter booking command for Friday (use {date} as placeholder)">{{ schedule.friday or '' }}</textarea>
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="saturday">Saturday <span class="status-indicator {{ 'status-active' if schedule.saturday else 'status-empty' }}">{{ 'Active' if schedule.saturday else 'Not Set' }}</span></label>
+                    <textarea id="saturday" name="saturday" placeholder="Enter booking command for Saturday (use {date} as placeholder)">{{ schedule.saturday or '' }}</textarea>
+                </div>
+                
+                <div class="day-schedule">
+                    <label for="sunday">Sunday <span class="status-indicator {{ 'status-active' if schedule.sunday else 'status-empty' }}">{{ 'Active' if schedule.sunday else 'Not Set' }}</span></label>
+                    <textarea id="sunday" name="sunday" placeholder="Enter booking command for Sunday (use {date} as placeholder)">{{ schedule.sunday or '' }}</textarea>
+                </div>
+                
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-primary" onclick="saveSchedule()">💾 Save Schedule</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()">🗑️ Clear All</button>
+                    <a href="{{ url_for('web.logout') }}" class="btn btn-secondary">🚪 Logout</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function saveSchedule() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const schedule = {};
+            
+            days.forEach(day => {
+                const value = document.getElementById(day).value.trim();
+                schedule[day] = value || null;
+            });
+            
+            fetch('/web/user/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    schedule: schedule
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error saving schedule: ' + error);
+            });
+        }
+        
+        function deleteSchedule() {
+            if (confirm('⚠️ Are you sure you want to clear your entire auto-booking schedule? This action cannot be undone.')) {
+                fetch('/web/user/schedule', {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('✅ ' + data.message);
+                        location.reload();
+                    } else {
+                        alert('❌ Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('❌ Error deleting schedule: ' + error);
+                });
+            }
+        }
+        
+        // Auto-save draft functionality (optional enhancement)
+        function autoSaveDraft() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const draft = {};
+            
+            days.forEach(day => {
+                const value = document.getElementById(day).value.trim();
+                draft[day] = value;
+            });
+            
+            localStorage.setItem('schedule_draft_{{ username }}', JSON.stringify(draft));
+        }
+        
+        function loadDraft() {
+            const draft = localStorage.getItem('schedule_draft_{{ username }}');
+            if (draft) {
+                try {
+                    const parsedDraft = JSON.parse(draft);
+                    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                    
+                    days.forEach(day => {
+                        const element = document.getElementById(day);
+                        if (parsedDraft[day] && !element.value.trim()) {
+                            element.value = parsedDraft[day];
+                        }
+                    });
+                } catch (e) {
+                    console.log('No valid draft found');
+                }
+            }
+        }
+        
+        // Load draft on page load
+        document.addEventListener('DOMContentLoaded', loadDraft);
+        
+        // Auto-save on input change
+        const textareas = document.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            textarea.addEventListener('input', autoSaveDraft);
+        });
+    </script>
+</body>
+</html> 

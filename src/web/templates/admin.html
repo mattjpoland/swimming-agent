@@ -137,6 +137,11 @@
             font-weight: bold;
         }
         
+        .mac-password-status {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
         /* Mobile responsive styles */
         @media (max-width: 768px) {
             .container {
@@ -311,7 +316,8 @@
                             <th>Customer ID</th>
                             <th>Alt Customer ID</th>
                             <th>Enabled</th>
-                            <th>Action</th>
+                            <th>MAC Password</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -324,11 +330,21 @@
                             <td class="enabled-cell {{ 'enabled-true' if record.is_enabled else 'enabled-false' }}">
                                 {{ 'Yes' if record.is_enabled else 'No' }}
                             </td>
+                            <td class="center-cell">
+                                {% if record.is_admin %}
+                                <span class="admin-badge">Admin</span>
+                                {% else %}
+                                <span class="mac-password-status {{ 'status-enabled' if record.has_mac_password else 'status-disabled' }}">
+                                    {{ '✓ Set' if record.has_mac_password else '✗ Missing' }}
+                                </span>
+                                {% endif %}
+                            </td>
                             <td class="action-buttons">
                                 {% if not record.is_admin %}
                                 <form action="{{ url_for('web.toggle_enabled', username=record.username) }}" method="post" style="display: inline;">
                                     <button type="submit">Toggle Enabled</button>
                                 </form>
+                                <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">MAC Password</button>
                                 {% else %}
                                 <span class="admin-badge">Admin</span>
                                 {% endif %}
@@ -364,12 +380,21 @@
                             {{ 'Yes' if record.is_enabled else 'No' }}
                         </span>
                     </div>
+                    {% if not record.is_admin %}
+                    <div class="user-detail">
+                        <span class="detail-label">MAC Password:</span>
+                        <span class="detail-value {{ 'status-enabled' if record.has_mac_password else 'status-disabled' }}">
+                            {{ '✓ Set' if record.has_mac_password else '✗ Missing' }}
+                        </span>
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="card-actions">
                     {% if not record.is_admin %}
                     <form action="{{ url_for('web.toggle_enabled', username=record.username) }}" method="post" style="display: inline;">
                         <button type="submit">Toggle Enabled</button>
                     </form>
+                    <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">Set MAC Password</button>
                     {% else %}
                     <span class="admin-badge">Admin User</span>
                     {% endif %}
@@ -378,5 +403,88 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- MAC Password Modal -->
+    <div id="macPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMacPasswordModal()">&times;</span>
+            <h2 id="macPasswordModalTitle">Set MAC Password</h2>
+            <p>Enter the MAC password for auto-booking functionality. This password is used to authenticate with the MAC system for automatic lane bookings.</p>
+            <form id="macPasswordForm">
+                <div class="admin-form-group">
+                    <label for="macPasswordInput">MAC Password:</label>
+                    <input type="password" id="macPasswordInput" placeholder="Enter MAC password" />
+                    <small style="color: #666; font-size: 12px;">Leave empty to clear the existing password</small>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="cancel-btn" onclick="closeMacPasswordModal()">Cancel</button>
+                    <button type="button" class="save-btn" onclick="saveMacPassword()">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentMacPasswordUsername = null;
+
+        function editMacPassword(username) {
+            currentMacPasswordUsername = username;
+            document.getElementById('macPasswordModalTitle').textContent = `Set MAC Password for ${username}`;
+            document.getElementById('macPasswordInput').value = '';
+            document.getElementById('macPasswordModal').style.display = 'block';
+        }
+
+        function closeMacPasswordModal() {
+            document.getElementById('macPasswordModal').style.display = 'none';
+            currentMacPasswordUsername = null;
+        }
+
+        function saveMacPassword() {
+            if (!currentMacPasswordUsername) {
+                alert('No user selected');
+                return;
+            }
+
+            const macPassword = document.getElementById('macPasswordInput').value.trim();
+            
+            // Confirm if clearing password
+            if (!macPassword) {
+                if (!confirm('Are you sure you want to clear the MAC password? This will disable auto-booking for this user.')) {
+                    return;
+                }
+            }
+
+            fetch('/web/admin/mac-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: currentMacPasswordUsername,
+                    mac_password: macPassword
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error updating MAC password: ' + error);
+            });
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('macPasswordModal');
+            if (event.target == modal) {
+                closeMacPasswordModal();
+            }
+        }
+    </script>
 </body>
 </html>

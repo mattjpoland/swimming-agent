@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAC Swimming Agent - Confirmation</title>
+    <title>MAC Swimming Agent - Registration Complete</title>
     <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('web.static', filename='styles.css') }}">
 </head>
@@ -11,8 +11,26 @@
     <div class="container">
         <img src="{{ url_for('web.static', filename='swimming_logo.png') }}" alt="Swimming Logo" class="logo">
         <div class="app-name">MAC Swimming Agent</div>
-        <div class="page-name">Confirmation</div>
-        <p>Your action has been successfully completed.</p>
+        <div class="page-name">Registration Complete!</div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <h3 style="color: #28a745;">✓ Registration Successful</h3>
+            <p>Thank you <strong>{{ username }}</strong> for registering with MAC Swimming Agent!</p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h4>What's Next?</h4>
+            <ul style="text-align: left; margin: 10px 0;">
+                <li><strong>Account Approval:</strong> Your account is pending approval from an administrator. You will be notified once enabled.</li>
+                <li><strong>MAC Password:</strong> {% if session.get('mac_password_set') %}Your MAC password has been saved and will enable automatic swim lane booking once your account is approved.{% else %}You can set your MAC password later through the admin panel to enable automatic booking features.{% endif %}</li>
+                <li><strong>Auto-Booking:</strong> Once approved, you can set up automatic swim lane booking schedules.</li>
+            </ul>
+        </div>
+        
+        <div style="margin: 30px 0;">
+            <p><strong>Questions?</strong> Contact the MAC staff or check back later to see if your account has been activated.</p>
+            <a href="{{ url_for('web.login') }}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Return to Login</a>
+        </div>
     </div>
 </body>
 </html>

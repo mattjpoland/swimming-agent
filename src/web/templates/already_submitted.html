@@ -3,16 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAC Swimming Agent - Registration Already Submitted</title>
+    <title>MAC Swimming Agent - Account Status</title>
     <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('web.static', filename='styles.css') }}">
+    <style>
+        .status-box {
+            background: #f8f9fa;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .status-box h3 {
+            color: #856404;
+            margin-top: 0;
+        }
+        
+        .status-list {
+            margin: 15px 0;
+            padding-left: 0;
+            list-style: none;
+        }
+        
+        .status-list li {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #dee2e6;
+        }
+        
+        .status-enabled {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .status-disabled {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .status-warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        
+        .action-button {
+            display: inline-block;
+            margin: 20px 10px 10px 0;
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .action-button:hover {
+            background: #0056b3;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .logout-button {
+            background: #6c757d;
+        }
+        
+        .logout-button:hover {
+            background: #5a6268;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <img src="{{ url_for('web.static', filename='swimming_logo.png') }}" alt="Swimming Logo" class="logo">
         <div class="app-name">MAC Swimming Agent</div>
-        <div class="page-name">Registration Already Submitted</div>
-        <p>Your registration has already been submitted. Please wait for approval.</p>
+        <div class="page-name">Account Status</div>
+        
+        <div class="status-box">
+            <h3>⏳ Account Setup In Progress</h3>
+            <p>Your account is being set up for auto-booking functionality. Here's what you need to access your dashboard:</p>
+            
+            <ul class="status-list">
+                <li class="status-enabled">✅ <strong>Account Registered:</strong> Your account has been successfully created</li>
+                <li class="status-warning">⏳ <strong>Admin Approval:</strong> Waiting for administrator to enable your account</li>
+                <li class="status-warning">🔐 <strong>MAC Password:</strong> Need to set your MAC website password for auto-booking</li>
+            </ul>
+        </div>
+        
+        <div style="margin: 30px 0;">
+            <h4>What's Next?</h4>
+            <ul style="text-align: left; line-height: 1.6;">
+                <li><strong>Wait for Approval:</strong> An administrator will review and enable your account</li>
+                <li><strong>Set MAC Password:</strong> Once enabled, you can set your MAC password through the admin panel or have an admin set it for you</li>
+                <li><strong>Access Dashboard:</strong> After both steps are complete, you'll be able to manage your auto-booking schedule</li>
+            </ul>
+        </div>
+        
+        <div style="margin: 30px 0;">
+            <p><strong>Questions?</strong> Contact the MAC staff for assistance with account activation.</p>
+            <a href="{{ url_for('web.login') }}" class="action-button">🔄 Check Status Again</a>
+            <a href="{{ url_for('web.logout') }}" class="action-button logout-button">🚪 Logout</a>
+        </div>
     </div>
 </body>
 </html>
