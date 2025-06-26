@@ -395,6 +395,15 @@ def delete_my_schedule():
         logging.error(f"Error deleting schedule for {username}: {str(e)}")
         return jsonify({"status": "error", "message": "Failed to delete schedule. Please try again."}), 500
 
+@web_bp.route("/already_submitted", methods=["GET"])
+def already_submitted():
+    """Landing page for users who are registered but not yet enabled or missing MAC password."""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for("web.login"))
+    
+    return render_template("already_submitted.html", username=username)
+
 @web_bp.route("/logout", methods=["GET", "POST"])
 def logout():
     """Logout the current user."""
