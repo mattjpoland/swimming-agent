@@ -176,6 +176,56 @@
             color: #721c24;
         }
         
+        /* Tab Navigation */
+        .tab-navigation {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: #6c757d;
+            transition: all 0.3s;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .tab-button:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-container {
+            margin-bottom: 30px;
+        }
+
         /* Mobile responsiveness */
         @media (max-width: 768px) {
             .dashboard-header h1 {
@@ -195,6 +245,15 @@
                 width: 100%;
                 max-width: 300px;
             }
+            
+            .tab-button {
+                padding: 12px 15px;
+                font-size: 14px;
+            }
+            
+            .tab-content {
+                padding: 15px;
+            }
         }
     </style>
 </head>
@@ -205,43 +264,17 @@
             <p>Manage your automatic swim lane booking schedule</p>
         </div>
         
-        <div class="help-section">
-            <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
-            <ul>
-                <li>Enter booking commands for each day you want automatic bookings</li>
-                <li>Use <code>{date}</code> as a placeholder for the actual date</li>
-                <li>Be specific about your preferences - the system will select the best available option</li>
-                <li>Leave days blank if you don't want automatic bookings on those days</li>
-                <li>The system will attempt to book lanes according to your schedule every day</li>
-            </ul>
-            
-            <h4>💡 Example Auto-Booking Request:</h4>
-            <div style="background: #e9ecef; padding: 15px; border-radius: 6px; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.4;">
-                This is an auto-booking request.<br><br>
-                
-                Start by looking up available swim lanes on {date}.<br><br>
-                
-                Then select one for me that matches my preferences:<br>
-                Outdoor Pool.<br>
-                4PM, 3:30 PM, or 4:30 PM<br>
-                Prefer lanes 3, 4, 6, 1, 5, then 2.<br>
-                Prefer 60 minutes, will accept 30 minutes.<br><br>
-                
-                It's important that you select an available option and book it proactively. Don't ask me to confirm your choice. Just do it.
+        <div class="tab-container">
+            <div class="tab-navigation">
+                <button class="tab-button active" onclick="showTab('schedule')">🗓️ Schedule</button>
+                <button class="tab-button" onclick="showTab('account')">🔐 Account</button>
+                <button class="tab-button" onclick="showTab('help')">💡 Help</button>
             </div>
             
-            <p><strong>💡 Tips:</strong></p>
-            <ul>
-                <li>Specify pool preferences (Indoor/Outdoor)</li>
-                <li>List multiple time options in order of preference</li>
-                <li>Rank lane preferences to get your favorite spots</li>
-                <li>Include duration preferences (30, 45, 60 minutes)</li>
-                <li>Always instruct the system to book proactively without asking for confirmation</li>
-            </ul>
-        </div>
-        
-        <div class="schedule-section">
-            <h2>🗓️ Your Auto-Booking Schedule</h2>
+            <!-- Schedule Tab -->
+            <div id="schedule-tab" class="tab-content active">
+                <h2>🗓️ Your Auto-Booking Schedule</h2>
+                <p>Set up automatic swim lane booking for each day of the week.</p>
             
             <form id="scheduleForm">
                 <div class="day-schedule">
@@ -282,35 +315,102 @@
                 <div class="action-buttons">
                     <button type="button" class="btn btn-primary" onclick="saveSchedule()">💾 Save Schedule</button>
                     <button type="button" class="btn btn-danger" onclick="deleteSchedule()">🗑️ Clear All</button>
-                    <a href="{{ url_for('web.logout') }}" class="btn btn-secondary">🚪 Logout</a>
                 </div>
             </form>
+            </div>
+            
+            <!-- Account Tab -->
+            <div id="account-tab" class="tab-content">
+                <h2>🔐 Account Settings</h2>
+                <p>Manage your account settings and MAC website password.</p>
+                
+                <h3>MAC Password</h3>
+                <p>Update your MAC website password used for automatic lane bookings.</p>
+                
+                <form id="macPasswordForm">
+                    <div class="day-schedule">
+                        <label for="new_mac_password">MAC Password</label>
+                        <input type="password" id="new_mac_password" name="new_mac_password" 
+                               placeholder="Enter your MAC website password" 
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border-color 0.3s;">
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                        <p style="margin: 0;"><strong>⚠️ Important:</strong> This should be the same password you use to login to the MAC website (ourclublogin.com). Changing this will update the password used for automatic lane bookings.</p>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="updateMacPassword()">🔐 Update Password</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Help Tab -->
+            <div id="help-tab" class="tab-content">
+                <h2>💡 Help & Tips</h2>
+                <p>Learn how to set up effective auto-booking schedules.</p>
+                
+                <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
+                <ul>
+                    <li>Enter booking commands for each day you want automatic bookings</li>
+                    <li>Use <code>{date}</code> as a placeholder for the actual date</li>
+                    <li>Be specific about your preferences - the system will select the best available option</li>
+                    <li>Leave days blank if you don't want automatic bookings on those days</li>
+                    <li>The system will attempt to book lanes according to your schedule every day</li>
+                </ul>
+                
+                <h4>💡 Example Auto-Booking Request:</h4>
+                <div style="background: #e9ecef; padding: 15px; border-radius: 6px; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.4;">
+                    This is an auto-booking request.<br><br>
+                    
+                    Start by looking up available swim lanes on {date}.<br><br>
+                    
+                    Then select one for me that matches my preferences:<br>
+                    Outdoor Pool.<br>
+                    4PM, 3:30 PM, or 4:30 PM<br>
+                    Prefer lanes 3, 4, 6, 1, 5, then 2.<br>
+                    Prefer 60 minutes, will accept 30 minutes.<br><br>
+                    
+                    It's important that you select an available option and book it proactively. Don't ask me to confirm your choice. Just do it.
+                </div>
+                
+                <p><strong>💡 Tips:</strong></p>
+                <ul>
+                    <li>Specify pool preferences (Indoor/Outdoor)</li>
+                    <li>List multiple time options in order of preference</li>
+                    <li>Rank lane preferences to get your favorite spots</li>
+                    <li>Include duration preferences (30, 45, 60 minutes)</li>
+                    <li>Always instruct the system to book proactively without asking for confirmation</li>
+                </ul>
+            </div>
         </div>
         
-        <div class="schedule-section">
-            <h2>🔐 MAC Password Settings</h2>
-            <p>Update your MAC website password used for automatic lane bookings.</p>
-            
-            <form id="macPasswordForm">
-                <div class="day-schedule">
-                    <label for="new_mac_password">MAC Password</label>
-                    <input type="password" id="new_mac_password" name="new_mac_password" 
-                           placeholder="Enter your MAC website password" 
-                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border-color 0.3s;">
-                </div>
-                
-                <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 20px 0;">
-                    <p style="margin: 0;"><strong>⚠️ Important:</strong> This should be the same password you use to login to the MAC website (ourclublogin.com). Changing this will update the password used for automatic lane bookings.</p>
-                </div>
-                
-                <div class="action-buttons">
-                    <button type="button" class="btn btn-primary" onclick="updateMacPassword()">🔐 Update Password</button>
-                </div>
-            </form>
+        <div class="action-buttons" style="margin-top: 20px;">
+            <a href="{{ url_for('web.logout') }}" class="btn btn-secondary">🚪 Logout</a>
         </div>
     </div>
     
     <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
         function saveSchedule() {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
             const schedule = {};
