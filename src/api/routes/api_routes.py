@@ -266,7 +266,7 @@ def cron_schedule_swim_lanes():
         logging.info("CRON auto-booking process queued")
         
         # Import and queue the Celery task
-        from worker.tasks import run_auto_booking
+        from src.worker.tasks import run_auto_booking
         
         # Queue the task for background execution
         task = run_auto_booking.delay()
@@ -293,7 +293,7 @@ def get_task_status(task_id):
     Get the status of a background task by its ID.
     """
     try:
-        from worker.tasks import run_auto_booking
+        from src.worker.tasks import run_auto_booking
         
         # Get the task result
         task_result = run_auto_booking.AsyncResult(task_id)

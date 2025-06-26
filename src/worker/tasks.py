@@ -27,9 +27,11 @@ UPSTASH_REDIS_PASSWORD = os.getenv('UPSTASH_REDIS_PASSWORD')
 # Construct Redis URL for secure Upstash connection
 if UPSTASH_REDIS_HOST and UPSTASH_REDIS_PASSWORD:
     REDIS_URL = f"rediss://:{UPSTASH_REDIS_PASSWORD}@{UPSTASH_REDIS_HOST}:{UPSTASH_REDIS_PORT}"
+    USE_SSL = True
 else:
     # Fallback to REDIS_URL if provided directly
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    USE_SSL = REDIS_URL.startswith('rediss://')
 
 # Initialize Celery app
 celery_app = Celery(
@@ -39,32 +41,39 @@ celery_app = Celery(
     include=['src.worker.tasks']
 )
 
-# Celery configuration with SSL settings for Upstash Redis
-celery_app.conf.update(
-    task_serializer='json',
-    accept_content=['json'],
-    result_serializer='json',
-    timezone='US/Eastern',
-    enable_utc=True,
-    task_track_started=True,
-    task_time_limit=30 * 60,  # 30 minutes
-    task_soft_time_limit=25 * 60,  # 25 minutes
-    worker_prefetch_multiplier=1,
-    worker_max_tasks_per_child=1000,
-    # Redis SSL configuration for Upstash
-    broker_use_ssl={
-        'ssl_cert_reqs': ssl.CERT_NONE,
-        'ssl_ca_certs': None,
-        'ssl_certfile': None,
-        'ssl_keyfile': None,
-    },
-    redis_backend_use_ssl={
-        'ssl_cert_reqs': ssl.CERT_NONE,
-        'ssl_ca_certs': None,
-        'ssl_certfile': None,
-        'ssl_keyfile': None,
-    }
-)
+# Base Celery configuration
+celery_config = {
+    'task_serializer': 'json',
+    'accept_content': ['json'],
+    'result_serializer': 'json',
+    'timezone': 'US/Eastern',
+    'enable_utc': True,
+    'task_track_started': True,
+    'task_time_limit': 30 * 60,  # 30 minutes
+    'task_soft_time_limit': 25 * 60,  # 25 minutes
+    'worker_prefetch_multiplier': 1,
+    'worker_max_tasks_per_child': 1000,
+}
+
+# Add SSL configuration only if using secure Redis
+if USE_SSL:
+    celery_config.update({
+        'broker_use_ssl': {
+            'ssl_cert_reqs': ssl.CERT_NONE,
+            'ssl_ca_certs': None,
+            'ssl_certfile': None,
+            'ssl_keyfile': None,
+        },
+        'redis_backend_use_ssl': {
+            'ssl_cert_reqs': ssl.CERT_NONE,
+            'ssl_ca_certs': None,
+            'ssl_certfile': None,
+            'ssl_keyfile': None,
+        }
+    })
+
+# Apply the configuration
+celery_app.conf.update(celery_config)
 
 @celery_app.task(bind=True, name='run_auto_booking')
 def run_auto_booking(self):
