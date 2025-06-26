@@ -7,6 +7,17 @@
     <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('web.static', filename='styles.css') }}">
     <style>
+        /* Base styles */
+        * {
+            box-sizing: border-box;
+        }
+        
+        .container {
+            max-width: 100%;
+            padding: 0 15px;
+            overflow-x: hidden;
+        }
+        
         .admin-nav {
             margin: 20px 0;
             text-align: center;
@@ -14,11 +25,12 @@
         .admin-nav a {
             display: inline-block;
             padding: 10px 20px;
-            margin: 0 10px;
+            margin: 5px;
             background-color: #007bff;
             color: white;
             text-decoration: none;
             border-radius: 5px;
+            font-size: 14px;
         }
         .admin-nav a:hover {
             background-color: #0056b3;
@@ -26,33 +38,82 @@
         .admin-nav a.active {
             background-color: #0056b3;
         }
+        
+        .add-btn { 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            padding: 10px 20px; 
+            margin: 20px 0; 
+            font-size: 14px;
+        }
+        
+        /* Responsive table container */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        
         .schedule-table {
             width: 100%;
-            margin-top: 20px;
+            min-width: 800px; /* Minimum width to prevent cramping */
+            border-collapse: collapse;
         }
+        
         .schedule-table th {
             background-color: #f8f9fa;
-            padding: 10px;
+            padding: 12px 8px;
             text-align: left;
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+            border-bottom: 2px solid #dee2e6;
         }
+        
         .schedule-table td {
-            padding: 10px;
+            padding: 12px 8px;
             border-bottom: 1px solid #dee2e6;
+            font-size: 13px;
+            vertical-align: top;
         }
-        .command-cell {
-            max-width: 300px;
+        
+        .username-cell {
+            font-weight: bold;
+            min-width: 120px;
+            max-width: 150px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .action-buttons button {
-            margin: 0 5px;
-            padding: 5px 10px;
-            cursor: pointer;
+        
+        .command-cell {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
         }
-        .edit-btn { background-color: #28a745; color: white; border: none; border-radius: 3px; }
-        .delete-btn { background-color: #dc3545; color: white; border: none; border-radius: 3px; }
-        .add-btn { background-color: #007bff; color: white; border: none; border-radius: 5px; padding: 10px 20px; margin: 20px 0; }
+        
+        .action-buttons {
+            min-width: 120px;
+            white-space: nowrap;
+        }
+        
+        .action-buttons button {
+            margin: 2px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            border: none;
+            border-radius: 3px;
+        }
+        
+        .edit-btn { background-color: #28a745; color: white; }
+        .delete-btn { background-color: #dc3545; color: white; }
         
         /* Modal styles */
         .modal {
@@ -64,16 +125,21 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
         }
+        
         .modal-content {
             background-color: white;
-            margin: 5% auto;
+            margin: 20px auto;
             padding: 20px;
             border: 1px solid #888;
-            width: 80%;
+            width: 90%;
             max-width: 800px;
             border-radius: 5px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
+        
         .close {
             color: #aaa;
             float: right;
@@ -82,6 +148,7 @@
             cursor: pointer;
         }
         .close:hover { color: black; }
+        
         .day-schedule {
             margin: 15px 0;
         }
@@ -89,14 +156,18 @@
             display: block;
             font-weight: bold;
             margin-bottom: 5px;
+            font-size: 14px;
         }
         .day-schedule textarea {
             width: 100%;
             min-height: 60px;
-            padding: 5px;
+            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 3px;
+            font-size: 14px;
+            resize: vertical;
         }
+        
         .modal-buttons {
             margin-top: 20px;
             text-align: right;
@@ -107,9 +178,163 @@
             border: none;
             border-radius: 3px;
             cursor: pointer;
+            font-size: 14px;
         }
         .save-btn { background-color: #28a745; color: white; }
         .cancel-btn { background-color: #6c757d; color: white; }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+            }
+            
+            .admin-nav a {
+                display: block;
+                margin: 5px 0;
+                text-align: center;
+            }
+            
+            .page-name {
+                font-size: 18px;
+                text-align: center;
+                margin: 10px 0;
+            }
+            
+            .add-btn {
+                width: 100%;
+                margin: 15px 0;
+            }
+            
+            .schedule-table th,
+            .schedule-table td {
+                padding: 8px 4px;
+                font-size: 12px;
+            }
+            
+            .command-cell {
+                max-width: 120px;
+            }
+            
+            .action-buttons button {
+                padding: 4px 6px;
+                font-size: 10px;
+                margin: 1px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10px auto;
+                padding: 15px;
+            }
+            
+            .day-schedule textarea {
+                min-height: 50px;
+                font-size: 13px;
+            }
+            
+            .modal-buttons {
+                text-align: center;
+            }
+            
+            .modal-buttons button {
+                margin: 5px;
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .schedule-table {
+                min-width: 600px; /* Reduce min-width for very small screens */
+            }
+            
+            .command-cell {
+                max-width: 100px;
+            }
+            
+            .action-buttons button {
+                display: block;
+                width: 100%;
+                margin: 2px 0;
+            }
+        }
+        
+        /* Card layout for mobile alternative */
+        @media (max-width: 600px) {
+            .mobile-card-view {
+                display: block;
+            }
+            
+            .desktop-table-view {
+                display: none;
+            }
+            
+            .schedule-card {
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 5px;
+                margin: 15px 0;
+                padding: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .schedule-card h4 {
+                margin: 0 0 10px 0;
+                color: #007bff;
+                font-size: 16px;
+            }
+            
+            .schedule-days {
+                margin: 10px 0;
+            }
+            
+            .schedule-day {
+                margin: 5px 0;
+                padding: 5px 0;
+                border-bottom: 1px solid #eee;
+            }
+            
+            .schedule-day:last-child {
+                border-bottom: none;
+            }
+            
+            .day-name {
+                font-weight: bold;
+                color: #333;
+                font-size: 13px;
+            }
+            
+            .day-command {
+                font-size: 12px;
+                color: #666;
+                margin-top: 2px;
+                word-wrap: break-word;
+            }
+            
+            .card-actions {
+                text-align: center;
+                margin-top: 15px;
+            }
+            
+            .card-actions button {
+                margin: 5px;
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+        }
+        
+        /* Hide card view on desktop */
+        @media (min-width: 601px) {
+            .mobile-card-view {
+                display: none;
+            }
+            
+            .desktop-table-view {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -125,39 +350,87 @@
         
         <button class="add-btn" onclick="showAddScheduleModal()">Add New Schedule</button>
         
-        <table class="schedule-table">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Monday</th>
-                    <th>Tuesday</th>
-                    <th>Wednesday</th>
-                    <th>Thursday</th>
-                    <th>Friday</th>
-                    <th>Saturday</th>
-                    <th>Sunday</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for schedule in schedules %}
-                <tr>
-                    <td>{{ schedule.username }}</td>
-                    <td class="command-cell" title="{{ schedule.monday or '' }}">{{ schedule.monday or '-' }}</td>
-                    <td class="command-cell" title="{{ schedule.tuesday or '' }}">{{ schedule.tuesday or '-' }}</td>
-                    <td class="command-cell" title="{{ schedule.wednesday or '' }}">{{ schedule.wednesday or '-' }}</td>
-                    <td class="command-cell" title="{{ schedule.thursday or '' }}">{{ schedule.thursday or '-' }}</td>
-                    <td class="command-cell" title="{{ schedule.friday or '' }}">{{ schedule.friday or '-' }}</td>
-                    <td class="command-cell" title="{{ schedule.saturday or '' }}">{{ schedule.saturday or '-' }}</td>
-                    <td class="command-cell" title="{{ schedule.sunday or '' }}">{{ schedule.sunday or '-' }}</td>
-                    <td class="action-buttons">
-                        <button class="edit-btn" onclick="editSchedule('{{ schedule.username|e }}')">Edit</button>
-                        <button class="delete-btn" onclick="deleteSchedule('{{ schedule.username|e }}')">Delete</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Desktop Table View -->
+        <div class="desktop-table-view">
+            <div class="table-container">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                            <th>Sunday</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in schedules %}
+                        <tr>
+                            <td class="username-cell" title="{{ schedule.username }}">{{ schedule.username }}</td>
+                            <td class="command-cell" title="{{ schedule.monday or '' }}">{{ schedule.monday or '-' }}</td>
+                            <td class="command-cell" title="{{ schedule.tuesday or '' }}">{{ schedule.tuesday or '-' }}</td>
+                            <td class="command-cell" title="{{ schedule.wednesday or '' }}">{{ schedule.wednesday or '-' }}</td>
+                            <td class="command-cell" title="{{ schedule.thursday or '' }}">{{ schedule.thursday or '-' }}</td>
+                            <td class="command-cell" title="{{ schedule.friday or '' }}">{{ schedule.friday or '-' }}</td>
+                            <td class="command-cell" title="{{ schedule.saturday or '' }}">{{ schedule.saturday or '-' }}</td>
+                            <td class="command-cell" title="{{ schedule.sunday or '' }}">{{ schedule.sunday or '-' }}</td>
+                            <td class="action-buttons">
+                                <button class="edit-btn" onclick="editSchedule('{{ schedule.username|e }}')">Edit</button>
+                                <button class="delete-btn" onclick="deleteSchedule('{{ schedule.username|e }}')">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Mobile Card View -->
+        <div class="mobile-card-view">
+            {% for schedule in schedules %}
+            <div class="schedule-card">
+                <h4>{{ schedule.username }}</h4>
+                <div class="schedule-days">
+                    <div class="schedule-day">
+                        <div class="day-name">Monday:</div>
+                        <div class="day-command">{{ schedule.monday or 'No booking scheduled' }}</div>
+                    </div>
+                    <div class="schedule-day">
+                        <div class="day-name">Tuesday:</div>
+                        <div class="day-command">{{ schedule.tuesday or 'No booking scheduled' }}</div>
+                    </div>
+                    <div class="schedule-day">
+                        <div class="day-name">Wednesday:</div>
+                        <div class="day-command">{{ schedule.wednesday or 'No booking scheduled' }}</div>
+                    </div>
+                    <div class="schedule-day">
+                        <div class="day-name">Thursday:</div>
+                        <div class="day-command">{{ schedule.thursday or 'No booking scheduled' }}</div>
+                    </div>
+                    <div class="schedule-day">
+                        <div class="day-name">Friday:</div>
+                        <div class="day-command">{{ schedule.friday or 'No booking scheduled' }}</div>
+                    </div>
+                    <div class="schedule-day">
+                        <div class="day-name">Saturday:</div>
+                        <div class="day-command">{{ schedule.saturday or 'No booking scheduled' }}</div>
+                    </div>
+                    <div class="schedule-day">
+                        <div class="day-name">Sunday:</div>
+                        <div class="day-command">{{ schedule.sunday or 'No booking scheduled' }}</div>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="edit-btn" onclick="editSchedule('{{ schedule.username|e }}')">Edit</button>
+                    <button class="delete-btn" onclick="deleteSchedule('{{ schedule.username|e }}')">Delete</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- Edit/Add Schedule Modal -->

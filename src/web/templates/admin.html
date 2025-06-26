@@ -7,6 +7,17 @@
     <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('web.static', filename='styles.css') }}">
     <style>
+        /* Base styles */
+        * {
+            box-sizing: border-box;
+        }
+        
+        .container {
+            max-width: 100%;
+            padding: 0 15px;
+            overflow-x: hidden;
+        }
+        
         .admin-nav {
             margin: 20px 0;
             text-align: center;
@@ -14,17 +25,267 @@
         .admin-nav a {
             display: inline-block;
             padding: 10px 20px;
-            margin: 0 10px;
+            margin: 5px;
             background-color: #007bff;
             color: white;
             text-decoration: none;
             border-radius: 5px;
+            font-size: 14px;
         }
         .admin-nav a:hover {
             background-color: #0056b3;
         }
         .admin-nav a.active {
             background-color: #0056b3;
+        }
+        
+        /* Responsive table container */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        
+        .users-table {
+            width: 100%;
+            min-width: 700px; /* Minimum width to prevent cramping */
+            border-collapse: collapse;
+        }
+        
+        .users-table th {
+            background-color: #f8f9fa;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .users-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 13px;
+            vertical-align: top;
+        }
+        
+        .username-cell {
+            font-weight: bold;
+            min-width: 120px;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .api-key-cell {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .customer-id-cell {
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .enabled-cell {
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .enabled-true {
+            color: #28a745;
+        }
+        
+        .enabled-false {
+            color: #dc3545;
+        }
+        
+        .action-buttons {
+            min-width: 120px;
+            white-space: nowrap;
+        }
+        
+        .action-buttons button {
+            margin: 2px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            border: none;
+            border-radius: 3px;
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .action-buttons button:hover {
+            background-color: #0056b3;
+        }
+        
+        .admin-badge {
+            color: #6c757d;
+            font-style: italic;
+            font-weight: bold;
+        }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+            }
+            
+            .admin-nav a {
+                display: block;
+                margin: 5px 0;
+                text-align: center;
+            }
+            
+            .page-name {
+                font-size: 18px;
+                text-align: center;
+                margin: 10px 0;
+            }
+            
+            .users-table th,
+            .users-table td {
+                padding: 8px 4px;
+                font-size: 12px;
+            }
+            
+            .api-key-cell,
+            .customer-id-cell {
+                max-width: 80px;
+            }
+            
+            .action-buttons button {
+                padding: 4px 8px;
+                font-size: 10px;
+                margin: 1px;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .users-table {
+                min-width: 500px; /* Reduce min-width for very small screens */
+            }
+            
+            .api-key-cell,
+            .customer-id-cell {
+                max-width: 60px;
+            }
+            
+            .action-buttons button {
+                display: block;
+                width: 100%;
+                margin: 2px 0;
+            }
+        }
+        
+        /* Card layout for mobile alternative */
+        @media (max-width: 600px) {
+            .mobile-card-view {
+                display: block;
+            }
+            
+            .desktop-table-view {
+                display: none;
+            }
+            
+            .user-card {
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 5px;
+                margin: 15px 0;
+                padding: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .user-card h4 {
+                margin: 0 0 10px 0;
+                color: #007bff;
+                font-size: 16px;
+                word-wrap: break-word;
+            }
+            
+            .user-details {
+                margin: 10px 0;
+            }
+            
+            .user-detail {
+                margin: 8px 0;
+                padding: 5px 0;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .user-detail:last-child {
+                border-bottom: none;
+            }
+            
+            .detail-label {
+                font-weight: bold;
+                color: #333;
+                font-size: 13px;
+                min-width: 80px;
+            }
+            
+            .detail-value {
+                font-size: 13px;
+                color: #666;
+                word-wrap: break-word;
+                text-align: right;
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .detail-value.monospace {
+                font-family: monospace;
+                font-size: 12px;
+            }
+            
+            .card-actions {
+                text-align: center;
+                margin-top: 15px;
+            }
+            
+            .card-actions button {
+                margin: 5px;
+                padding: 8px 15px;
+                font-size: 13px;
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+            
+            .card-actions button:hover {
+                background-color: #0056b3;
+            }
+        }
+        
+        /* Hide card view on desktop */
+        @media (min-width: 601px) {
+            .mobile-card-view {
+                display: none;
+            }
+            
+            .desktop-table-view {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -39,38 +300,83 @@
             <a href="{{ url_for('web.admin_schedules') }}">Schedule Management</a>
         </div>
         
-        <table>
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>API Key</th>
-                    <th>Customer ID</th>
-                    <th>Alt Customer ID</th>
-                    <th>Enabled</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in auth_data %}
-                <tr>
-                    <td>{{ record.username }}</td>
-                    <td>{{ record.api_key }}</td>
-                    <td>{{ record.customer_id }}</td>
-                    <td>{{ record.alt_customer_id }}</td>
-                    <td>{{ record.is_enabled }}</td>
-                    <td>
-                        {% if not record.is_admin %}
-                        <form action="{{ url_for('web.toggle_enabled', username=record.username) }}" method="post">
-                            <button type="submit">Toggle Enabled</button>
-                        </form>
-                        {% else %}
-                        Admin
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Desktop Table View -->
+        <div class="desktop-table-view">
+            <div class="table-container">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>API Key</th>
+                            <th>Customer ID</th>
+                            <th>Alt Customer ID</th>
+                            <th>Enabled</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in auth_data %}
+                        <tr>
+                            <td class="username-cell" title="{{ record.username }}">{{ record.username }}</td>
+                            <td class="api-key-cell" title="{{ record.api_key }}">{{ record.api_key }}</td>
+                            <td class="customer-id-cell" title="{{ record.customer_id }}">{{ record.customer_id }}</td>
+                            <td class="customer-id-cell" title="{{ record.alt_customer_id }}">{{ record.alt_customer_id }}</td>
+                            <td class="enabled-cell {{ 'enabled-true' if record.is_enabled else 'enabled-false' }}">
+                                {{ 'Yes' if record.is_enabled else 'No' }}
+                            </td>
+                            <td class="action-buttons">
+                                {% if not record.is_admin %}
+                                <form action="{{ url_for('web.toggle_enabled', username=record.username) }}" method="post" style="display: inline;">
+                                    <button type="submit">Toggle Enabled</button>
+                                </form>
+                                {% else %}
+                                <span class="admin-badge">Admin</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Mobile Card View -->
+        <div class="mobile-card-view">
+            {% for record in auth_data %}
+            <div class="user-card">
+                <h4>{{ record.username }}</h4>
+                <div class="user-details">
+                    <div class="user-detail">
+                        <span class="detail-label">API Key:</span>
+                        <span class="detail-value monospace" title="{{ record.api_key }}">{{ record.api_key }}</span>
+                    </div>
+                    <div class="user-detail">
+                        <span class="detail-label">Customer ID:</span>
+                        <span class="detail-value monospace" title="{{ record.customer_id }}">{{ record.customer_id }}</span>
+                    </div>
+                    <div class="user-detail">
+                        <span class="detail-label">Alt Customer ID:</span>
+                        <span class="detail-value monospace" title="{{ record.alt_customer_id }}">{{ record.alt_customer_id }}</span>
+                    </div>
+                    <div class="user-detail">
+                        <span class="detail-label">Enabled:</span>
+                        <span class="detail-value {{ 'enabled-true' if record.is_enabled else 'enabled-false' }}">
+                            {{ 'Yes' if record.is_enabled else 'No' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    {% if not record.is_admin %}
+                    <form action="{{ url_for('web.toggle_enabled', username=record.username) }}" method="post" style="display: inline;">
+                        <button type="submit">Toggle Enabled</button>
+                    </form>
+                    {% else %}
+                    <span class="admin-badge">Admin User</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </body>
 </html>
