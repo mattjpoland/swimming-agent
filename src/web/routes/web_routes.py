@@ -195,6 +195,14 @@ def update_user_mac_password():
     if auth_entry.get("is_admin"):
         return jsonify({"status": "error", "message": "Cannot update MAC password for admin users"}), 403
     
+    # If a password is provided, validate it by attempting to login
+    if mac_password:
+        context = load_context_for_registration_pages()
+        login_response = login_with_credentials(username, mac_password, context)
+        
+        if not login_response:
+            return jsonify({"status": "error", "message": f"Invalid MAC password for {username}. Please verify the password is correct for the MAC website."}), 400
+    
     # Update the MAC password (empty string will clear it)
     success = update_mac_password(username, mac_password if mac_password else None)
     
@@ -302,6 +310,7 @@ def select_family_member():
     mac_password_to_store = None
     if save_mac_password and session.get('mac_password'):
         mac_password_to_store = session.get('mac_password')
+        # Password was already validated during login, so we know it's valid
     
     try:
         store_auth(
@@ -428,6 +437,13 @@ def update_my_mac_password():
     if not mac_password:
         return jsonify({"status": "error", "message": "MAC password is required"}), 400
     
+    # Validate the MAC password by attempting to login
+    context = load_context_for_registration_pages()
+    login_response = login_with_credentials(username, mac_password, context)
+    
+    if not login_response:
+        return jsonify({"status": "error", "message": "Invalid MAC password. Please check your password and try again."}), 400
+    
     try:
         success = update_mac_password(username, mac_password)
         if success:
@@ -460,6 +476,14 @@ def setup_mac_password():
         
         if not mac_password:
             error = "MAC password is required."
+            return render_template("setup_mac_password.html", username=username, error=error)
+        
+        # Validate the MAC password by attempting to login
+        context = load_context_for_registration_pages()
+        login_response = login_with_credentials(username, mac_password, context)
+        
+        if not login_response:
+            error = "Invalid MAC password. Please verify this is the correct password for the MAC website."
             return render_template("setup_mac_password.html", username=username, error=error)
         
         # Update the MAC password
