@@ -6,6 +6,7 @@ from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
 from src.decorators import require_admin
+from src.domain.sql.scheduleGateway import get_all_active_schedules, get_schedule, add_or_update_schedule, delete_schedule
 
 # Define the template folder relative to this file
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
@@ -81,3 +82,77 @@ def toggle_enabled(username):
         return jsonify({"error": "Cannot toggle enabled status for admin users."}), 403
     toggle_auth_enabled(username)
     return redirect(url_for("web.admin_page"))
+
+@web_bp.route("/admin/schedules", methods=["GET"])
+@require_admin
+def admin_schedules():
+    """View all swim lane schedules."""
+    schedules = get_all_active_schedules()
+    return render_template("admin_schedules.html", schedules=schedules)
+
+@web_bp.route("/admin/schedule", methods=["GET"])
+@require_admin
+def get_user_schedule():
+    """Get a specific user's schedule."""
+    username = request.args.get('username')
+    if not username:
+        return jsonify({"status": "error", "message": "Username parameter is required"}), 400
+    
+    logging.info(f"get_user_schedule called with username: '{username}'")
+    schedule = get_schedule(username)
+    logging.info(f"Schedule retrieved: {schedule}")
+    if schedule is None:
+        schedule = {
+            "monday": None,
+            "tuesday": None,
+            "wednesday": None,
+            "thursday": None,
+            "friday": None,
+            "saturday": None,
+            "sunday": None
+        }
+    return jsonify({"username": username, "schedule": schedule})
+
+@web_bp.route("/admin/schedule", methods=["POST"])
+@require_admin
+def update_user_schedule():
+    """Update a user's schedule."""
+    data = request.json
+    username = data.get('username')
+    schedule_data = data.get('schedule', {})
+    
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+    
+    add_or_update_schedule(username, schedule_data)
+    return jsonify({"status": "success", "message": f"Schedule updated for {username}"})
+
+@web_bp.route("/admin/schedule", methods=["DELETE"])
+@require_admin
+def delete_user_schedule():
+    """Delete a user's schedule."""
+    username = request.args.get('username')
+    if not username:
+        return jsonify({"status": "error", "message": "Username parameter is required"}), 400
+        
+    success = delete_schedule(username)
+    if success:
+        return jsonify({"status": "success", "message": f"Schedule deleted for {username}"})
+    else:
+        return jsonify({"status": "error", "message": f"No schedule found for {username}"}), 404
+
+@web_bp.route("/admin/schedule/new", methods=["POST"])
+@require_admin
+def create_new_schedule():
+    """Create a new schedule."""
+    data = request.json
+    username = data.get("username")
+    schedule = data.get("schedule", {})
+    
+    # Check if user exists in auth_data
+    auth_entry = get_auth(username)
+    if not auth_entry:
+        return jsonify({"status": "error", "message": f"User {username} not found"}), 404
+    
+    add_or_update_schedule(username, schedule)
+    return jsonify({"status": "success", "message": f"Schedule created for {username}"})

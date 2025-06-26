@@ -115,3 +115,16 @@ def get_all_active_schedules():
         schedules.append(schedule)
     
     return schedules
+
+def delete_schedule(username):
+    """Delete a user's swim lane schedule."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE FROM swim_lane_schedule
+        WHERE username = %s;
+    """, (username,))
+    rows_deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return rows_deleted > 0

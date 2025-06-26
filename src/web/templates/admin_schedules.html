@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAC Swimming Agent - Schedule Management</title>
+    <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('web.static', filename='styles.css') }}">
+    <style>
+        .admin-nav {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .admin-nav a {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .admin-nav a:hover {
+            background-color: #0056b3;
+        }
+        .admin-nav a.active {
+            background-color: #0056b3;
+        }
+        .schedule-table {
+            width: 100%;
+            margin-top: 20px;
+        }
+        .schedule-table th {
+            background-color: #f8f9fa;
+            padding: 10px;
+            text-align: left;
+        }
+        .schedule-table td {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .command-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .action-buttons button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .edit-btn { background-color: #28a745; color: white; border: none; border-radius: 3px; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; border-radius: 3px; }
+        .add-btn { background-color: #007bff; color: white; border: none; border-radius: 5px; padding: 10px 20px; margin: 20px 0; }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 5px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        .day-schedule {
+            margin: 15px 0;
+        }
+        .day-schedule label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .day-schedule textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .modal-buttons {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .modal-buttons button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .save-btn { background-color: #28a745; color: white; }
+        .cancel-btn { background-color: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('web.static', filename='swimming_logo.png') }}" alt="Swimming Logo" class="logo">
+        <div class="app-name">MAC Swimming Agent</div>
+        <div class="page-name">Admin Page - Schedule Management</div>
+        
+        <div class="admin-nav">
+            <a href="{{ url_for('web.admin_page') }}">User Management</a>
+            <a href="{{ url_for('web.admin_schedules') }}" class="active">Schedule Management</a>
+        </div>
+        
+        <button class="add-btn" onclick="showAddScheduleModal()">Add New Schedule</button>
+        
+        <table class="schedule-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Monday</th>
+                    <th>Tuesday</th>
+                    <th>Wednesday</th>
+                    <th>Thursday</th>
+                    <th>Friday</th>
+                    <th>Saturday</th>
+                    <th>Sunday</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for schedule in schedules %}
+                <tr>
+                    <td>{{ schedule.username }}</td>
+                    <td class="command-cell" title="{{ schedule.monday or '' }}">{{ schedule.monday or '-' }}</td>
+                    <td class="command-cell" title="{{ schedule.tuesday or '' }}">{{ schedule.tuesday or '-' }}</td>
+                    <td class="command-cell" title="{{ schedule.wednesday or '' }}">{{ schedule.wednesday or '-' }}</td>
+                    <td class="command-cell" title="{{ schedule.thursday or '' }}">{{ schedule.thursday or '-' }}</td>
+                    <td class="command-cell" title="{{ schedule.friday or '' }}">{{ schedule.friday or '-' }}</td>
+                    <td class="command-cell" title="{{ schedule.saturday or '' }}">{{ schedule.saturday or '-' }}</td>
+                    <td class="command-cell" title="{{ schedule.sunday or '' }}">{{ schedule.sunday or '-' }}</td>
+                    <td class="action-buttons">
+                        <button class="edit-btn" onclick="editSchedule('{{ schedule.username|e }}')">Edit</button>
+                        <button class="delete-btn" onclick="deleteSchedule('{{ schedule.username|e }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Edit/Add Schedule Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Edit Schedule</h2>
+            <div id="usernameField" style="margin: 15px 0; display: none;">
+                <label for="newUsername">Username:</label>
+                <input type="text" id="newUsername" style="padding: 5px; width: 200px;">
+            </div>
+            <form id="scheduleForm">
+                <div class="day-schedule">
+                    <label for="monday">Monday:</label>
+                    <textarea id="monday" name="monday" placeholder="Enter booking command for Monday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="day-schedule">
+                    <label for="tuesday">Tuesday:</label>
+                    <textarea id="tuesday" name="tuesday" placeholder="Enter booking command for Tuesday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="day-schedule">
+                    <label for="wednesday">Wednesday:</label>
+                    <textarea id="wednesday" name="wednesday" placeholder="Enter booking command for Wednesday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="day-schedule">
+                    <label for="thursday">Thursday:</label>
+                    <textarea id="thursday" name="thursday" placeholder="Enter booking command for Thursday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="day-schedule">
+                    <label for="friday">Friday:</label>
+                    <textarea id="friday" name="friday" placeholder="Enter booking command for Friday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="day-schedule">
+                    <label for="saturday">Saturday:</label>
+                    <textarea id="saturday" name="saturday" placeholder="Enter booking command for Saturday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="day-schedule">
+                    <label for="sunday">Sunday:</label>
+                    <textarea id="sunday" name="sunday" placeholder="Enter booking command for Sunday (use {date} as placeholder)"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
+                    <button type="button" class="save-btn" onclick="saveSchedule()">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUsername = null;
+        let isNewSchedule = false;
+
+        function showAddScheduleModal() {
+            isNewSchedule = true;
+            currentUsername = null;
+            document.getElementById('modalTitle').textContent = 'Add New Schedule';
+            document.getElementById('usernameField').style.display = 'block';
+            document.getElementById('newUsername').value = '';
+            // Clear all fields
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            days.forEach(day => {
+                document.getElementById(day).value = '';
+            });
+            document.getElementById('scheduleModal').style.display = 'block';
+        }
+
+        function editSchedule(username) {
+            isNewSchedule = false;
+            currentUsername = username;
+            document.getElementById('modalTitle').textContent = `Edit Schedule for ${username}`;
+            document.getElementById('usernameField').style.display = 'none';
+            
+            // Use query parameter instead of path parameter
+            const encodedUsername = encodeURIComponent(username);
+            
+            // Fetch current schedule
+            fetch(`/admin/schedule?username=${encodedUsername}`)
+                .then(response => response.json())
+                .then(data => {
+                    const schedule = data.schedule;
+                    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                    days.forEach(day => {
+                        document.getElementById(day).value = schedule[day] || '';
+                    });
+                    document.getElementById('scheduleModal').style.display = 'block';
+                })
+                .catch(error => {
+                    alert('Error loading schedule: ' + error);
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('scheduleModal').style.display = 'none';
+        }
+
+        function saveSchedule() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const schedule = {};
+            
+            days.forEach(day => {
+                const value = document.getElementById(day).value.trim();
+                schedule[day] = value || null;
+            });
+
+            if (isNewSchedule) {
+                const username = document.getElementById('newUsername').value.trim();
+                if (!username) {
+                    alert('Please enter a username');
+                    return;
+                }
+                
+                fetch('/admin/schedule/new', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        schedule: schedule
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error saving schedule: ' + error);
+                });
+            } else {
+                // Send username in request body instead of URL path
+                fetch('/admin/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: currentUsername,
+                        schedule: schedule
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error saving schedule: ' + error);
+                });
+            }
+        }
+
+        function deleteSchedule(username) {
+            if (confirm(`Are you sure you want to delete the schedule for ${username}?`)) {
+                // Use query parameter for DELETE request
+                const encodedUsername = encodeURIComponent(username);
+                
+                fetch(`/admin/schedule?username=${encodedUsername}`, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting schedule: ' + error);
+                });
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('scheduleModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html> 

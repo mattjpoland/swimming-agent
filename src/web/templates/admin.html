@@ -6,12 +6,39 @@
     <title>MAC Swimming Agent - Admin Page</title>
     <link rel="icon" href="{{ url_for('web.static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('web.static', filename='styles.css') }}">
+    <style>
+        .admin-nav {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .admin-nav a {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .admin-nav a:hover {
+            background-color: #0056b3;
+        }
+        .admin-nav a.active {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <img src="{{ url_for('web.static', filename='swimming_logo.png') }}" alt="Swimming Logo" class="logo">
         <div class="app-name">MAC Swimming Agent</div>
-        <div class="page-name">Admin Page</div>
+        <div class="page-name">Admin Page - User Management</div>
+        
+        <div class="admin-nav">
+            <a href="{{ url_for('web.admin_page') }}" class="active">User Management</a>
+            <a href="{{ url_for('web.admin_schedules') }}">Schedule Management</a>
+        </div>
+        
         <table>
             <thead>
                 <tr>
