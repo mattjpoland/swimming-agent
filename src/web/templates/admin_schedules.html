@@ -269,7 +269,7 @@
                     return;
                 }
                 
-                fetch('/admin/schedule/new', {
+                fetch('/web/admin/schedule/new', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -293,7 +293,7 @@
                 });
             } else {
                 // Send username in request body instead of URL path
-                fetch('/admin/schedule', {
+                fetch('/web/admin/schedule', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -323,7 +323,7 @@
                 // Use query parameter for DELETE request
                 const encodedUsername = encodeURIComponent(username);
                 
-                fetch(`/admin/schedule?username=${encodedUsername}`, {
+                fetch(`/web/admin/schedule?username=${encodedUsername}`, {
                     method: 'DELETE',
                 })
                 .then(response => response.json())
