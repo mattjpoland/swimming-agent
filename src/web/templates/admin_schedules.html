@@ -234,7 +234,7 @@
             const encodedUsername = encodeURIComponent(username);
             
             // Fetch current schedule
-            fetch(`/admin/schedule?username=${encodedUsername}`)
+            fetch(`/web/admin/schedule?username=${encodedUsername}`)
                 .then(response => response.json())
                 .then(data => {
                     const schedule = data.schedule;
