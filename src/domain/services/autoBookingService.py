@@ -3,7 +3,7 @@ import datetime
 import logging
 import requests
 import time
-from src.domain.sql.scheduleGateway import get_all_active_schedules
+from src.domain.sql.scheduleGateway import get_all_active_schedules, should_run_booking, update_last_success
 from src.domain.sql.authGateway import get_mac_password
 import pytz
 
@@ -120,7 +120,18 @@ def process_auto_booking():
         if not today_command:
             logging.info(f"No booking scheduled for {username} on {today}")
             continue
-          # Get the MAC password and API key from auth_data table
+        
+        # Check if this user's booking for today has already run successfully
+        if not should_run_booking(username, today):
+            logging.info(f"Skipping {username} - booking already completed successfully today")
+            results.append({
+                "username": username,
+                "status": "skipped",
+                "message": "Already completed successfully today"
+            })
+            continue
+        
+        # Get the MAC password and API key from auth_data table
         mac_password = get_mac_password(username)
         if not mac_password:
             logging.warning(f"Missing MAC password for user {username}, cannot proceed with booking")
@@ -181,6 +192,14 @@ def process_auto_booking():
                 # Use the follow-up result for the final status
                 if follow_up_result.get("status") == "success":
                     logging.info(f"Successfully processed auto-booking for {username} after follow-up")
+                    
+                    # Update the last successful run timestamp
+                    try:
+                        update_last_success(username, today)
+                        logging.info(f"Updated last success timestamp for {username} on {today}")
+                    except Exception as e:
+                        logging.error(f"Failed to update last success timestamp for {username}: {e}")
+                    
                     results.append({
                         "username": username,
                         "status": "success",

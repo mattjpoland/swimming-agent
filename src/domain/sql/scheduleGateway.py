@@ -1,6 +1,8 @@
 import psycopg2
 import os
 import logging
+import datetime
+import pytz
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -128,3 +130,132 @@ def delete_schedule(username):
     conn.commit()
     conn.close()
     return rows_deleted > 0
+
+def update_last_success(username, day_of_week):
+    """
+    Update the last successful run timestamp for a specific user and day.
+    This should be called only after a booking attempt completes successfully.
+    
+    Args:
+        username: The username to update
+        day_of_week: The day of the week (e.g., 'monday', 'tuesday', etc.)
+    """
+    column_name = f"{day_of_week}_last_success"
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"""
+            UPDATE swim_lane_schedule
+            SET {column_name} = CURRENT_TIMESTAMP
+            WHERE username = %s;
+        """, (username,))
+        conn.commit()
+        logging.info(f"Updated {column_name} for user {username}")
+    except Exception as e:
+        logging.error(f"Failed to update {column_name} for user {username}: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+def should_run_booking(username, day_of_week, cutoff_time=None):
+    """
+    Check if a booking should run based on the last successful run timestamp.
+    
+    Args:
+        username: The username to check
+        day_of_week: The day of the week (e.g., 'monday', 'tuesday', etc.)
+        cutoff_time: Optional datetime to check against. If not provided, uses midnight of current day.
+    
+    Returns:
+        bool: True if booking should run, False if it already ran successfully today
+    """
+    column_name = f"{day_of_week}_last_success"
+    
+    # If no cutoff time provided, use midnight of current day in Eastern time
+    if cutoff_time is None:
+        eastern = pytz.timezone('US/Eastern')
+        now = datetime.datetime.now(eastern)
+        cutoff_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"""
+            SELECT {column_name}
+            FROM swim_lane_schedule
+            WHERE username = %s;
+        """, (username,))
+        result = cursor.fetchone()
+        
+        if result and result[0]:
+            last_success = result[0]
+            # Make last_success timezone-aware if it isn't already
+            if last_success.tzinfo is None:
+                # Assume database timestamps are in UTC
+                last_success = pytz.utc.localize(last_success)
+            
+            # Convert cutoff_time to UTC for comparison if needed
+            if cutoff_time.tzinfo is not None:
+                cutoff_time_utc = cutoff_time.astimezone(pytz.utc)
+            else:
+                cutoff_time_utc = cutoff_time
+            
+            # If last success was after the cutoff time, don't run again
+            if last_success > cutoff_time_utc:
+                logging.info(f"Skipping {username} on {day_of_week} - already ran successfully at {last_success}")
+                return False
+        
+        # No last success recorded or it was before cutoff time
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error checking last success for {username} on {day_of_week}: {e}")
+        # On error, allow the booking to proceed
+        return True
+    finally:
+        cursor.close()
+        conn.close()
+
+def get_schedules_with_last_success():
+    """
+    Retrieve all active swim lane schedules with their last success timestamps.
+    This is useful for admin monitoring.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT username, 
+               monday_command, tuesday_command, wednesday_command,
+               thursday_command, friday_command, saturday_command, sunday_command,
+               monday_last_success, tuesday_last_success, wednesday_last_success,
+               thursday_last_success, friday_last_success, saturday_last_success, sunday_last_success
+        FROM swim_lane_schedule;
+    """)
+    results = cursor.fetchall()
+    conn.close()
+    
+    schedules = []
+    for row in results:
+        username = row[0]
+        schedule = {
+            "username": username,
+            "monday": row[1] if row[1] else None,
+            "tuesday": row[2] if row[2] else None,
+            "wednesday": row[3] if row[3] else None,
+            "thursday": row[4] if row[4] else None,
+            "friday": row[5] if row[5] else None,
+            "saturday": row[6] if row[6] else None,
+            "sunday": row[7] if row[7] else None,
+            "monday_last_success": row[8] if row[8] else None,
+            "tuesday_last_success": row[9] if row[9] else None,
+            "wednesday_last_success": row[10] if row[10] else None,
+            "thursday_last_success": row[11] if row[11] else None,
+            "friday_last_success": row[12] if row[12] else None,
+            "saturday_last_success": row[13] if row[13] else None,
+            "sunday_last_success": row[14] if row[14] else None
+        }
+        schedules.append(schedule)
+    
+    return schedules

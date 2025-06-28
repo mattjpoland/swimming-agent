@@ -98,6 +98,22 @@
             font-size: 12px;
         }
         
+        .last-success {
+            font-size: 11px;
+            color: #666;
+            font-style: italic;
+            margin-top: 2px;
+        }
+        
+        .success-today {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .success-old {
+            color: #dc3545;
+        }
+        
         .action-buttons {
             min-width: 120px;
             white-space: nowrap;
@@ -371,13 +387,62 @@
                         {% for schedule in schedules %}
                         <tr>
                             <td class="username-cell" title="{{ schedule.username }}">{{ schedule.username }}</td>
-                            <td class="command-cell" title="{{ schedule.monday or '' }}">{{ schedule.monday or '-' }}</td>
-                            <td class="command-cell" title="{{ schedule.tuesday or '' }}">{{ schedule.tuesday or '-' }}</td>
-                            <td class="command-cell" title="{{ schedule.wednesday or '' }}">{{ schedule.wednesday or '-' }}</td>
-                            <td class="command-cell" title="{{ schedule.thursday or '' }}">{{ schedule.thursday or '-' }}</td>
-                            <td class="command-cell" title="{{ schedule.friday or '' }}">{{ schedule.friday or '-' }}</td>
-                            <td class="command-cell" title="{{ schedule.saturday or '' }}">{{ schedule.saturday or '-' }}</td>
-                            <td class="command-cell" title="{{ schedule.sunday or '' }}">{{ schedule.sunday or '-' }}</td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.monday or '' }}">{{ schedule.monday or '-' }}</div>
+                                {% if schedule.monday and schedule.monday_last_success %}
+                                    <div class="last-success {% if schedule.monday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.monday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.tuesday or '' }}">{{ schedule.tuesday or '-' }}</div>
+                                {% if schedule.tuesday and schedule.tuesday_last_success %}
+                                    <div class="last-success {% if schedule.tuesday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.tuesday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.wednesday or '' }}">{{ schedule.wednesday or '-' }}</div>
+                                {% if schedule.wednesday and schedule.wednesday_last_success %}
+                                    <div class="last-success {% if schedule.wednesday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.wednesday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.thursday or '' }}">{{ schedule.thursday or '-' }}</div>
+                                {% if schedule.thursday and schedule.thursday_last_success %}
+                                    <div class="last-success {% if schedule.thursday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.thursday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.friday or '' }}">{{ schedule.friday or '-' }}</div>
+                                {% if schedule.friday and schedule.friday_last_success %}
+                                    <div class="last-success {% if schedule.friday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.friday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.saturday or '' }}">{{ schedule.saturday or '-' }}</div>
+                                {% if schedule.saturday and schedule.saturday_last_success %}
+                                    <div class="last-success {% if schedule.saturday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.saturday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="command-cell">
+                                <div title="{{ schedule.sunday or '' }}">{{ schedule.sunday or '-' }}</div>
+                                {% if schedule.sunday and schedule.sunday_last_success %}
+                                    <div class="last-success {% if schedule.sunday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                        Last: {{ schedule.sunday_last_success.strftime('%m/%d %I:%M%p') }}
+                                    </div>
+                                {% endif %}
+                            </td>
                             <td class="action-buttons">
                                 <button class="edit-btn" onclick="editSchedule('{{ schedule.username|e }}')">Edit</button>
                                 <button class="delete-btn" onclick="deleteSchedule('{{ schedule.username|e }}')">Delete</button>
@@ -398,30 +463,65 @@
                     <div class="schedule-day">
                         <div class="day-name">Monday:</div>
                         <div class="day-command">{{ schedule.monday or 'No booking scheduled' }}</div>
+                        {% if schedule.monday and schedule.monday_last_success %}
+                            <div class="last-success {% if schedule.monday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.monday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="schedule-day">
                         <div class="day-name">Tuesday:</div>
                         <div class="day-command">{{ schedule.tuesday or 'No booking scheduled' }}</div>
+                        {% if schedule.tuesday and schedule.tuesday_last_success %}
+                            <div class="last-success {% if schedule.tuesday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.tuesday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="schedule-day">
                         <div class="day-name">Wednesday:</div>
                         <div class="day-command">{{ schedule.wednesday or 'No booking scheduled' }}</div>
+                        {% if schedule.wednesday and schedule.wednesday_last_success %}
+                            <div class="last-success {% if schedule.wednesday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.wednesday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="schedule-day">
                         <div class="day-name">Thursday:</div>
                         <div class="day-command">{{ schedule.thursday or 'No booking scheduled' }}</div>
+                        {% if schedule.thursday and schedule.thursday_last_success %}
+                            <div class="last-success {% if schedule.thursday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.thursday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="schedule-day">
                         <div class="day-name">Friday:</div>
                         <div class="day-command">{{ schedule.friday or 'No booking scheduled' }}</div>
+                        {% if schedule.friday and schedule.friday_last_success %}
+                            <div class="last-success {% if schedule.friday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.friday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="schedule-day">
                         <div class="day-name">Saturday:</div>
                         <div class="day-command">{{ schedule.saturday or 'No booking scheduled' }}</div>
+                        {% if schedule.saturday and schedule.saturday_last_success %}
+                            <div class="last-success {% if schedule.saturday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.saturday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="schedule-day">
                         <div class="day-name">Sunday:</div>
                         <div class="day-command">{{ schedule.sunday or 'No booking scheduled' }}</div>
+                        {% if schedule.sunday and schedule.sunday_last_success %}
+                            <div class="last-success {% if schedule.sunday_last_success.date() == now().date() %}success-today{% else %}success-old{% endif %}">
+                                Last: {{ schedule.sunday_last_success.strftime('%m/%d %I:%M%p') }}
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-actions">

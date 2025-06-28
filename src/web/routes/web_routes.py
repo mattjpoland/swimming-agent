@@ -6,7 +6,7 @@ from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
 from src.decorators import require_admin
-from src.domain.sql.scheduleGateway import get_all_active_schedules, get_schedule, add_or_update_schedule, delete_schedule
+from src.domain.sql.scheduleGateway import get_all_active_schedules, get_schedule, add_or_update_schedule, delete_schedule, get_schedules_with_last_success
 
 # Define the template folder relative to this file
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
@@ -95,8 +95,14 @@ def toggle_enabled(username):
 @require_admin
 def admin_schedules():
     """View all swim lane schedules."""
-    schedules = get_all_active_schedules()
-    return render_template("admin_schedules.html", schedules=schedules)
+    import datetime
+    import pytz
+    
+    schedules = get_schedules_with_last_success()
+    eastern = pytz.timezone('US/Eastern')
+    now = datetime.datetime.now(eastern)
+    
+    return render_template("admin_schedules.html", schedules=schedules, now=lambda: now)
 
 @web_bp.route("/admin/schedule", methods=["GET"])
 @require_admin
