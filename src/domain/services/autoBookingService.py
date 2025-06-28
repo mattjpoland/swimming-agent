@@ -96,6 +96,37 @@ def call_reasoning_agent(command, username, mac_password, user_api_key, session_
             "session_id": session_id
         }
 
+def verify_booking_exists(username, target_date, context):
+    """
+    Verify if a booking actually exists for the target date.
+    Returns True if a booking is found, False otherwise.
+    """
+    try:
+        from src.domain.services.appointmentService import get_appointments_schedule_action
+        
+        # Check appointments for the specific target date
+        response, status_code = get_appointments_schedule_action(
+            start_date=target_date,
+            end_date=target_date,
+            context=context
+        )
+        
+        if status_code == 200:
+            appointments = response.get("appointments", [])
+            if appointments:
+                logging.info(f"Verified booking exists for {username} on {target_date}: {len(appointments)} appointment(s) found")
+                return True
+            else:
+                logging.warning(f"No booking found for {username} on {target_date}")
+                return False
+        else:
+            logging.error(f"Failed to verify booking for {username} on {target_date}: status {status_code}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Error verifying booking for {username} on {target_date}: {e}")
+        return False
+
 def process_auto_booking():
     """
     Process automated bookings based on saved schedules.
@@ -156,13 +187,19 @@ def process_auto_booking():
         
         user_api_key = user_auth["api_key"]
         
-        # Format date for booking
+        # Format date for booking - one week from today
         eastern = pytz.timezone('US/Eastern')
         now = datetime.datetime.now(eastern)
-        booking_date = now.strftime("%Y-%m-%d")
+        # Calculate the target booking date (one week from today)
+        target_date = now + datetime.timedelta(days=7)
+        booking_date = target_date.strftime("%Y-%m-%d")
         
-        # Replace {date} placeholder in the command with today's date
+        # Replace {date} placeholder in the command with the target date
         processed_command = today_command.replace("{date}", booking_date)
+        
+        # Get the context for this user
+        from src.contextManager import load_context_for_authenticated_user
+        user_context = load_context_for_authenticated_user(user_api_key, mac_password)
         
         try:
             logging.info(f"Sending command to reasoning agent for {username}: {processed_command}")
@@ -191,20 +228,36 @@ def process_auto_booking():
                 
                 # Use the follow-up result for the final status
                 if follow_up_result.get("status") == "success":
-                    logging.info(f"Successfully processed auto-booking for {username} after follow-up")
+                    logging.info(f"Agent calls completed successfully for {username}, now verifying booking...")
                     
-                    # Update the last successful run timestamp
-                    try:
-                        update_last_success(username, today)
-                        logging.info(f"Updated last success timestamp for {username} on {today}")
-                    except Exception as e:
-                        logging.error(f"Failed to update last success timestamp for {username}: {e}")
+                    # Wait a moment for the booking to be processed
+                    time.sleep(2)
                     
-                    results.append({
-                        "username": username,
-                        "status": "success",
-                        "message": follow_up_result.get("message", "Booking processed successfully after follow-up")
-                    })
+                    # Verify that a booking actually exists for the target date
+                    booking_verified = verify_booking_exists(username, booking_date, user_context)
+                    
+                    if booking_verified:
+                        logging.info(f"Successfully verified booking for {username} on {booking_date}")
+                        
+                        # Update the last successful run timestamp only if booking is verified
+                        try:
+                            update_last_success(username, today)
+                            logging.info(f"Updated last success timestamp for {username} on {today}")
+                        except Exception as e:
+                            logging.error(f"Failed to update last success timestamp for {username}: {e}")
+                        
+                        results.append({
+                            "username": username,
+                            "status": "success",
+                            "message": f"Booking verified for {booking_date}"
+                        })
+                    else:
+                        logging.warning(f"Booking verification failed for {username} on {booking_date} - not updating last success")
+                        results.append({
+                            "username": username,
+                            "status": "error",
+                            "message": f"Booking attempt completed but no booking found for {booking_date}"
+                        })
                 else:
                     logging.error(f"Failed to process auto-booking for {username} after follow-up: {follow_up_result}")
                     results.append({

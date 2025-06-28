@@ -114,6 +114,12 @@
             color: #dc3545;
         }
         
+        .booking-info {
+            font-size: 10px;
+            color: #007bff;
+            margin-top: 1px;
+        }
+        
         .action-buttons {
             min-width: 120px;
             white-space: nowrap;
@@ -365,6 +371,15 @@
         </div>
         
         <button class="add-btn" onclick="showAddScheduleModal()">Add New Schedule</button>
+        
+        <div style="background: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #007bff;">
+            <h4 style="margin-top: 0; color: #007bff;">📅 Auto-Booking System Info</h4>
+            <p style="margin: 5px 0;">• Bookings are made <strong>one week in advance</strong> (e.g., Saturday's run books for next Saturday)</p>
+            <p style="margin: 5px 0;">• A booking is marked as <strong>successful</strong> only when a lane is actually reserved for the target date</p>
+            <p style="margin: 5px 0;">• <span style="color: #28a745; font-weight: bold;">Green timestamps</span> = Successfully booked today</p>
+            <p style="margin: 5px 0;">• <span style="color: #dc3545;">Red timestamps</span> = Last successful booking was on a previous day</p>
+            <p style="margin: 5px 0;">• If the agent fails to book (e.g., gets confused), it will retry on the next CRON run</p>
+        </div>
         
         <!-- Desktop Table View -->
         <div class="desktop-table-view">

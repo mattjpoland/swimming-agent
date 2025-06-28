@@ -383,14 +383,15 @@
                 <h2>💡 Help & Tips</h2>
                 <p>Learn how to set up effective auto-booking schedules.</p>
                 
-                <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
-                <ul>
-                    <li>Enter booking commands for each day you want automatic bookings</li>
-                    <li>Use <code>{date}</code> as a placeholder for the actual date</li>
-                    <li>Be specific about your preferences - the system will select the best available option</li>
-                    <li>Leave days blank if you don't want automatic bookings on those days</li>
-                    <li>The system will attempt to book lanes according to your schedule every day</li>
-                </ul>
+                            <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
+            <ul>
+                <li>Enter booking commands for each day you want automatic bookings</li>
+                <li>Use <code>{date}</code> as a placeholder - it will be replaced with the date <strong>one week from the run day</strong></li>
+                <li>Example: Monday's auto-booking runs will book for the following Monday</li>
+                <li>Be specific about your preferences - the system will select the best available option</li>
+                <li>Leave days blank if you don't want automatic bookings on those days</li>
+                <li>The system runs at midnight and will retry multiple times if needed</li>
+            </ul>
                 
                 <h4>💡 Example Auto-Booking Request:</h4>
                 <div style="background: #e9ecef; padding: 15px; border-radius: 6px; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.4;">
