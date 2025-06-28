@@ -124,7 +124,21 @@ def admin_schedules():
     eastern = pytz.timezone('US/Eastern')
     now = datetime.datetime.now(eastern)
     
-    return render_template("admin_schedules.html", schedules=schedules, now=lambda: now)
+    # Convert all timestamps to Eastern Time
+    for schedule in schedules:
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        for day in days:
+            timestamp_key = f"{day}_last_success"
+            if schedule.get(timestamp_key):
+                # Assume database timestamps are in UTC
+                utc_timestamp = schedule[timestamp_key]
+                if utc_timestamp.tzinfo is None:
+                    # Make it timezone-aware as UTC
+                    utc_timestamp = pytz.utc.localize(utc_timestamp)
+                # Convert to Eastern Time
+                schedule[timestamp_key] = utc_timestamp.astimezone(eastern)
+    
+    return render_template("admin_schedules.html", schedules=schedules, now=lambda: now, eastern_tz=eastern)
 
 @web_bp.route("/admin/schedule", methods=["GET"])
 @require_admin
