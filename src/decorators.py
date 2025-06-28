@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request, jsonify, g, session
+from flask import request, jsonify, g, session, redirect, url_for
 import logging
 from src.contextManager import load_context_for_authenticated_user
 from src.domain.sql.authGateway import get_auth
@@ -45,12 +45,22 @@ def require_admin(f):
     def decorated_function(*args, **kwargs):
         if 'username' not in session:
             logging.warning("Unauthorized admin access attempt: No username in session.")
-            return jsonify({"error": "Unauthorized"}), 401
+            # Check if this is a web request (likely if it's not JSON)
+            if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                return jsonify({"error": "Unauthorized"}), 401
+            else:
+                # For web requests, redirect to login page
+                return redirect(url_for("web.login"))
 
         auth_entry = get_auth(session['username'])
         if not auth_entry or not auth_entry.get("is_admin"):
             logging.warning(f"Unauthorized admin access attempt by user: {session.get('username')}")
-            return jsonify({"error": "Unauthorized"}), 401
+            # Check if this is a web request (likely if it's not JSON)
+            if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                return jsonify({"error": "Unauthorized"}), 401
+            else:
+                # For web requests, redirect to login page
+                return redirect(url_for("web.login"))
 
         logging.info(f"Admin access granted to user: {session['username']}")
         return f(*args, **kwargs)

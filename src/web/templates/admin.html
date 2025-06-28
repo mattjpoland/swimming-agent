@@ -38,6 +38,13 @@
         .admin-nav a.active {
             background-color: #0056b3;
         }
+        .admin-nav a.logout-btn {
+            background-color: #6c757d;
+            margin-left: 20px;
+        }
+        .admin-nav a.logout-btn:hover {
+            background-color: #5a6268;
+        }
         
         /* Responsive table container */
         .table-container {
@@ -129,6 +136,22 @@
         
         .action-buttons button:hover {
             background-color: #0056b3;
+        }
+        
+        .delete-btn {
+            background-color: #dc3545 !important;
+        }
+        
+        .delete-btn:hover {
+            background-color: #c82333 !important;
+        }
+        
+        .regenerate-btn {
+            background-color: #ffc107 !important;
+        }
+        
+        .regenerate-btn:hover {
+            background-color: #e0a800 !important;
         }
         
         .admin-badge {
@@ -292,6 +315,92 @@
                 display: block;
             }
         }
+        
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default - FIX FOR THE BUG */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 5px;
+            position: relative;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .admin-form-group {
+            margin: 15px 0;
+        }
+        
+        .admin-form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .admin-form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        
+        .modal-buttons {
+            margin-top: 20px;
+            text-align: right;
+        }
+        
+        .modal-buttons button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .save-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .save-btn:hover {
+            background-color: #218838;
+        }
+        
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .cancel-btn:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -303,6 +412,7 @@
         <div class="admin-nav">
             <a href="{{ url_for('web.admin_page') }}" class="active">User Management</a>
             <a href="{{ url_for('web.admin_schedules') }}">Schedule Management</a>
+            <a href="{{ url_for('web.logout') }}" class="logout-btn">🚪 Logout</a>
         </div>
         
         <!-- Desktop Table View -->
@@ -345,6 +455,10 @@
                                     <button type="submit">Toggle Enabled</button>
                                 </form>
                                 <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">MAC Password</button>
+                                {% if record.api_key.startswith('temp_key_') %}
+                                <button type="button" class="regenerate-btn" onclick="regenerateApiKey('{{ record.username|e }}')">Fix API Key</button>
+                                {% endif %}
+                                <button type="button" class="delete-btn" onclick="deleteUser('{{ record.username|e }}')">Delete User</button>
                                 {% else %}
                                 <span class="admin-badge">Admin</span>
                                 {% endif %}
@@ -395,6 +509,10 @@
                         <button type="submit">Toggle Enabled</button>
                     </form>
                     <button type="button" class="edit-btn" onclick="editMacPassword('{{ record.username|e }}')">Set MAC Password</button>
+                    {% if record.api_key.startswith('temp_key_') %}
+                    <button type="button" class="regenerate-btn" onclick="regenerateApiKey('{{ record.username|e }}')">Fix API Key</button>
+                    {% endif %}
+                    <button type="button" class="delete-btn" onclick="deleteUser('{{ record.username|e }}')">Delete User</button>
                     {% else %}
                     <span class="admin-badge">Admin User</span>
                     {% endif %}
@@ -484,6 +602,62 @@
             if (event.target == modal) {
                 closeMacPasswordModal();
             }
+        }
+
+        function deleteUser(username) {
+            if (!confirm(`⚠️ Are you sure you want to delete user "${username}"?\n\nThis will permanently remove:\n• Their user account\n• All auto-booking schedules\n• All associated data\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            fetch('/web/admin/delete-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error deleting user: ' + error);
+            });
+        }
+
+        function regenerateApiKey(username) {
+            if (!confirm(`🔑 Regenerate API key for "${username}"?\n\nThis will:\n• Generate a new secure API key\n• Replace the temporary placeholder key\n• Require the user to use the new key for API access\n\nContinue?`)) {
+                return;
+            }
+
+            fetch('/web/admin/regenerate-api-key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message + '\n\nNew API Key: ' + data.new_api_key);
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error regenerating API key: ' + error);
+            });
         }
     </script>
 </body>

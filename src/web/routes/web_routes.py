@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, jsonify
 import logging
 import os
-from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth
+import secrets
+from src.domain.sql.authGateway import get_auth, toggle_auth_enabled, get_all_auth_data, update_mac_password, store_auth, delete_user, update_api_key
 from src.contextManager import load_context_for_registration_pages
 from src.web.gateways.webLoginGateway import login_with_credentials
 from src.web.services.familyService import get_family_members_action
@@ -32,8 +33,24 @@ def login():
             else:
                 # Check if user is enabled and has MAC password for dashboard access
                 if auth_entry.get("is_enabled") and auth_entry.get("mac_password"):
+                    # Auto-sync MAC password if it's different from what they logged in with
+                    stored_mac_password = auth_entry.get("mac_password")
+                    if stored_mac_password and stored_mac_password != password:
+                        # Password has changed - update it automatically
+                        success = update_mac_password(username, password)
+                        if success:
+                            logging.info(f"Auto-updated MAC password for {username} - password had changed")
+                        else:
+                            logging.error(f"Failed to auto-update MAC password for {username}")
+                    
                     return redirect(url_for("web.user_dashboard"))
+                elif auth_entry.get("is_enabled"):
+                    # User is enabled but needs to set MAC password
+                    # Store the password temporarily so they can choose to save it
+                    session['login_password'] = password
+                    return redirect(url_for("web.setup_mac_password"))
                 else:
+                    # User is not enabled yet
                     return redirect(url_for("web.already_submitted"))
 
         # Handle new user registration
@@ -53,6 +70,11 @@ def login():
                 family_members.append(customer)  # Add the customer to the family_members list
             else:
                 family_members = [customer]  # Create new list with just the customer
+            
+            # Store the MAC password in session for later use during registration
+            session['mac_password'] = password
+            session['username'] = username  # Store username as well
+            
             return render_template("registration.html", customer=customer, family_members=family_members)
 
         # If login fails, return an error
@@ -191,6 +213,14 @@ def update_user_mac_password():
     if auth_entry.get("is_admin"):
         return jsonify({"status": "error", "message": "Cannot update MAC password for admin users"}), 403
     
+    # If a password is provided, validate it by attempting to login
+    if mac_password:
+        context = load_context_for_registration_pages()
+        login_response = login_with_credentials(username, mac_password, context)
+        
+        if not login_response:
+            return jsonify({"status": "error", "message": f"Invalid MAC password for {username}. Please verify the password is correct for the MAC website."}), 400
+    
     # Update the MAC password (empty string will clear it)
     success = update_mac_password(username, mac_password if mac_password else None)
     
@@ -200,22 +230,105 @@ def update_user_mac_password():
     else:
         return jsonify({"status": "error", "message": f"Failed to update MAC password for {username}"}), 500
 
+@web_bp.route("/admin/delete-user", methods=["POST"])
+@require_admin
+def delete_user_admin():
+    """Delete a user and all their associated data."""
+    data = request.json
+    username = data.get("username") if data else None
+    
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+    
+    # Check if user exists
+    auth_entry = get_auth(username)
+    if not auth_entry:
+        return jsonify({"status": "error", "message": f"User {username} not found"}), 404
+    
+    # Don't allow deleting admin users
+    if auth_entry.get("is_admin"):
+        return jsonify({"status": "error", "message": "Cannot delete admin users"}), 403
+    
+    try:
+        # Delete user's schedule first (if it exists)
+        schedule_deleted = delete_schedule(username)
+        schedule_message = f" Schedule deleted." if schedule_deleted else " No schedule found."
+        
+        # Delete the user from auth_data
+        user_deleted = delete_user(username)
+        
+        if user_deleted:
+            message = f"User {username} has been successfully deleted.{schedule_message}"
+            return jsonify({"status": "success", "message": message})
+        else:
+            return jsonify({"status": "error", "message": f"Failed to delete user {username}"}), 500
+            
+    except Exception as e:
+        logging.exception(f"Error deleting user {username}: {str(e)}")
+        return jsonify({"status": "error", "message": f"An error occurred while deleting user {username}: {str(e)}"}), 500
+
+@web_bp.route("/admin/regenerate-api-key", methods=["POST"])
+@require_admin
+def regenerate_api_key():
+    """Regenerate API key for a user."""
+    data = request.json
+    username = data.get("username") if data else None
+    
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+    
+    # Check if user exists
+    auth_entry = get_auth(username)
+    if not auth_entry:
+        return jsonify({"status": "error", "message": f"User {username} not found"}), 404
+    
+    # Don't allow regenerating admin API keys from this interface
+    if auth_entry.get("is_admin"):
+        return jsonify({"status": "error", "message": "Cannot regenerate API keys for admin users"}), 403
+    
+    try:
+        # Generate new API key
+        new_api_key = generate_api_key()
+        
+        # Update the API key in the database
+        success = update_api_key(username, new_api_key)
+        
+        if success:
+            return jsonify({
+                "status": "success", 
+                "message": f"API key regenerated for {username}",
+                "new_api_key": new_api_key
+            })
+        else:
+            return jsonify({"status": "error", "message": f"Failed to regenerate API key for {username}"}), 500
+            
+    except Exception as e:
+        logging.exception(f"Error regenerating API key for {username}: {str(e)}")
+        return jsonify({"status": "error", "message": f"An error occurred while regenerating API key for {username}: {str(e)}"}), 500
+
+def generate_api_key():
+    """Generate a secure API key."""
+    return secrets.token_urlsafe(32)
+
 @web_bp.route("/select_family_member", methods=["POST"])
 def select_family_member():
     """Handle family member selection and complete registration."""
     username = request.form.get("username")
     customer_id = request.form.get("customer_id")
     family_member_id = request.form.get("family_member")
-    mac_password = request.form.get("mac_password", "").strip()
+    save_mac_password = request.form.get("save_mac_password") == "on"  # Checkbox value
     
     if not username or not customer_id or not family_member_id:
         return render_template("registration.html", error="Missing required information"), 400
     
-    # Generate a placeholder API key for now (you may want to implement actual API key generation)
-    api_key = f"temp_key_{username}"
+    # Generate a proper API key
+    api_key = generate_api_key()
     
-    # Store the auth data with MAC password if provided
-    mac_password_to_store = mac_password if mac_password else None
+    # Use the MAC password from session if user opted to save it
+    mac_password_to_store = None
+    if save_mac_password and session.get('mac_password'):
+        mac_password_to_store = session.get('mac_password')
+        # Password was already validated during login, so we know it's valid
     
     try:
         store_auth(
@@ -233,6 +346,10 @@ def select_family_member():
         # Store the username and MAC password status in session for the confirmation page
         session['username'] = username
         session['mac_password_set'] = bool(mac_password_to_store)
+        
+        # Clear the MAC password from session for security after registration
+        if 'mac_password' in session:
+            del session['mac_password']
         
         return redirect(url_for("web.registration_complete"))
         
@@ -256,10 +373,13 @@ def user_dashboard():
     if not username:
         return redirect(url_for("web.login"))
     
-    # Verify user is enabled and has MAC password
+    # Verify user is enabled
     auth_entry = get_auth(username)
-    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+    if not auth_entry or not auth_entry.get("is_enabled"):
         return redirect(url_for("web.already_submitted"))
+    
+    # Check if user has MAC password for auto-booking features
+    has_mac_password = auth_entry.get("mac_password") is not None
     
     # Get the user's current schedule
     user_schedule = get_schedule(username)
@@ -274,7 +394,7 @@ def user_dashboard():
             "sunday": None
         }
     
-    return render_template("user_dashboard.html", username=username, schedule=user_schedule)
+    return render_template("user_dashboard.html", username=username, schedule=user_schedule, has_mac_password=has_mac_password)
 
 @web_bp.route("/user/schedule", methods=["POST"])
 def update_my_schedule():
@@ -283,9 +403,9 @@ def update_my_schedule():
     if not username:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
     
-    # Verify user is enabled and has MAC password
+    # Verify user is enabled (MAC password not required to save schedule)
     auth_entry = get_auth(username)
-    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+    if not auth_entry or not auth_entry.get("is_enabled"):
         return jsonify({"status": "error", "message": "Access denied"}), 403
     
     data = request.json
@@ -293,7 +413,12 @@ def update_my_schedule():
     
     try:
         add_or_update_schedule(username, schedule_data)
-        return jsonify({"status": "success", "message": "Your schedule has been updated successfully!"})
+        
+        # Check if they have MAC password for appropriate message
+        if not auth_entry.get("mac_password"):
+            return jsonify({"status": "warning", "message": "Schedule saved, but you need to set your MAC password first to enable auto-booking."})
+        else:
+            return jsonify({"status": "success", "message": "Your schedule has been updated successfully!"})
     except Exception as e:
         logging.error(f"Error updating schedule for {username}: {str(e)}")
         return jsonify({"status": "error", "message": "Failed to update schedule. Please try again."}), 500
@@ -305,9 +430,9 @@ def delete_my_schedule():
     if not username:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
     
-    # Verify user is enabled and has MAC password
+    # Verify user is enabled (MAC password not required to delete schedule)
     auth_entry = get_auth(username)
-    if not auth_entry or not auth_entry.get("is_enabled") or not auth_entry.get("mac_password"):
+    if not auth_entry or not auth_entry.get("is_enabled"):
         return jsonify({"status": "error", "message": "Access denied"}), 403
     
     try:
@@ -319,6 +444,104 @@ def delete_my_schedule():
     except Exception as e:
         logging.error(f"Error deleting schedule for {username}: {str(e)}")
         return jsonify({"status": "error", "message": "Failed to delete schedule. Please try again."}), 500
+
+@web_bp.route("/user/mac-password", methods=["POST"])
+def update_my_mac_password():
+    """Allow users to update their own MAC password."""
+    username = session.get('username')
+    if not username:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+    
+    # Verify user is enabled
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled"):
+        return jsonify({"status": "error", "message": "Access denied"}), 403
+    
+    data = request.json
+    mac_password = data.get("mac_password", "").strip() if data else ""
+    
+    if not mac_password:
+        return jsonify({"status": "error", "message": "MAC password is required"}), 400
+    
+    # Validate the MAC password by attempting to login
+    context = load_context_for_registration_pages()
+    login_response = login_with_credentials(username, mac_password, context)
+    
+    if not login_response:
+        return jsonify({"status": "error", "message": "Invalid MAC password. Please check your password and try again."}), 400
+    
+    try:
+        success = update_mac_password(username, mac_password)
+        if success:
+            logging.info(f"User {username} updated their MAC password")
+            return jsonify({"status": "success", "message": "Your MAC password has been updated successfully!"})
+        else:
+            return jsonify({"status": "error", "message": "Failed to update MAC password. Please try again."}), 500
+    except Exception as e:
+        logging.error(f"Error updating MAC password for {username}: {str(e)}")
+        return jsonify({"status": "error", "message": "Failed to update MAC password. Please try again."}), 500
+
+@web_bp.route("/setup-mac-password", methods=["GET", "POST"])
+def setup_mac_password():
+    """Allow enabled users to set their MAC password."""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for("web.login"))
+    
+    # Verify user is enabled
+    auth_entry = get_auth(username)
+    if not auth_entry or not auth_entry.get("is_enabled"):
+        return redirect(url_for("web.already_submitted"))
+    
+    # If they already have a MAC password, redirect to dashboard
+    if auth_entry.get("mac_password"):
+        return redirect(url_for("web.user_dashboard"))
+    
+    if request.method == "POST":
+        save_login_password = request.form.get("save_login_password") == "on"
+        
+        if save_login_password:
+            # Use the password from their recent login session
+            login_password = session.get('login_password')
+            
+            if not login_password:
+                error = "Session expired. Please log in again."
+                return render_template("setup_mac_password.html", username=username, error=error)
+            
+            # Update the MAC password with their login password
+            success = update_mac_password(username, login_password)
+            
+            if success:
+                logging.info(f"User {username} successfully saved their login password as MAC password")
+                # Clear the login password from session for security
+                if 'login_password' in session:
+                    del session['login_password']
+                return redirect(url_for("web.user_dashboard"))
+            else:
+                error = "Failed to save MAC password. Please try again."
+                return render_template("setup_mac_password.html", username=username, error=error)
+        else:
+            # User chose not to save their password, go to dashboard without MAC password
+            logging.info(f"User {username} chose not to save their MAC password")
+            # Clear the login password from session for security
+            if 'login_password' in session:
+                del session['login_password']
+            return redirect(url_for("web.user_dashboard"))
+    
+    return render_template("setup_mac_password.html", username=username)
+
+@web_bp.route("/already_submitted", methods=["GET"])
+def already_submitted():
+    """Landing page for users who are registered but not yet enabled or missing MAC password."""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for("web.login"))
+    
+    # Check if user has MAC password saved
+    auth_entry = get_auth(username)
+    has_mac_password = auth_entry and auth_entry.get("mac_password") is not None
+    
+    return render_template("already_submitted.html", username=username, has_mac_password=has_mac_password)
 
 @web_bp.route("/logout", methods=["GET", "POST"])
 def logout():

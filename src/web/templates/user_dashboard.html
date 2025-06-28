@@ -176,6 +176,56 @@
             color: #721c24;
         }
         
+        /* Tab Navigation */
+        .tab-navigation {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: #6c757d;
+            transition: all 0.3s;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .tab-button:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-container {
+            margin-bottom: 30px;
+        }
+
         /* Mobile responsiveness */
         @media (max-width: 768px) {
             .dashboard-header h1 {
@@ -195,6 +245,15 @@
                 width: 100%;
                 max-width: 300px;
             }
+            
+            .tab-button {
+                padding: 12px 15px;
+                font-size: 14px;
+            }
+            
+            .tab-content {
+                padding: 15px;
+            }
         }
     </style>
 </head>
@@ -202,47 +261,37 @@
     <div class="admin-container">
         <div class="dashboard-header">
             <h1>Welcome, {{ username }}!</h1>
+            {% if has_mac_password %}
             <p>Manage your automatic swim lane booking schedule</p>
+            {% else %}
+            <p>Complete your setup to enable automatic swim lane booking</p>
+            {% endif %}
         </div>
         
-        <div class="help-section">
-            <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
-            <ul>
-                <li>Enter booking commands for each day you want automatic bookings</li>
-                <li>Use <code>{date}</code> as a placeholder for the actual date</li>
-                <li>Be specific about your preferences - the system will select the best available option</li>
-                <li>Leave days blank if you don't want automatic bookings on those days</li>
-                <li>The system will attempt to book lanes according to your schedule every day</li>
-            </ul>
-            
-            <h4>💡 Example Auto-Booking Request:</h4>
-            <div style="background: #e9ecef; padding: 15px; border-radius: 6px; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.4;">
-                This is an auto-booking request.<br><br>
-                
-                Start by looking up available swim lanes on {date}.<br><br>
-                
-                Then select one for me that matches my preferences:<br>
-                Outdoor Pool.<br>
-                4PM, 3:30 PM, or 4:30 PM<br>
-                Prefer lanes 3, 4, 6, 1, 5, then 2.<br>
-                Prefer 60 minutes, will accept 30 minutes.<br><br>
-                
-                It's important that you select an available option and book it proactively. Don't ask me to confirm your choice. Just do it.
+        <div class="tab-container">
+            <div class="tab-navigation">
+                <button class="tab-button active" onclick="showTab('schedule')">🗓️ Schedule</button>
+                <button class="tab-button" onclick="showTab('account')">🔐 Account</button>
+                <button class="tab-button" onclick="showTab('help')">💡 Help</button>
             </div>
             
-            <p><strong>💡 Tips:</strong></p>
-            <ul>
-                <li>Specify pool preferences (Indoor/Outdoor)</li>
-                <li>List multiple time options in order of preference</li>
-                <li>Rank lane preferences to get your favorite spots</li>
-                <li>Include duration preferences (30, 45, 60 minutes)</li>
-                <li>Always instruct the system to book proactively without asking for confirmation</li>
-            </ul>
-        </div>
-        
-        <div class="schedule-section">
-            <h2>🗓️ Your Auto-Booking Schedule</h2>
+            <!-- Schedule Tab -->
+            <div id="schedule-tab" class="tab-content active">
+                <h2>🗓️ Your Auto-Booking Schedule</h2>
+                {% if has_mac_password %}
+                <p>Set up automatic swim lane booking for each day of the week.</p>
+                
+                <div style="background: #d1ecf1; padding: 15px; border-radius: 6px; border-left: 4px solid #bee5eb; margin: 15px 0; font-size: 14px;">
+                    <p style="margin: 0;"><strong>💡 Pro Tip:</strong> Your MAC password automatically syncs when you login, so your bookings will always work with your current password!</p>
+                </div>
+                {% else %}
+                <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                    <h3 style="color: #856404; margin-top: 0;">🔐 MAC Password Required</h3>
+                    <p style="margin: 0;">You need to set your MAC password first to enable automatic lane booking. Go to the Account tab to set it up.</p>
+                </div>
+                {% endif %}
             
+            {% if has_mac_password %}
             <form id="scheduleForm">
                 <div class="day-schedule">
                     <label for="monday">Monday <span class="status-indicator {{ 'status-active' if schedule.monday else 'status-empty' }}">{{ 'Active' if schedule.monday else 'Not Set' }}</span></label>
@@ -282,13 +331,119 @@
                 <div class="action-buttons">
                     <button type="button" class="btn btn-primary" onclick="saveSchedule()">💾 Save Schedule</button>
                     <button type="button" class="btn btn-danger" onclick="deleteSchedule()">🗑️ Clear All</button>
-                    <a href="{{ url_for('web.logout') }}" class="btn btn-secondary">🚪 Logout</a>
                 </div>
             </form>
+            {% endif %}
+            </div>
+            
+            <!-- Account Tab -->
+            <div id="account-tab" class="tab-content">
+                <h2>🔐 Account Settings</h2>
+                {% if has_mac_password %}
+                <p>Your account is fully configured for automatic lane booking.</p>
+                
+                <div style="background: #d4edda; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-top: 0;">✅ Auto-Sync Enabled</h3>
+                    <p style="margin: 0;">Your MAC password is automatically synchronized when you login. If you change your MAC website password, just login with the new password and it will be updated automatically.</p>
+                </div>
+                
+                <h3>MAC Password Status</h3>
+                <p>✅ <strong>MAC password is set and ready for auto-booking</strong></p>
+                <p style="font-size: 14px; color: #666;">The system automatically keeps your stored password in sync with your MAC website login. No manual updates needed!</p>
+                {% else %}
+                <div style="background: #d4edda; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-top: 0;">🚀 Complete Your Setup</h3>
+                    <p style="margin: 0;">Set your MAC password to enable automatic swim lane booking and unlock all features!</p>
+                </div>
+                
+                <h3>Set MAC Password</h3>
+                <p>Enter your MAC website password to enable automatic lane bookings.</p>
+                
+                <form id="macPasswordForm">
+                    <div class="day-schedule">
+                        <label for="new_mac_password">MAC Password</label>
+                        <input type="password" id="new_mac_password" name="new_mac_password" 
+                               placeholder="Enter your MAC website password" 
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border-color 0.3s;">
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                        <p style="margin: 0;"><strong>⚠️ Important:</strong> This should be the same password you use to login to the MAC website (ourclublogin.com). Once set, the system will automatically keep it synchronized.</p>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="updateMacPassword()">🚀 Set Password</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+            
+            <!-- Help Tab -->
+            <div id="help-tab" class="tab-content">
+                <h2>💡 Help & Tips</h2>
+                <p>Learn how to set up effective auto-booking schedules.</p>
+                
+                <h3>📋 How to Set Up Your Auto-Booking Schedule</h3>
+                <ul>
+                    <li>Enter booking commands for each day you want automatic bookings</li>
+                    <li>Use <code>{date}</code> as a placeholder for the actual date</li>
+                    <li>Be specific about your preferences - the system will select the best available option</li>
+                    <li>Leave days blank if you don't want automatic bookings on those days</li>
+                    <li>The system will attempt to book lanes according to your schedule every day</li>
+                </ul>
+                
+                <h4>💡 Example Auto-Booking Request:</h4>
+                <div style="background: #e9ecef; padding: 15px; border-radius: 6px; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.4;">
+                    This is an auto-booking request.<br><br>
+                    
+                    Start by looking up available swim lanes on {date}.<br><br>
+                    
+                    Then select one for me that matches my preferences:<br>
+                    Outdoor Pool.<br>
+                    4PM, 3:30 PM, or 4:30 PM<br>
+                    Prefer lanes 3, 4, 6, 1, 5, then 2.<br>
+                    Prefer 60 minutes, will accept 30 minutes.<br><br>
+                    
+                    It's important that you select an available option and book it proactively. Don't ask me to confirm your choice. Just do it.
+                </div>
+                
+                <p><strong>💡 Tips:</strong></p>
+                <ul>
+                    <li>Specify pool preferences (Indoor/Outdoor)</li>
+                    <li>List multiple time options in order of preference</li>
+                    <li>Rank lane preferences to get your favorite spots</li>
+                    <li>Include duration preferences (30, 45, 60 minutes)</li>
+                    <li>Always instruct the system to book proactively without asking for confirmation</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="action-buttons" style="margin-top: 20px;">
+            <a href="{{ url_for('web.logout') }}" class="btn btn-secondary">🚪 Logout</a>
         </div>
     </div>
     
     <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
         function saveSchedule() {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
             const schedule = {};
@@ -311,6 +466,9 @@
             .then(data => {
                 if (data.status === 'success') {
                     alert('✅ ' + data.message);
+                    location.reload();
+                } else if (data.status === 'warning') {
+                    alert('⚠️ ' + data.message);
                     location.reload();
                 } else {
                     alert('❌ Error: ' + data.message);
@@ -339,6 +497,40 @@
                     alert('❌ Error deleting schedule: ' + error);
                 });
             }
+        }
+        
+        function updateMacPassword() {
+            const newPassword = document.getElementById('new_mac_password').value;
+            
+            // Validation
+            if (!newPassword) {
+                alert('❌ Please enter your MAC website password');
+                return;
+            }
+            
+            // Update password
+            fetch('/web/user/mac-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mac_password: newPassword
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    // Clear the form
+                    document.getElementById('new_mac_password').value = '';
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error updating MAC password: ' + error);
+            });
         }
         
         // Auto-save draft functionality (optional enhancement)
