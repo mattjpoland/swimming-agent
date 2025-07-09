@@ -286,6 +286,47 @@ def cron_schedule_swim_lanes():
             "error_type": type(e).__name__
         }), 500
 
+@api_bp.route("/cron_schedule_swim_lanes_direct", methods=["POST"])
+@require_api_key
+def cron_schedule_swim_lanes_direct():
+    """
+    Direct CRON Endpoint for automated swim lane scheduling.
+    This endpoint executes the auto-booking process synchronously without using Celery.
+    Use this when you want to avoid Redis usage or when Celery is not available.
+    """
+    try:
+        logging.info("CRON auto-booking process started (direct execution)")
+        
+        # Import and run the auto-booking function directly
+        from src.domain.services.autoBookingService import process_auto_booking
+        
+        # Execute the auto-booking process synchronously
+        results = process_auto_booking()
+        
+        # Count successful and failed bookings
+        successful = len([r for r in results if r.get("status") == "success"])
+        failed = len([r for r in results if r.get("status") == "error"])
+        
+        logging.info(f"Auto-booking completed: {successful} successful, {failed} failed")
+        
+        return jsonify({
+            "status": "completed", 
+            "message": f"Auto-booking process completed: {successful} successful, {failed} failed",
+            "results": results,
+            "summary": {
+                "total_processed": len(results),
+                "successful": successful,
+                "failed": failed
+            }
+        }), 200
+    except Exception as e:
+        logging.exception(f"Failed to execute auto-booking: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Failed to execute auto-booking: {str(e)}",
+            "error_type": type(e).__name__
+        }), 500
+
 @api_bp.route("/task-status/<task_id>", methods=["GET"])
 @require_api_key
 def get_task_status(task_id):
@@ -331,5 +372,58 @@ def get_task_status(task_id):
         return jsonify({
             "status": "error", 
             "message": f"Failed to get task status: {str(e)}"
+        }), 500
+
+@api_bp.route("/cron_schedule_swim_lanes_smart", methods=["POST"])
+@require_api_key
+def cron_schedule_swim_lanes_smart():
+    """
+    Smart CRON endpoint that only queues tasks if work is actually needed.
+    This reduces unnecessary Celery task processing.
+    """
+    try:
+        logging.info("Smart CRON check initiated")
+        
+        # Import what we need
+        from src.domain.services.autoBookingService import get_day_of_week, get_all_active_schedules, should_run_booking
+        from src.worker.tasks import run_auto_booking
+        
+        # Check if any users need booking today
+        today = get_day_of_week()
+        schedules = get_all_active_schedules()
+        users_needing_booking = []
+        
+        for schedule in schedules:
+            username = schedule["username"]
+            today_command = schedule.get(today)
+            
+            if today_command and should_run_booking(username, today):
+                users_needing_booking.append(username)
+        
+        if not users_needing_booking:
+            logging.info("No users need booking at this time")
+            return jsonify({
+                "status": "skipped",
+                "message": "No users need booking at this time",
+                "checked_users": len(schedules),
+                "needing_booking": 0
+            }), 200
+        
+        # Only queue task if work is needed
+        logging.info(f"Queuing auto-booking for {len(users_needing_booking)} users")
+        task = run_auto_booking.delay()
+        
+        return jsonify({
+            "status": "accepted",
+            "message": f"Auto-booking queued for {len(users_needing_booking)} users",
+            "task_id": task.id,
+            "users_needing_booking": len(users_needing_booking)
+        }), 202
+        
+    except Exception as e:
+        logging.exception(f"Failed in smart CRON check: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Failed in smart CRON check: {str(e)}"
         }), 500
 

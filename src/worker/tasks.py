@@ -53,6 +53,35 @@ celery_config = {
     'task_soft_time_limit': 25 * 60,  # 25 minutes
     'worker_prefetch_multiplier': 1,
     'worker_max_tasks_per_child': 1000,
+    # Add these optimizations to reduce Redis requests
+    'broker_transport_options': {
+        'visibility_timeout': 3600,  # 1 hour
+        'polling_interval': 300.0,    # Poll every 5 minutes instead of 1 second
+        'max_retries': 3,
+        # Additional optimizations
+        'fanout_prefix': True,
+        'fanout_patterns': True,
+        # Note: For even more optimization, you could implement dynamic polling:
+        # - Every 30 seconds from 11:30 PM - 5:00 AM (during booking window)
+        # - Every 30 minutes rest of the day
+        # This would require custom broker transport class
+    },
+    'result_expires': 3600,  # Results expire after 1 hour
+    'task_ignore_result': True,  # Don't store results unless explicitly needed
+    'task_acks_late': True,  # Acknowledge tasks after completion
+    'worker_send_task_events': False,  # Disable task events
+    'worker_disable_rate_limits': True,  # Disable rate limit checks
+    # Additional optimizations
+    'broker_connection_retry': False,  # Don't retry connection on startup
+    'broker_connection_retry_on_startup': False,
+    'broker_pool_limit': 1,  # Limit connection pool
+    'redis_max_connections': 2,  # Limit Redis connections
+    'redis_socket_keepalive': True,
+    'redis_socket_keepalive_options': {
+        1: 30,  # TCP_KEEPIDLE
+        2: 10,  # TCP_KEEPINTVL
+        3: 6,   # TCP_KEEPCNT
+    },
 }
 
 # Add SSL configuration only if using secure Redis
@@ -74,6 +103,27 @@ if USE_SSL:
 
 # Apply the configuration
 celery_app.conf.update(celery_config)
+
+# Add Celery Beat schedule for auto-booking
+from celery.schedules import crontab
+
+celery_app.conf.beat_schedule = {
+    'auto-booking-midnight': {
+        'task': 'run_auto_booking',
+        'schedule': crontab(hour='0', minute='1'),  # 12:01 AM Eastern
+    },
+    'auto-booking-retry-1': {
+        'task': 'run_auto_booking',
+        'schedule': crontab(hour='0', minute='10'),  # 12:10 AM Eastern
+    },
+    'auto-booking-retry-2': {
+        'task': 'run_auto_booking',
+        'schedule': crontab(hour='0', minute='20'),  # 12:20 AM Eastern
+    },
+}
+
+# Set timezone for beat schedule
+celery_app.conf.update({'timezone': 'US/Eastern'})
 
 @celery_app.task(bind=True, name='run_auto_booking')
 def run_auto_booking(self):

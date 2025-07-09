@@ -25,13 +25,13 @@ services:
       - key: MAC_PASSWORD
         sync: false
 
-  # Background worker service for Celery
+  # Background worker service for Celery with time-aware polling
   - type: worker
     name: swimming-agent-worker
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A src.worker.tasks worker --loglevel=info
+    buildCommand: pip install -r requirements.txt && chmod +x src/worker/smart_worker.sh
+    startCommand: ./src/worker/smart_worker.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -49,4 +49,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: MAC_PASSWORD
-        sync: false 
+        sync: false
+      # Force worker restart every hour to update polling interval
+      - key: RENDER_RESTART_POLICY
+        value: "always" 
