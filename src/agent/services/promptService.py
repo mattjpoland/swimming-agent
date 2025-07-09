@@ -48,6 +48,9 @@ class PromptService:
             "Follow these specific rules to determine the value of \"is_conversation_over\":\n"
             "1. Set to true only when user indicates they're finished (thanks, bye, that's all).\n"
             "2. For all other responses, set to false.\n"
+            "3. When is_conversation_over is true, keep farewell messages brief and friendly.\n"
+            "   Examples: 'You're welcome! Have a great day!' or 'Goodbye! Take care!'\n"
+            "   Avoid long messages about future help availability.\n"
         )
         messages = [{"role": "system", "content": system_prompt}]
         
@@ -81,7 +84,7 @@ class PromptService:
         return messages
 
     def generate_tool_selection_prompt_with_context(self, user_input: str, conversation_history: List[Dict], 
-                                                   tool_calls_history: List = None) -> List[Dict]:
+                                                   tool_calls_history: Optional[List] = None) -> List[Dict]:
         """
         Enhanced version of generate_initial_tool_selection_prompt that incorporates tool call history
         and context management instructions for multi-step reasoning.
@@ -114,7 +117,7 @@ class PromptService:
                     summary += "\n- The latest messages are the most relevant.  Really try to evaluate if it's responding with a missing parameter from a previous call or if it's attempting to direct to a new tool being called."
                     
                     # Add information from tool history if available
-                    if has_tool_history:
+                    if has_tool_history and tool_calls_history:
                         summary += "\n\nPrevious information gathered:"
                         for item in tool_calls_history:
                             summary += f"\n- {item.tool_name}: {item.tool_result[:100]}..."
@@ -187,6 +190,9 @@ class PromptService:
             "Follow these specific rules to determine the value of \"is_conversation_over\":\n"
             "1. Set to true only when user indicates they're finished (thanks, bye, that's all).\n"
             "2. For all other responses, set to false.\n"
+            "3. When is_conversation_over is true, keep farewell messages brief and friendly.\n"
+            "   Examples: 'You're welcome! Have a great day!' or 'Goodbye! Take care!'\n"
+            "   Avoid long messages about future help availability.\n"
         )
         
         # Add the new system message for formatting guidance
@@ -198,8 +204,8 @@ class PromptService:
         return messages
     
     def generate_final_response_prompt_with_context(self, messages: List[Dict], action: Any = None,
-                                                   tool_calls_history: List = None,
-                                                   original_input: str = None) -> List[Dict]:
+                                                   tool_calls_history: Optional[List] = None,
+                                                   original_input: Optional[str] = None) -> List[Dict]:
         """
         Enhanced prompt preparation for the final response generation
         that includes tool chain context when available and improved context relevance

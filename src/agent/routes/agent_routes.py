@@ -14,14 +14,24 @@ agent_service = AgentService()
 def chat():
     try:
         data = request.get_json() or {}
-        user_input = data.get('user_input')
+        user_input = data.get('user_input', '').strip()  # Strip whitespace
         
         # Log raw request body if REQUEST_LOGGING is enabled
         if os.getenv('REQUEST_LOGGING', 'false').lower() == 'true' or g.context.get('REQUEST_LOGGING', False):
             logging.info(f"RAW REQUEST: {json.dumps(data)}")
         
+        # Handle blank input as a conversation end signal
         if not user_input:
-            return jsonify({"error": "No user input provided"}), 400
+            # Get session_id for consistency
+            session_id = data.get('session_id', str(uuid.uuid4()))
+            
+            return jsonify({
+                "message": "Thank you for chatting! If you have any more questions, feel free to ask.",
+                "status": "success",
+                "conversation_ended": True,
+                "session_id": session_id,
+                "content_type": "application/json"
+            }), 200
         
         # Extract optional parameters
         response_format = data.get('response_format', 'auto')
