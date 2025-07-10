@@ -101,14 +101,37 @@ if USE_SSL:
 # Apply the configuration
 celery_app.conf.update(celery_config)
 
+# Set up logging first
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Force broker transport options to ensure they're applied
-celery_app.conf.broker_transport_options = {
-    'visibility_timeout': 3600,
-    'polling_interval': 60.0,  # 1 minute - good balance for booking responsiveness
-    'max_retries': 3,
-    'fanout_prefix': True,
-    'fanout_patterns': True,
-}
+# Try to get from environment first
+import json
+broker_opts_env = os.getenv('CELERY_BROKER_TRANSPORT_OPTIONS')
+if broker_opts_env:
+    try:
+        broker_transport_options = json.loads(broker_opts_env)
+        logger.info(f"Using broker options from environment: {broker_transport_options}")
+    except:
+        broker_transport_options = {
+            'visibility_timeout': 3600,
+            'polling_interval': 60.0,
+            'max_retries': 3,
+            'fanout_prefix': True,
+            'fanout_patterns': True,
+        }
+else:
+    broker_transport_options = {
+        'visibility_timeout': 3600,
+        'polling_interval': 60.0,  # 1 minute - good balance for booking responsiveness
+        'max_retries': 3,
+        'fanout_prefix': True,
+        'fanout_patterns': True,
+    }
+
+celery_app.conf.broker_transport_options = broker_transport_options
 
 # Double-check by setting it another way
 celery_app.conf.update({
@@ -120,6 +143,10 @@ celery_app.conf.update({
         'fanout_patterns': True,
     }
 })
+
+# Log the configuration to verify it's being set
+logger.info(f"Celery broker_transport_options: {celery_app.conf.broker_transport_options}")
+logger.info(f"Polling interval should be: {celery_app.conf.broker_transport_options.get('polling_interval', 'NOT SET')}")
 
 # Remove Celery Beat schedule - using external CRON instead
 # Commented out to prevent Beat scheduler from running
