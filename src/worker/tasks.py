@@ -104,7 +104,7 @@ celery_app.conf.update(celery_config)
 # Force broker transport options to ensure they're applied
 celery_app.conf.broker_transport_options = {
     'visibility_timeout': 3600,
-    'polling_interval': 1800.0,  # 30 minutes
+    'polling_interval': 60.0,  # 1 minute - good balance for booking responsiveness
     'max_retries': 3,
     'fanout_prefix': True,
     'fanout_patterns': True,
