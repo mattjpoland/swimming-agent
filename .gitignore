@@ -21,3 +21,5 @@ token_cache.json
 memory_store.json
 
 run_sql_scripts_adhoc.py
+
+/logs/
