@@ -56,7 +56,7 @@ celery_config = {
     # Add these optimizations to reduce Redis requests
     'broker_transport_options': {
         'visibility_timeout': 3600,  # 1 hour
-        'polling_interval': 1800.0,   # Poll every 30 minutes (reduced from 5 minutes)
+        'polling_interval': 60.0,     # Poll every 1 minute - balanced for booking needs
         'max_retries': 3,
         # Additional optimizations
         'fanout_prefix': True,
