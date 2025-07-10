@@ -166,18 +166,18 @@ def should_run_booking(username, day_of_week, cutoff_time=None):
     Args:
         username: The username to check
         day_of_week: The day of the week (e.g., 'monday', 'tuesday', etc.)
-        cutoff_time: Optional datetime to check against. If not provided, uses midnight of current day.
+        cutoff_time: Optional datetime to check against. If not provided, uses 9 PM Eastern of current day.
     
     Returns:
         bool: True if booking should run, False if it already ran successfully today
     """
     column_name = f"{day_of_week}_last_success"
     
-    # If no cutoff time provided, use midnight of current day in Eastern time
+    # If no cutoff time provided, use 9 PM Eastern of current day
     if cutoff_time is None:
         eastern = pytz.timezone('US/Eastern')
         now = datetime.datetime.now(eastern)
-        cutoff_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        cutoff_time = now.replace(hour=21, minute=0, second=0, microsecond=0)
     
     conn = get_db_connection()
     cursor = conn.cursor()

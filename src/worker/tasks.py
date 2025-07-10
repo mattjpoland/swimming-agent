@@ -153,17 +153,17 @@ logger.info(f"Polling interval should be: {celery_app.conf.broker_transport_opti
 # from celery.schedules import crontab
 # 
 # celery_app.conf.beat_schedule = {
-#     'auto-booking-midnight': {
+#     'auto-booking-nine-pm': {
 #         'task': 'run_auto_booking',
-#         'schedule': crontab(hour='0', minute='1'),  # 12:01 AM Eastern
+#         'schedule': crontab(hour='21', minute='1'),  # 9:01 PM Eastern
 #     },
 #     'auto-booking-retry-1': {
 #         'task': 'run_auto_booking',
-#         'schedule': crontab(hour='0', minute='10'),  # 12:10 AM Eastern
+#         'schedule': crontab(hour='21', minute='10'),  # 9:10 PM Eastern
 #     },
 #     'auto-booking-retry-2': {
 #         'task': 'run_auto_booking',
-#         'schedule': crontab(hour='0', minute='20'),  # 12:20 AM Eastern
+#         'schedule': crontab(hour='21', minute='20'),  # 9:20 PM Eastern
 #     },
 # }
 
