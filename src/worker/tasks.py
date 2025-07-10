@@ -110,6 +110,17 @@ celery_app.conf.broker_transport_options = {
     'fanout_patterns': True,
 }
 
+# Double-check by setting it another way
+celery_app.conf.update({
+    'broker_transport_options': {
+        'visibility_timeout': 3600,
+        'polling_interval': 60.0,
+        'max_retries': 3,
+        'fanout_prefix': True,
+        'fanout_patterns': True,
+    }
+})
+
 # Remove Celery Beat schedule - using external CRON instead
 # Commented out to prevent Beat scheduler from running
 # from celery.schedules import crontab
