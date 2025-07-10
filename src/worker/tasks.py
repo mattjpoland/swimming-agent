@@ -104,23 +104,24 @@ if USE_SSL:
 # Apply the configuration
 celery_app.conf.update(celery_config)
 
-# Add Celery Beat schedule for auto-booking
-from celery.schedules import crontab
-
-celery_app.conf.beat_schedule = {
-    'auto-booking-midnight': {
-        'task': 'run_auto_booking',
-        'schedule': crontab(hour='0', minute='1'),  # 12:01 AM Eastern
-    },
-    'auto-booking-retry-1': {
-        'task': 'run_auto_booking',
-        'schedule': crontab(hour='0', minute='10'),  # 12:10 AM Eastern
-    },
-    'auto-booking-retry-2': {
-        'task': 'run_auto_booking',
-        'schedule': crontab(hour='0', minute='20'),  # 12:20 AM Eastern
-    },
-}
+# Remove Celery Beat schedule - using external CRON instead
+# Commented out to prevent Beat scheduler from running
+# from celery.schedules import crontab
+# 
+# celery_app.conf.beat_schedule = {
+#     'auto-booking-midnight': {
+#         'task': 'run_auto_booking',
+#         'schedule': crontab(hour='0', minute='1'),  # 12:01 AM Eastern
+#     },
+#     'auto-booking-retry-1': {
+#         'task': 'run_auto_booking',
+#         'schedule': crontab(hour='0', minute='10'),  # 12:10 AM Eastern
+#     },
+#     'auto-booking-retry-2': {
+#         'task': 'run_auto_booking',
+#         'schedule': crontab(hour='0', minute='20'),  # 12:20 AM Eastern
+#     },
+# }
 
 # Set timezone for beat schedule
 celery_app.conf.update({'timezone': 'US/Eastern'})

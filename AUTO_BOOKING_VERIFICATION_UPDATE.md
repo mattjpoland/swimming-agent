@@ -35,11 +35,12 @@ The auto-booking system has been updated to verify that bookings are actually su
 ### 5. **CRON Schedule Example**
 ```cron
 # Multiple runs to handle failures and system load
-1 0 * * * /path/to/celery/worker/command  # First attempt at 12:01 AM
-10 0 * * * /path/to/celery/worker/command # Retry at 12:10 AM
-20 0 * * * /path/to/celery/worker/command # Retry at 12:20 AM
-30 0 * * * /path/to/celery/worker/command # Retry at 12:30 AM
-40 0 * * * /path/to/celery/worker/command # Final retry at 12:40 AM
+# All times in ET (Eastern Time)
+1 21 * * * /path/to/curl/command  # First attempt at 9:01 PM ET
+10 21 * * * /path/to/curl/command # Retry at 9:10 PM ET
+20 21 * * * /path/to/curl/command # Retry at 9:20 PM ET
+30 21 * * * /path/to/curl/command # Retry at 9:30 PM ET
+40 21 * * * /path/to/curl/command # Final retry at 9:40 PM ET
 ```
 
 ### 6. **Admin Interface Updates**

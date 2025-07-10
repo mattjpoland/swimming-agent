@@ -104,7 +104,19 @@ REDIS_URL=rediss://:password@host:port
 The `render.yaml` file defines two services:
 
 1. **Web Service** (`swimming-agent-web`): Runs the Flask application
-2. **Worker Service** (`swimming-agent-worker`): Runs the Celery worker
+2. **Worker Service** (`swimming-agent-worker`): Runs the Celery worker with smart polling
+
+### Smart Polling Configuration
+
+The worker uses a smart polling strategy based on time of day:
+- **Active Hours (8 PM - 11 PM ET)**: Polls every 30 seconds during booking window
+- **Quiet Hours (all other times)**: Polls every 30 minutes to minimize Redis requests
+
+This configuration is optimized for the 9 PM ET booking window when the swimming facility releases new appointment slots.
+
+### Important Note on Celery Beat
+
+Celery Beat scheduler has been disabled in this configuration. All scheduling should be done through external CRON services (like Render's CRON jobs) that call the appropriate API endpoints. This significantly reduces Redis polling overhead.
 
 ### Environment Variables on Render
 

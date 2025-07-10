@@ -5,8 +5,9 @@
 HOUR=$(TZ="America/New_York" date +%H)
 echo "Current Eastern hour: $HOUR"
 
-# Check if we're in booking window (11 PM - 4 AM Eastern)
-if [ $HOUR -ge 23 ] || [ $HOUR -le 4 ]; then
+# Check if we're in booking window (8 PM - 11 PM Eastern)
+# This covers 9 PM ET booking time in both EDT and EST
+if [ $HOUR -ge 20 ] && [ $HOUR -le 23 ]; then
     echo "ACTIVE HOURS: Running with moderate polling (30 second intervals)"
     # During booking hours: moderate polling (not too aggressive)
     export CELERY_BROKER_TRANSPORT_OPTIONS='{"polling_interval": 30.0}'
