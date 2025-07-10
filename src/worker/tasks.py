@@ -66,6 +66,7 @@ celery_config = {
     'task_ignore_result': True,  # Don't store results unless explicitly needed
     'task_acks_late': True,  # Acknowledge tasks after completion
     'worker_send_task_events': False,  # Disable task events
+    'task_send_sent_event': False,  # Don't send task-sent events
     'worker_disable_rate_limits': True,  # Disable rate limit checks
     # Additional optimizations
     'broker_connection_retry': False,  # Don't retry connection on startup
@@ -99,6 +100,15 @@ if USE_SSL:
 
 # Apply the configuration
 celery_app.conf.update(celery_config)
+
+# Force broker transport options to ensure they're applied
+celery_app.conf.broker_transport_options = {
+    'visibility_timeout': 3600,
+    'polling_interval': 1800.0,  # 30 minutes
+    'max_retries': 3,
+    'fanout_prefix': True,
+    'fanout_patterns': True,
+}
 
 # Remove Celery Beat schedule - using external CRON instead
 # Commented out to prevent Beat scheduler from running
