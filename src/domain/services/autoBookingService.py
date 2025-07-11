@@ -7,6 +7,14 @@ from src.domain.sql.scheduleGateway import get_all_active_schedules, should_run_
 from src.domain.sql.authGateway import get_mac_password
 import pytz
 
+# Configuration for MAC booking system
+# Default to 8 days for the new 9 PM booking window (9 PM on day X → book for day X+8)
+# Can be set to 7 for the old midnight booking window (12 AM on day X → book for day X+7)
+MAC_BOOKING_DAYS_AHEAD = int(os.getenv("MAC_BOOKING_DAYS_AHEAD", "8"))
+
+# Log the configuration on module load
+logging.info(f"MAC booking configuration: Booking {MAC_BOOKING_DAYS_AHEAD} days ahead")
+
 def get_day_of_week():
     """Get the current day of the week in lowercase."""
     eastern = pytz.timezone('US/Eastern')
@@ -191,7 +199,7 @@ def process_auto_booking():
         eastern = pytz.timezone('US/Eastern')
         now = datetime.datetime.now(eastern)
         # Calculate the target booking date (one week from today)
-        target_date = now + datetime.timedelta(days=7)
+        target_date = now + datetime.timedelta(days=MAC_BOOKING_DAYS_AHEAD)
         booking_date = target_date.strftime("%Y-%m-%d")
         
         # Replace {date} placeholder in the command with the target date

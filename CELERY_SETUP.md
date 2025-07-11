@@ -112,7 +112,7 @@ The worker uses a smart polling strategy based on time of day:
 - **Active Hours (8 PM - 11 PM ET)**: Polls every 30 seconds during booking window
 - **Quiet Hours (all other times)**: Polls every 30 minutes to minimize Redis requests
 
-This configuration is optimized for the 9 PM ET booking window when the swimming facility releases new appointment slots.
+This configuration is optimized for the 9 PM ET booking window when the swimming facility releases new appointment slots. At 9 PM on day X, the system can book appointments for day X+8 (configured via `MAC_BOOKING_DAYS_AHEAD`).
 
 ### Important Note on Celery Beat
 
@@ -128,6 +128,17 @@ Set the following environment variables in your Render dashboard:
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
 - `MAC_PASSWORD`
+- `MAC_BOOKING_DAYS_AHEAD` (optional, defaults to 8)
+
+### MAC Booking Configuration
+
+The system supports configurable booking windows to accommodate changes in the MAC's booking system:
+
+- **`MAC_BOOKING_DAYS_AHEAD`**: Number of days in advance that bookings can be made
+  - Default: `8` (for 9 PM booking window: 9 PM on day X → book for day X+8)
+  - Set to `7` for the old midnight booking window (12 AM on day X → book for day X+7)
+
+Example: If the MAC reverts to the midnight booking window, set `MAC_BOOKING_DAYS_AHEAD=7` in your environment variables.
 
 ### Manual Deployment
 

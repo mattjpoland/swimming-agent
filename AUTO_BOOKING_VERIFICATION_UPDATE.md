@@ -26,13 +26,33 @@ The auto-booking system has been updated to verify that bookings are actually su
 7. If not verified: Leaves timestamp unchanged for retry
 ```
 
-### 4. **Benefits**
+### 4. **Configurable Booking Window**
+The system now supports configurable booking windows to accommodate MAC scheduling changes:
+
+- **Environment Variable**: `MAC_BOOKING_DAYS_AHEAD`
+  - Default: `8` (for 9 PM booking window)
+  - Set to `7` for the old midnight booking window
+
+**How it works:**
+- **9 PM booking (current)**: At 9 PM on day X → book for day X+8
+- **Midnight booking (old)**: At 12 AM on day X → book for day X+7
+
+To change the configuration, set the environment variable:
+```bash
+# For 9 PM booking window (default)
+MAC_BOOKING_DAYS_AHEAD=8
+
+# For midnight booking window
+MAC_BOOKING_DAYS_AHEAD=7
+```
+
+### 5. **Benefits**
 - **Reliability**: Failed attempts don't block future attempts
 - **Fairness**: Users aren't penalized if the agent gets confused
 - **Verification**: Only actual successful bookings count as "success"
 - **Multiple Attempts**: CRON can run at 12:01, 12:10, 12:20, etc. for retries
 
-### 5. **CRON Schedule Example**
+### 6. **CRON Schedule Example**
 ```cron
 # Multiple runs to handle failures and system load
 # All times in ET (Eastern Time)
@@ -43,34 +63,11 @@ The auto-booking system has been updated to verify that bookings are actually su
 40 21 * * * /path/to/curl/command # Final retry at 9:40 PM ET
 ```
 
-### 6. **Admin Interface Updates**
+### 7. **Admin Interface Updates**
 - Shows last successful booking timestamp for each day
 - Green = Successfully booked today
 - Red = No successful booking today yet
 - Info box explains the one-week advance booking system
 
-### 7. **User Dashboard Updates**
-- Clarifies that `{date}` placeholder = one week from run date
-- Example added showing detailed booking preferences
-- Instructions updated to reflect the advance booking timeline
-
-## Testing the System
-
-1. **Test Successful Booking**:
-   - Set up a schedule for a user
-   - Run the auto-booking task
-   - Verify booking exists for date 1 week out
-   - Check that last success timestamp is updated
-
-2. **Test Failed Booking**:
-   - Temporarily break the booking (e.g., invalid command)
-   - Run the auto-booking task
-   - Verify NO booking exists for target date
-   - Check that last success timestamp is NOT updated
-   - Run task again - it should retry the booking
-
-3. **Test Multiple Users**:
-   - Set up schedules for multiple users
-   - Have some succeed and some fail
-   - Verify only successful bookings update timestamps
-   - Failed users should be retried on next run 
+### 8. **User Dashboard Updates**
+- Clarifies that `{date}`
