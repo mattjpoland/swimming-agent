@@ -17,14 +17,20 @@ The auto-booking system has been updated to verify that bookings are actually su
 
 ### 3. **How It Works**
 ```
-1. CRON job runs (e.g., at 12:01 AM)
-2. System checks if user already has a successful booking today
-3. If not, sends booking command to agent (for date 1 week out)
-4. Agent attempts to book the lane
-5. System verifies booking exists for target date
-6. Only if verified: Updates last success timestamp
-7. If not verified: Leaves timestamp unchanged for retry
+1. CRON job runs (e.g., at 9:01 PM)
+2. System determines the target day (current day + MAC_BOOKING_DAYS_AHEAD)
+3. Uses the TARGET DAY's command from the schedule (not today's command)
+4. Checks if user already has a successful booking for the target day today
+5. If not, sends booking command to agent (for date MAC_BOOKING_DAYS_AHEAD days out)
+6. Agent attempts to book the lane
+7. System verifies booking exists for target date
+8. Only if verified: Updates last success timestamp for the target day
+9. If not verified: Leaves timestamp unchanged for retry
 ```
+
+**Important Note**: With the 9 PM booking window, the system uses the command for the day you're booking FOR, not the day it's running ON. For example:
+- Running on Friday at 9 PM → Uses Saturday's command (booking for next Saturday)
+- Running on Saturday at 9 PM → Uses Sunday's command (booking for next Sunday)
 
 ### 4. **Configurable Booking Window**
 The system now supports configurable booking windows to accommodate MAC scheduling changes:

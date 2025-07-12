@@ -145,7 +145,14 @@ def process_auto_booking():
     
     # Get current day of week
     today = get_day_of_week()
-    logging.info(f"Processing bookings for {today}")
+    
+    # Calculate the target day (what day we're booking for)
+    eastern = pytz.timezone('US/Eastern')
+    now = datetime.datetime.now(eastern)
+    target_date = now + datetime.timedelta(days=MAC_BOOKING_DAYS_AHEAD)
+    target_day = target_date.strftime("%A").lower()
+    
+    logging.info(f"Running on {today}, booking for {target_day} ({MAC_BOOKING_DAYS_AHEAD} days ahead)")
     
     # Get all active schedules
     schedules = get_all_active_schedules()
@@ -154,19 +161,20 @@ def process_auto_booking():
     results = []
     for schedule in schedules:
         username = schedule["username"]
-        today_command = schedule.get(today)
+        # Get the command for the TARGET day, not today
+        target_command = schedule.get(target_day)
         
-        if not today_command:
-            logging.info(f"No booking scheduled for {username} on {today}")
+        if not target_command:
+            logging.info(f"No booking scheduled for {username} on {target_day}")
             continue
         
-        # Check if this user's booking for today has already run successfully
-        if not should_run_booking(username, today):
-            logging.info(f"Skipping {username} - booking already completed successfully today")
+        # Check if this user's booking for the target day has already run today
+        if not should_run_booking(username, target_day):
+            logging.info(f"Skipping {username} - booking for {target_day} already completed today")
             results.append({
                 "username": username,
                 "status": "skipped",
-                "message": "Already completed successfully today"
+                "message": f"Already completed booking for {target_day} today"
             })
             continue
         
@@ -195,15 +203,11 @@ def process_auto_booking():
         
         user_api_key = user_auth["api_key"]
         
-        # Format date for booking - one week from today
-        eastern = pytz.timezone('US/Eastern')
-        now = datetime.datetime.now(eastern)
-        # Calculate the target booking date (one week from today)
-        target_date = now + datetime.timedelta(days=MAC_BOOKING_DAYS_AHEAD)
+        # Format date for booking - target date is already calculated above
         booking_date = target_date.strftime("%Y-%m-%d")
         
         # Replace {date} placeholder in the command with the target date
-        processed_command = today_command.replace("{date}", booking_date)
+        processed_command = target_command.replace("{date}", booking_date)
         
         # Get the context for this user
         from src.contextManager import load_context_for_authenticated_user
@@ -249,8 +253,8 @@ def process_auto_booking():
                         
                         # Update the last successful run timestamp only if booking is verified
                         try:
-                            update_last_success(username, today)
-                            logging.info(f"Updated last success timestamp for {username} on {today}")
+                            update_last_success(username, target_day)
+                            logging.info(f"Updated last success timestamp for {username} on {target_day}")
                         except Exception as e:
                             logging.error(f"Failed to update last success timestamp for {username}: {e}")
                         

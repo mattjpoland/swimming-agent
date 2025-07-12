@@ -166,18 +166,21 @@ def should_run_booking(username, day_of_week, cutoff_time=None):
     Args:
         username: The username to check
         day_of_week: The day of the week (e.g., 'monday', 'tuesday', etc.)
-        cutoff_time: Optional datetime to check against. If not provided, uses 9 PM Eastern of current day.
+        cutoff_time: Optional datetime to check against. If not provided, uses midnight Eastern of current day.
     
     Returns:
         bool: True if booking should run, False if it already ran successfully today
     """
     column_name = f"{day_of_week}_last_success"
     
-    # If no cutoff time provided, use 9 PM Eastern of current day
+    # If no cutoff time provided, use midnight Eastern of current day
+    # This ensures each day's bookings start fresh
     if cutoff_time is None:
         eastern = pytz.timezone('US/Eastern')
         now = datetime.datetime.now(eastern)
-        cutoff_time = now.replace(hour=21, minute=0, second=0, microsecond=0)
+        # Set cutoff to midnight (00:00) of the current day
+        cutoff_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        logging.info(f"Using cutoff time: {cutoff_time} for {day_of_week} booking check")
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -204,8 +207,10 @@ def should_run_booking(username, day_of_week, cutoff_time=None):
             
             # If last success was after the cutoff time, don't run again
             if last_success > cutoff_time_utc:
-                logging.info(f"Skipping {username} on {day_of_week} - already ran successfully at {last_success}")
+                logging.info(f"Skipping {username} on {day_of_week} - already ran successfully at {last_success} (after cutoff {cutoff_time_utc})")
                 return False
+            else:
+                logging.info(f"Allowing {username} on {day_of_week} - last success {last_success} was before cutoff {cutoff_time_utc}")
         
         # No last success recorded or it was before cutoff time
         return True
